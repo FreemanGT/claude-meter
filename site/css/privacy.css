@@ -1,0 +1,238 @@
+/* §05 privacy — owned by the privacy builder. Scope every rule under .s--privacy. */
+
+/* A night display framed in paper; once html[data-night] floods the page the frame disappears.
+   Contextual tokens are pinned to night here so the section reads right before and after the flood. */
+.s--privacy{
+  --bg:var(--night); --fg-text:var(--fg); --fg-text-2:var(--fg-2); --rule-c:var(--rule-night);
+  margin-inline:var(--frame);border-radius:var(--r-screen);
+  background:var(--night);color:var(--fg);
+}
+.s--privacy code{font:400 .9em/1 var(--f-mono);letter-spacing:-.01em;color:var(--fg)}
+
+/* ---------- headline + lead: the lead sits in the empty lower-left, beside "Never writes." ---------- */
+.s--privacy .pv-head{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:var(--col-gap);margin-top:clamp(28px,4vh,56px)}
+.s--privacy .pv-title{grid-area:1 / 1 / 2 / -1;font:inherit;margin:0}
+.s--privacy .pv-title__vis{display:flex;flex-direction:column}
+.s--privacy .pv-reads{
+  display:block;font:900 calc(var(--t-wall) * .6)/.8 var(--f-display);font-stretch:100%;
+  letter-spacing:-.04em;white-space:nowrap;margin-left:-.04em;
+}
+/* JS lays the chars out once at wdth 130 and scrubs a packed scaleX from their measured wdth-60 widths:
+   transform only, so the scrub never relayouts and never shifts the page */
+.s--privacy .pv-ch{display:inline-block;transform-origin:0 50%;font-stretch:calc(var(--w, 100) * 1%);letter-spacing:calc(.01em - (var(--w, 100) - 60) * .0007em)}
+.s--privacy .pv-never{
+  align-self:flex-end;font:780 calc(var(--t-h2) * 1.4)/.92 var(--f-display);font-stretch:78%;letter-spacing:-.03em;
+  margin-top:.34em;
+  /* clip box for the rise-in; padding keeps the italic overhang and the mark inside it */
+  overflow:clip;padding:.04em .2em .14em;margin-right:-.2em;margin-bottom:-.14em;
+}
+.s--privacy .pv-never__in{display:inline-block;white-space:nowrap}
+.s--privacy .pv-never__em{color:var(--red);padding-right:.04em}
+.s--privacy .pv-mark::after{bottom:.17em;height:.3em;left:-.04em;right:-.06em}
+
+.s--privacy .pv-lead{
+  grid-area:1 / 1 / 2 / 6;align-self:end;max-width:44ch;margin:0 0 .35em;
+  font:420 var(--t-lede)/var(--lh-lede) var(--f-display);font-stretch:96%;color:var(--fg-2);text-wrap:pretty;
+}
+.s--privacy .pv-lead code{color:var(--fg)}
+.s--privacy .pv-nw{white-space:nowrap}
+
+/* ---------- network diagram ---------- */
+.s--privacy .pv-net{position:relative;container-type:inline-size;margin:clamp(40px,6vh,80px) 0 0;
+  /* pin scale: 1px at the full 1240px stage, shrinking with it (floor .78) so chips never collide on smaller screens */
+  --u:clamp(.78px, calc(min(100cqw, 1240px) / 1240), 1px)}
+.s--privacy .pv-stage{position:relative;width:100%;max-width:1240px;aspect-ratio:var(--vw) / var(--vh)}
+.s--privacy .pv-stage--v{display:none}
+.s--privacy .pv-svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.s--privacy .pv-grid{pointer-events:none}
+.s--privacy pattern circle{fill:rgb(236 237 232 / .12)}
+
+.s--privacy .pv-r--usage,.s--privacy .pv-host--usage,.s--privacy .pv-pkt--usage{--c:var(--teal)}
+.s--privacy .pv-r--token,.s--privacy .pv-host--token,.s--privacy .pv-pkt--token{--c:var(--lav)}
+.s--privacy .pv-r--version,.s--privacy .pv-host--version,.s--privacy .pv-pkt--version{--c:var(--amber)}
+.s--privacy .pv-src,.s--privacy .pv-pkt--read{--c:var(--fg)}
+.s--privacy .pv-host--else{--c:var(--red)}
+
+.s--privacy .pv-route{fill:none;stroke:var(--c);stroke-width:1.6;stroke-linecap:round;opacity:.9;
+  transition:opacity var(--d-ui) var(--ease-settle),stroke-width var(--d-ui) var(--ease-settle)}
+.s--privacy .pv-read,.s--privacy .pv-read__tip{fill:none;stroke:var(--fg);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;opacity:.55;
+  transition:opacity var(--d-ui) var(--ease-settle)}
+.s--privacy .pv-ghost{fill:none;stroke:rgb(236 237 232 / .24);stroke-width:1.4;stroke-dasharray:1 7;stroke-linecap:round}
+.s--privacy .pv-else{fill:none;stroke:var(--red);stroke-width:1.8;stroke-dasharray:7 7}
+.s--privacy .pv-else-reveal{fill:none;stroke:#fff;stroke-width:16;stroke-linecap:butt}
+.s--privacy .pv-x circle{fill:var(--night);stroke:var(--red);stroke-width:1.6}
+.s--privacy .pv-x path{fill:none;stroke:var(--red);stroke-width:2.6;stroke-linecap:round}
+
+/* HTML pins over the SVG, anchored in viewBox units (--x/--y), so text stays crisp at any scale.
+   Chips put their dot on the anchor; offsets are margins because GSAP owns transforms. */
+.s--privacy .pv-stage :is(.pv-pin,.pv-lbl,.pv-rw,.pv-node){position:absolute;left:calc(var(--x) / var(--vw) * 100%);top:calc(var(--y) / var(--vh) * 100%)}
+.s--privacy .pv-hosts{list-style:none;margin:0;padding:0}
+.s--privacy .pv-stage{--chip-h:calc(32 * var(--u));--pad:calc(12 * var(--u));--dot:calc(7 * var(--u));--gap:calc(9 * var(--u));--lh:calc(18 * var(--u))}
+.s--privacy .pv-pin{
+  max-width:calc(100% - var(--x) / var(--vw) * 100% + var(--pad) + var(--dot) / 2);
+  margin:calc(var(--chip-h) / -2) 0 0 calc(-1 * (var(--pad) + var(--dot) / 2));
+  display:flex;flex-direction:column;align-items:flex-start;gap:calc(7 * var(--u));
+}
+.s--privacy .pv-chip{
+  display:inline-flex;align-items:flex-start;gap:var(--gap);padding:calc((var(--chip-h) - 2px - var(--lh)) / 2) calc(16 * var(--u)) calc((var(--chip-h) - 2px - var(--lh)) / 2) var(--pad);
+  border:1px solid var(--rule-night);border-radius:var(--r-pill);background:rgb(7 7 8 / .86);
+  font:400 calc(14 * var(--u))/var(--lh) var(--f-mono);letter-spacing:-.01em;color:var(--fg);overflow-wrap:anywhere;
+  transition:border-color var(--d-ui) var(--ease-settle),opacity var(--d-ui) var(--ease-settle);
+}
+.s--privacy .pv-dot{position:relative;flex:none;width:var(--dot);height:var(--dot);margin-top:calc((var(--lh) - var(--dot)) / 2);border-radius:50%;background:var(--c)}
+.s--privacy .pv-ping{position:absolute;inset:0;border-radius:50%;border:1px solid var(--c);opacity:0}
+.s--privacy .pv-desc{padding-left:calc(var(--pad) + var(--dot) + var(--gap));font:420 calc(15 * var(--u))/1.3 var(--f-display);font-stretch:96%;color:var(--fg-2);
+  transition:opacity var(--d-ui) var(--ease-settle)}
+.s--privacy .pv-desc code{font-size:.88em;color:var(--fg-2)}
+.s--privacy .pv-host--else .pv-chip{border-style:dashed;border-color:rgb(242 107 107 / .45);color:var(--fg-2)}
+.s--privacy .pv-host--else .pv-desc{font:400 1.15em/1.2 var(--f-serif);font-style:italic;color:var(--fg)}
+
+/* group heads: "01 READS", "02 TALKS TO" in the diagram, "03 NEVER" on the legend */
+.s--privacy .pv-lbl{display:flex;gap:12px;align-items:baseline;margin:0;white-space:nowrap;
+  font:500 var(--t-label)/1.2 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--fg)}
+.s--privacy .pv-stage .pv-lbl{margin-left:calc(-1 * (var(--pad) + var(--dot) / 2));font-size:max(10px, calc(12 * var(--u)))}
+.s--privacy .pv-lbl__n{color:var(--fg-3)}
+.s--privacy .pv-lbl--never{color:var(--red);font-weight:700;align-items:center}
+.s--privacy .pv-lbl__x{flex:none;width:15px;height:15px;margin-right:-4px;overflow:visible}
+.s--privacy .pv-lbl__x circle{fill:none;stroke:var(--red);stroke-width:1.4}
+.s--privacy .pv-lbl__x path{fill:none;stroke:var(--red);stroke-width:2;stroke-linecap:round}
+
+/* the read connector's two labels: the headline, restated as a wire */
+.s--privacy .pv-rw{display:flex;flex-direction:column;align-items:flex-start;gap:calc(6 * var(--u));margin:0;
+  font:500 max(10px, calc(12 * var(--u)))/1.2 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--fg-2)}
+.s--privacy .pv-rw__r{color:var(--fg)}
+.s--privacy .pv-rw__w{position:relative;color:var(--red);font-weight:700}
+.s--privacy .pv-rw__wt{display:inline-block}
+.s--privacy .pv-rw__w svg{position:absolute;left:-4px;top:50%;width:calc(100% + 6px);height:10px;translate:0 -50%;color:var(--red);overflow:visible}
+
+/* your Mac: icon, a slow dotted orbit (its own layer, so spinning it never repaints the SVG), label */
+.s--privacy .pv-node{--s:calc(96 * var(--u));--ring:calc(132 * var(--u));width:0;height:0}
+.s--privacy .pv-node__icon{position:absolute;left:calc(var(--s) / -2);top:calc(var(--s) / -2);width:var(--s);height:var(--s);display:block;max-width:none}
+.s--privacy .pv-node__ring{position:absolute;left:calc(var(--ring) / -2);top:calc(var(--ring) / -2);width:var(--ring);height:var(--ring);max-width:none;overflow:visible}
+.s--privacy .pv-node__ring circle{fill:none;stroke:rgb(236 237 232 / .22);stroke-width:1;stroke-dasharray:2 6;vector-effect:non-scaling-stroke}
+.s--privacy .pv-node__label{position:absolute;left:0;top:calc(var(--ring) / 2 + 4px);translate:-50% 0;white-space:nowrap;
+  font:500 max(10px, calc(13 * var(--u)))/1 var(--f-mono);letter-spacing:.14em;color:var(--fg-2)}
+
+/* with packets running, routes step back so the light reads */
+html[data-motion="full"] .s--privacy .pv-route{opacity:.5}
+
+/* hover a chip: its wire lights, the rest step back */
+@media (hover:hover){
+  .s--privacy .pv-stage:has(.pv-pin:hover) :is(.pv-route,.pv-read,.pv-read__tip){opacity:.14}
+  .s--privacy .pv-stage:has(.pv-pin:hover) .pv-pin:not(:hover){opacity:.32}
+  .s--privacy .pv-stage:has(.pv-host--usage:hover) .pv-r--usage,
+  .s--privacy .pv-stage:has(.pv-host--token:hover) .pv-r--token,
+  .s--privacy .pv-stage:has(.pv-host--version:hover) .pv-r--version{opacity:1;stroke-width:2.2}
+  .s--privacy .pv-stage:has(.pv-src:hover) :is(.pv-read,.pv-read__tip){opacity:1}
+  .s--privacy .pv-pin:hover .pv-chip{border-color:var(--c)}
+}
+
+/* packets (motion only; built by privacy.js): a viewBox-sized layer scaled to the stage. Each packet
+   is a composited transform/opacity animation over precomputed path points: no layout, no SVG repaint. */
+.s--privacy .pv-pk{position:absolute;left:0;top:0;width:calc(var(--vw) * 1px);height:calc(var(--vh) * 1px);
+  transform-origin:0 0;transform:scale(var(--k, 1));pointer-events:none}
+/* one element per packet: a dot whose tail stretches with its speed (scaleX from the head, rotated to the
+   wire's tangent), so it streaks mid-flight and settles to a point at either end */
+.s--privacy .pv-pkt{
+  --z:calc(6px / var(--k, 1));position:absolute;left:0;top:0;width:calc(var(--z) * 2);height:var(--z);
+  margin:calc(var(--z) / -2) 0 0 calc(var(--z) * -1.5);border-radius:var(--z);transform-origin:75% 50%;
+  background:linear-gradient(90deg, transparent, var(--c) 62%);opacity:0;
+  box-shadow:calc(var(--z) / 2) 0 calc(var(--z) * 2) calc(var(--z) / -4) var(--c);
+}
+
+.s--privacy .pv-net__cap{margin-top:clamp(20px,3vh,28px);max-width:66ch;font:400 12px/1.6 var(--f-mono);color:var(--fg-2);text-wrap:pretty}
+/* desktop: the caption sits in the diagram's empty lower-left, on the "01" axis (stage = min(100cqw, 1240px) wide) */
+@media (min-width:1024px){
+  .s--privacy .pv-net__cap{position:absolute;margin:0;left:calc(min(100cqw, 1240px) / 12 - 15.5px);top:calc(min(100cqw, 1240px) * 356 / 1200);
+    max-width:calc(min(100cqw, 1240px) * 540 / 1200)}
+}
+
+/* ---------- legend: the NEVER list, counted ---------- */
+.s--privacy .pv-legend{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:var(--col-gap);row-gap:20px;align-items:start;
+  max-width:1240px;margin-top:clamp(28px,4.5vh,48px);padding-top:18px;border-top:1px solid var(--rule-night)}
+.s--privacy .pv-legend .pv-lbl{grid-column:1 / 3;padding-top:.5em}
+.s--privacy .pv-zeros{grid-column:3 / -1;list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));column-gap:var(--col-gap);row-gap:24px}
+.s--privacy .pv-zero{display:flex;align-items:flex-start;gap:14px;min-width:0}
+.s--privacy .pv-zero__n{flex:none;font:300 clamp(52px,5.2vw,84px)/.78 var(--f-mono);letter-spacing:-.04em;color:var(--fg);margin-left:-.04em}
+.s--privacy .pv-zero__n.is-blank{color:var(--fg-3)}
+.s--privacy .pv-zero__txt{display:flex;flex-direction:column;gap:6px;min-width:0}
+.s--privacy .pv-zero__cap{font:500 var(--t-label)/1.3 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--fg)}
+.s--privacy .pv-zero__sub{font:400 12px/1.4 var(--f-mono);color:var(--fg-3);text-wrap:pretty}
+
+/* ---------- 04 open source (the proof) + 05 this website (the only ask) ---------- */
+.s--privacy :is(.pv-os,.pv-site){display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:var(--col-gap);row-gap:20px;align-items:start;
+  max-width:1240px;margin-top:clamp(56px,9vh,112px);padding-top:18px;border-top:1px solid var(--rule-night)}
+.s--privacy :is(.pv-os,.pv-site) > .pv-lbl{grid-column:1 / 3;padding-top:.5em}
+.s--privacy .pv-os__h{grid-column:3 / 9;margin:0;font:780 calc(var(--t-h2) * .9)/.92 var(--f-display);font-stretch:78%;letter-spacing:-.03em;color:var(--fg);text-wrap:balance;
+  overflow:clip;padding:.04em .3em .14em .02em;margin:-.04em -.3em -.14em -.02em}
+.s--privacy .pv-os__in{display:inline-block}
+.s--privacy .pv-os__em{white-space:nowrap}
+/* the ✕ that closed the diagram, answered: a teal ✓ stamps after "compiles." */
+.s--privacy .pv-os__ok{display:inline-block;width:.46em;height:.46em;margin-left:.14em;vertical-align:.06em;overflow:visible}
+.s--privacy .pv-os__ok circle{fill:none;stroke:var(--teal);stroke-width:2}
+.s--privacy .pv-os__ok path{fill:none;stroke:var(--teal);stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round}
+.s--privacy .pv-os__go{grid-column:9 / -1;align-self:end;display:flex;flex-direction:column;align-items:flex-start;gap:14px;padding-bottom:.4em}
+.s--privacy .pv-os__meta{margin:0;max-width:36ch;font:400 12px/1.6 var(--f-mono);color:var(--fg-2);text-wrap:pretty}
+.s--privacy .pv-os__meta code{font-size:1em;color:var(--fg)}
+
+/* the star button: the diagram's chip grammar at CTA size; hover FILLS the star like a meter */
+.s--privacy .pv-gh{--c:var(--amber);display:inline-flex;align-items:center;gap:12px;height:48px;padding:0 8px 0 18px;
+  border:1px solid var(--rule-night);border-radius:var(--r-pill);background:rgb(7 7 8 / .86);color:var(--fg);text-decoration:none;
+  font:650 16px/1 var(--f-display);font-stretch:92%;letter-spacing:-.005em;
+  transition:border-color var(--d-ui) var(--ease-settle),scale var(--d-micro) var(--ease-settle)}
+.s--privacy .pv-gh:not(:has([data-stars]:not(:empty,[hidden]))){padding-right:20px}
+.s--privacy .pv-gh__star{flex:none;width:20px;height:20px;display:block}
+.s--privacy .pv-gh__star svg{display:block;width:100%;height:100%;overflow:visible}
+.s--privacy .pv-gh__o{fill:none;stroke:var(--c);stroke-width:1.6;stroke-linejoin:round}
+.s--privacy .pv-gh__f{fill:var(--c);clip-path:inset(100% 0 0 0);transition:clip-path var(--d-reveal) var(--ease-edit)}
+.s--privacy .pv-gh__n{align-self:stretch;display:flex;align-items:center;margin:7px 0;padding:0 12px;border-left:1px solid var(--rule-night);
+  font:500 14px/1 var(--f-mono);font-variant-numeric:tabular-nums;color:var(--fg)}
+.s--privacy .pv-gh__n:is(:empty,[hidden]){display:none}
+.s--privacy .pv-gh:active{scale:.97}
+@media (hover:hover){
+  .s--privacy .pv-gh:hover{border-color:var(--c)}
+  .s--privacy .pv-gh:hover .pv-gh__f{clip-path:inset(0 0 0 0)}
+}
+.s--privacy .pv-gh:focus-visible .pv-gh__f{clip-path:inset(0 0 0 0)}
+
+.s--privacy .pv-site{margin-top:clamp(40px,6vh,64px)}
+.s--privacy .pv-site__txt{grid-column:3 / 10;margin:0;max-width:62ch;font:420 var(--t-lede)/var(--lh-lede) var(--f-display);font-stretch:96%;color:var(--fg-2);text-wrap:pretty}
+
+/* ---------- small print ---------- */
+.s--privacy .pv-fine{margin-top:clamp(16px,2.5vh,24px);max-width:66ch;font:400 15px/1.5 var(--f-display);color:var(--fg-2);text-wrap:pretty}
+.s--privacy .pv-fine code{font-size:.88em}
+
+/* ---------- tablet ---------- */
+@media (max-width:1023px){
+  .s--privacy .pv-lead{grid-area:auto;grid-column:4 / -1;margin:clamp(28px,4vh,40px) 0 0}
+  .s--privacy .pv-legend .pv-lbl{grid-column:1 / -1;padding-top:0}
+  .s--privacy .pv-zeros{grid-column:1 / -1}
+  .s--privacy :is(.pv-os,.pv-site) > .pv-lbl{grid-column:1 / -1;padding-top:0}
+  .s--privacy .pv-os__h{grid-column:1 / -1}
+  .s--privacy .pv-os__go{grid-column:1 / -1;padding-bottom:0}
+  .s--privacy .pv-site__txt{grid-column:1 / -1}
+}
+
+/* ---------- mobile ---------- */
+@media (max-width:767px){
+  .s--privacy{border-radius:20px}
+  .s--privacy .pv-reads{font-size:18.4vw}
+  .s--privacy .pv-never{align-self:flex-start;font-size:clamp(44px,13.4vw,72px);margin-top:.2em;padding-left:.02em;margin-left:-.02em}
+  .s--privacy .pv-lead{grid-column:1 / -1}
+  .s--privacy .pv-net{margin-top:56px}
+  .s--privacy .pv-stage--h{display:none}
+  .s--privacy .pv-stage--v{display:block}
+  /* vertical stage: pins scale with it too (1px at a 360px-wide stage, floor .8) */
+  .s--privacy .pv-net{--u:clamp(.8px, calc(100cqw / 360), 1px)}
+  .s--privacy .pv-stage{--chip-h:calc(30 * var(--u));--pad:calc(9 * var(--u));--dot:calc(6 * var(--u));--gap:calc(7 * var(--u));--lh:calc(16 * var(--u))}
+  .s--privacy .pv-pin{gap:calc(5 * var(--u))}
+  .s--privacy .pv-chip{font-size:calc(12 * var(--u));padding-right:calc(12 * var(--u))}
+  .s--privacy .pv-desc{font-size:calc(14 * var(--u))}
+  .s--privacy .pv-rw{font-size:max(10px, calc(11 * var(--u)));gap:calc(5 * var(--u))}
+  .s--privacy .pv-node{--s:calc(64 * var(--u));--ring:calc(92 * var(--u))}
+  .s--privacy .pv-node__label{left:calc(var(--ring) / 2 + 6px);top:-.5em;translate:none;font-size:max(10px, calc(12 * var(--u)))}
+  .s--privacy .pv-zeros{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:28px}
+  .s--privacy .pv-zero{flex-direction:column;gap:10px}
+  .s--privacy .pv-zero__n{font-size:clamp(48px,14vw,64px)}
+  .s--privacy .pv-os__h{font-size:clamp(40px,12.4vw,64px)}
+}

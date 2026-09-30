@@ -1,0 +1,133 @@
+<section id="yours" class="s s--yours" data-section="yours" aria-labelledby="yours-title">
+  <div class="wrap">
+    <p class="rh"><span>§04 — ONE RIGHT&#8209;CLICK</span><span class="rh__datum">APPEARANCE ▸ <span class="yr-datum">SOLID</span></span></p>
+
+    <div class="yr-grid">
+      <div class="yr-copy">
+        <div class="yr-sticky">
+          <h2 id="yours-title">One right&#8209;click. <em>Every setting.</em></h2>
+          <p class="yr-lede">No settings window. Right&#8209;click the island and this is what opens: the app’s own menu, same items, same order.</p>
+          <p class="yr-fine">The menu changes this desk exactly as it changes the app. The lid switch and the Pace lever only simulate things the app decides by itself.</p>
+          <ul class="yr-facts" role="list">
+            <li><i class="yr-tick" aria-hidden="true"><b></b></i>NO DOCK ICON</li>
+            <li><i class="yr-tick" aria-hidden="true"><b></b></i>HIDES IN FULL&#8209;SCREEN APPS</li>
+            <li><i class="yr-tick" aria-hidden="true"><b></b></i>LAUNCH AT LOGIN</li>
+            <li><i class="yr-tick" aria-hidden="true"><b></b></i>LID CLOSED? IT BECOMES A PILL</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="yr-play">
+        <div class="yr-bezel">
+          <div class="yr-desk" role="group" aria-label="A Mac desktop with Claude Meter running in the notch">
+            <div class="yr-wall" aria-hidden="true"><i class="yr-blob yr-blob--t"></i><i class="yr-blob yr-blob--l"></i><i class="yr-blob yr-blob--a"></i></div>
+
+            <div class="yr-win yr-win--a yr-ed" aria-hidden="true">
+              <div class="yr-win__bar"><i></i><i></i><i></i><span class="yr-win__t">refunds.ts — app</span></div>
+              <div class="yr-ed__tabs"><span>invoice.ts</span><span>tax.ts</span><span class="is-on">refunds.ts</span></div>
+              <div class="yr-code">
+                <span class="ln"><span class="k">import</span> { invoices } <span class="k">from</span> <span class="s">"@/api/invoices"</span>;</span>
+                <span class="ln"><span class="k">import</span> { taxFor } <span class="k">from</span> <span class="s">"./tax"</span>;</span>
+                <span class="ln"> </span>
+                <span class="ln"><span class="k">export async function</span> <span class="f">refund</span>(charge: <span class="t">Charge</span>, reason: <span class="t">Reason</span>) {</span>
+                <span class="ln">  <span class="k">const</span> tax = <span class="f">taxFor</span>(charge.region, charge.lines);</span>
+                <span class="ln del">  <span class="k">return</span> legacy.<span class="f">refund</span>(charge.id, charge.amount);</span>
+                <span class="ln add">  <span class="k">const</span> credit = <span class="k">await</span> invoices.<span class="f">credit</span>(charge.invoiceId, {</span>
+                <span class="ln add">    amount: charge.amount - tax.total,</span>
+                <span class="ln add">    reason,</span>
+                <span class="ln add">  });</span>
+                <span class="ln add">  <span class="k">await</span> ledger.<span class="f">record</span>(<span class="s">"refund"</span>, credit);</span>
+                <span class="ln add">  <span class="k">return</span> credit;<i class="yr-caret"></i></span>
+                <span class="ln">}</span>
+              </div>
+            </div>
+            <div class="yr-win yr-win--b yr-term" aria-hidden="true">
+              <div class="yr-win__bar"><i></i><i></i><i></i><span class="yr-win__t">~/app — zsh</span></div>
+              <div class="yr-term__lines">
+                <p><span class="g">$ </span>claude "move billing to the new invoice API"</p>
+                <p class="sub"><span class="g">› </span>reading src/billing/*.ts (14 files)</p>
+                <p class="sub"><span class="ok">✓ </span>mapped 38 call sites</p>
+                <p class="sub"><span class="g">› </span>editing src/billing/invoice.ts<span class="n"><b>+128</b> −41</span></p>
+                <p class="sub"><span class="g">› </span>editing src/billing/tax.ts<span class="n"><b>+77</b> −12</span></p>
+                <p class="sub"><span class="ok">✓ </span>tests: 212 passed</p>
+                <p class="sub"><span class="g">› </span>editing src/billing/refunds.ts<span class="n"><b>+64</b> −30</span></p>
+                <p class="yr-term__cur"><i></i></p>
+              </div>
+            </div>
+
+            <div class="yr-full" hidden>
+              <div class="yr-full__doc" aria-hidden="true"></div>
+              <p class="yr-full__cap">Out of the way in <em>full&#8209;screen</em> apps.</p>
+            </div>
+
+            <div class="yr-mb" aria-hidden="true">
+              <div class="yr-mb__l"><b>Finder</b><span>File</span><span>Edit</span><span>View</span><span>Window</span></div>
+              <div class="yr-mb__r"><span class="yr-status" hidden></span><time class="yr-clock"></time></div>
+            </div>
+            <i class="yr-wake" aria-hidden="true"></i>
+            <div class="yr-notch" aria-hidden="true"></div>
+
+            <div class="yr-isl" data-cursor="right-click me"></div>
+
+            <div class="yr-lever" data-tone="clear">
+              <span class="yr-lever__lbl" id="yr-pace-lbl">PACE</span>
+              <span class="yr-lever__end">vibe&#8209;coding</span>
+              <span class="yr-lever__track">
+                <i class="yr-lever__rail"><b class="yr-lever__fill"></b></i>
+                <i class="yr-lever__ticks"></i>
+                <i class="yr-lever__mark yr-lever__mark--a"></i><i class="yr-lever__mark yr-lever__mark--r"></i>
+                <span class="yr-lever__knob" role="slider" tabindex="0" aria-labelledby="yr-pace-lbl" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="on track — resets first" data-cursor="drag · let go"><i></i><span class="yr-lever__tip" aria-hidden="true">on track — resets first</span></span>
+              </span>
+              <span class="yr-lever__end">easy</span>
+            </div>
+
+            <i class="yr-ptr" aria-hidden="true"><svg viewBox="0 0 18 26"><path d="M1.6 1.4v20.2l4.9-4.7 3.3 7.6 3.5-1.5-3.3-7.5h6.8z"/></svg></i>
+          </div>
+        </div>
+
+        <!-- The app's right-click menu, open. JS rebuilds it from menu.js (the popup's own item list) and moves it
+             onto the desk from 768px up; below that it sits under the desk at touch size. -->
+        <div class="yr-menu" data-island-keep>
+          <div class="yr-menu__main" role="menu" aria-label="Claude Meter’s right‑click menu">
+            <div class="yr-mi" role="menuitem" aria-disabled="true"><span class="yr-mi__ck"></span><span class="yr-mi__lb">Session  46% · resets in 2h 13m</span></div>
+            <div class="yr-mi" role="menuitem" aria-disabled="true"><span class="yr-mi__ck"></span><span class="yr-mi__lb">Weekly  38% · resets Sat 1:05 PM</span></div>
+            <div class="yr-mi" role="menuitem" aria-disabled="true"><span class="yr-mi__ck"></span><span class="yr-mi__lb">Opus  62% · resets Sat 1:05 PM</span></div>
+            <div class="yr-mi-sep" role="separator"></div>
+            <div class="yr-mi" role="menuitem"><span class="yr-mi__ck"></span><span class="yr-mi__lb">Refresh now</span></div>
+            <a class="yr-mi" role="menuitem" href="https://claude.ai/settings/usage" target="_blank" rel="noopener"><span class="yr-mi__ck"></span><span class="yr-mi__lb">Open usage on claude.ai</span></a>
+            <div class="yr-mi-sep" role="separator"></div>
+            <div class="yr-mi" role="menuitem" aria-haspopup="menu" aria-expanded="true"><span class="yr-mi__ck"></span><span class="yr-mi__lb">Appearance</span></div>
+            <div class="yr-mi" role="menuitemcheckbox" aria-checked="true"><span class="yr-mi__ck">✓</span><span class="yr-mi__lb">Show percentages</span></div>
+            <div class="yr-mi" role="menuitemcheckbox" aria-checked="true"><span class="yr-mi__ck">✓</span><span class="yr-mi__lb">Burn-rate estimates</span></div>
+            <div class="yr-mi" role="menuitemcheckbox" aria-checked="false"><span class="yr-mi__ck"></span><span class="yr-mi__lb">Usage notifications</span></div>
+            <div class="yr-mi" role="menuitemcheckbox" aria-checked="false"><span class="yr-mi__ck"></span><span class="yr-mi__lb">Menu bar item</span></div>
+            <div class="yr-mi" role="menuitemcheckbox" aria-checked="false"><span class="yr-mi__ck"></span><span class="yr-mi__lb">Launch at login</span></div>
+            <div class="yr-mi-sep" role="separator"></div>
+            <div class="yr-mi" role="menuitem"><span class="yr-mi__ck"></span><span class="yr-mi__lb">About Claude Meter</span></div>
+            <div class="yr-mi" role="menuitem"><span class="yr-mi__ck"></span><span class="yr-mi__lb">Quit Claude Meter</span></div>
+          </div>
+          <div class="yr-menu__sub" role="menu" aria-label="Appearance">
+            <div class="yr-mi" role="menuitemradio" aria-checked="true"><span class="yr-mi__ck">✓</span><span class="yr-mi__lb">Solid</span></div>
+            <div class="yr-mi" role="menuitemradio" aria-checked="false"><span class="yr-mi__ck"></span><span class="yr-mi__lb">Frosted</span></div>
+            <div class="yr-mi" role="menuitemradio" aria-checked="false"><span class="yr-mi__ck"></span><span class="yr-mi__lb">Liquid Glass</span></div>
+          </div>
+        </div>
+
+        <div class="yr-under">
+          <label class="yr-range" data-tone="clear">
+            <span class="yr-range__top"><span class="yr-range__lbl">PACE</span><span class="yr-range__out" aria-hidden="true">on track — resets first</span></span>
+            <input type="range" min="0" max="100" step="1" value="0" aria-valuetext="on track — resets first">
+            <span class="yr-range__ends" aria-hidden="true"><span>easy</span><span>vibe&#8209;coding</span></span>
+          </label>
+        </div>
+
+        <div class="yr-links">
+          <p class="yr-links__lbl">SIMULATE</p>
+          <button type="button" class="yr-lnk" data-act="busy"><svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="8.25"/><path d="M7.2 5.6v6.8L12.6 9z"/></svg><span class="yr-lnk__t">A busy hour</span></button>
+          <button type="button" class="yr-lnk" data-act="full"><svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="8.25"/><path d="M6 8V6h2M12 10v2h-2M10 6h2v2M8 12H6v-2"/></svg><span class="yr-lnk__t">A full&#8209;screen app</span></button>
+          <button type="button" class="yr-lnk" data-act="lid" aria-pressed="false"><svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="8.25"/><path class="yr-lnk__notch" d="M5.5 6.2h7M7.2 6.2v1.1a.9.9 0 0 0 .9.9h1.8a.9.9 0 0 0 .9-.9V6.2"/><path class="yr-lnk__pill" d="M7 10.8h4"/></svg><span class="yr-lnk__t">No notch (lid closed)</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

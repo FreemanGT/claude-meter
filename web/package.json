@@ -1,0 +1,14 @@
+{
+  "name": "web",
+  "description": "Claude Meter site sources: template + sections \u2192 ../site/index.html",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node island-derive.test.mjs",
+    "qa": "node qa.mjs"
+  },
+  "type": "module",
+  "devDependencies": {
+    "puppeteer-core": "^25.12.0"
+  },
+  "private": true
+}

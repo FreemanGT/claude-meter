@@ -1,0 +1,232 @@
+/* Claude Meter island. Every size is pt × --u (px per pt), so an island renders crisp at its
+   own scale; cameras may only scale it down. Metrics: Theme.swift / IslandView.swift. */
+
+.island {
+  --u: 2px;
+  --i-teal: #5CC9A6; --i-lav: #B0A8ED; --i-amber: #FAC775; --i-red: #F26B6B;
+  --i-text2: #A8A8A8; --i-text3: #999; --i-track: rgb(255 255 255 / .13);
+  --i-spring: linear(0, .017, .062, .127, .205, .29, .378, .466, .55, .629, .702, .766, .824, .873, .915, .949, .978, 1, 1.017, 1.029, 1.038, 1.043, 1.045, 1.046, 1.045, 1.043, 1.039, 1.036, 1.032, 1.028, 1.024, 1.02, 1.016, 1.013, 1.01, 1.008, 1.005, 1.004, 1.002, 1.001, 1, .999, .998, 1);
+  position: absolute; top: 0; left: 50%;
+  width: calc(var(--cw, 277) * var(--u)); height: calc(var(--ch, 32) * var(--u));
+  transform: translateX(-50%);
+  pointer-events: none;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+  font-size: calc(10 * var(--u)); line-height: 1; font-weight: 400; font-style: normal;
+  font-variant-numeric: tabular-nums; font-synthesis: none; text-align: left;
+  /* SwiftUI sets SF optical size from the pt size (not the @2x px size) and tracks small text
+     wider; these are fitted against snaps2 ink widths: 10pt → .033em, 11pt → .018em, 15pt → -.027em. */
+  --t10: .033em; --t11: .018em; --t15: -.027em;
+  font-variation-settings: "opsz" 10; letter-spacing: var(--t10);
+  text-transform: none; color: #fff; white-space: nowrap;
+  /* Not `antialiased`: CoreText's default smoothing is what gives SwiftUI text its weight on dark. */
+  -webkit-font-smoothing: auto;
+  -webkit-user-select: none; user-select: none;
+}
+.island *, .island *::before, .island *::after { box-sizing: border-box; }
+
+.island__zoom { position: absolute; inset: 0; transform-origin: 50% 0; transition: transform .45s var(--i-spring); }
+.island__zoom.is-hover { transform: scale(1.03); }
+.island__zoom.is-press { transform: scale(.97); transition-duration: .16s; }
+
+/* Drawing box: 600pt wide, centred on the island; every layer shares its coordinates. */
+.island__box {
+  position: absolute; top: 0; left: calc(50% - 300 * var(--u));
+  width: calc(600 * var(--u)); height: calc(var(--hb, 300) * var(--u));
+}
+.island__shape, .island__clip, .island__bd { position: absolute; inset: 0; width: 100%; height: 100%; }
+.island__shape { overflow: visible; }
+
+.isl-fill { fill: #000; }
+.isl-rim, .isl-hot { fill: none; stroke-width: 1; }
+.isl-rim { opacity: 0; transition: opacity .3s; }
+.isl-hot { opacity: 0; stroke-width: 1.25; transition: opacity .3s; }
+.isl-focus { fill: none; stroke: var(--i-teal); stroke-width: 2; vector-effect: non-scaling-stroke; opacity: 0; }
+.island:has(.island__hit:focus-visible) .isl-focus { opacity: 1; }
+.island[data-state="peek"] .isl-rim, .island[data-state="pinned"] .isl-rim { opacity: 1; }
+
+/* Shadow: its own layer; only its opacity animates. Peek only, like IslandView (none while pinned).
+   Sized once to the largest state; island.js scales it to the shape (transform only, no layout). */
+.island__sh {
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%); transform-origin: 50% 0;
+  border-radius: 0 0 calc(24 * var(--u)) calc(24 * var(--u));
+  box-shadow: 0 calc(8 * var(--u)) calc(32 * var(--u)) rgb(0 0 0 / .5);
+  opacity: 0; transition: opacity .3s;
+}
+.island[data-state="peek"] .island__sh { opacity: 1; }
+
+/* Materials: the app's Appearance, three genuinely different builds (AppDelegate / IslandView).
+   Solid   — pure black, fused to the notch; the faint 4%→20% rim only when expanded (above).
+   Frosted — heavy blur (NSVisualEffect .hudWindow) under a black scrim .80 → .56; uniform 16% rim, collapsed too.
+   Glass   — a thin lensing sheet (glassEffect, black tint .2) under a scrim .70 → .52; a 1.25pt specular rim
+             lit by a radial gradient centred on the pointer (island.js; top-left while the pointer is away).
+   The scrim gradient spans the live shape height (--hpx, written by island.js), not the drawing box. */
+.island__bd { display: none; }
+.island[data-material="frosted"] .isl-fill, .island[data-material="glass"] .isl-fill { fill: transparent; }
+.island[data-material="frosted"] .island__bd, .island[data-material="glass"] .island__bd { display: block; }
+.island[data-material="frosted"] .island__bd {
+  background: linear-gradient(rgb(0 0 0 / .8), rgb(0 0 0 / .56)) 0 0 / 100% var(--hpx, 100%) no-repeat, rgb(22 22 24 / .42);
+  -webkit-backdrop-filter: blur(30px) saturate(1.8); backdrop-filter: blur(30px) saturate(1.8);
+}
+.island[data-material="glass"] .island__bd {
+  background: linear-gradient(rgb(0 0 0 / .7), rgb(0 0 0 / .52)) 0 0 / 100% var(--hpx, 100%) no-repeat, rgb(0 0 0 / .2);
+  -webkit-backdrop-filter: blur(3px) saturate(1.9) brightness(1.08); backdrop-filter: blur(3px) saturate(1.9) brightness(1.08);
+}
+.island[data-material="frosted"] .isl-rim { stroke: rgb(255 255 255 / .16); opacity: 1; }
+.island[data-material="glass"] .isl-rim { opacity: 0; }
+.island[data-material="glass"] .isl-hot { opacity: 1; }
+/* Translucent modes lift the secondary text and track, and give text a 1.5pt shadow (IslandView). */
+.island[data-material="frosted"], .island[data-material="glass"] {
+  --i-text2: rgb(255 255 255 / .84); --i-text3: rgb(255 255 255 / .74); --i-track: rgb(255 255 255 / .22);
+}
+.island[data-material="frosted"] .island__clip, .island[data-material="glass"] .island__clip { text-shadow: 0 0 calc(1.5 * var(--u)) rgb(0 0 0 / .5); }
+@media (prefers-reduced-transparency: reduce) {
+  .island .isl-fill { fill: #000 !important; }
+  .island .island__bd { display: none !important; }
+}
+
+/* Camera housing: hardware, always pure black, above everything. */
+.island__housing {
+  position: absolute; top: 0; left: 50%; z-index: 3;
+  width: calc(var(--nw, 185) * var(--u)); height: calc(32 * var(--u));
+  margin-left: calc(var(--nw, 185) * var(--u) * -.5);
+  background: #000; border-radius: 0 0 calc(10 * var(--u)) calc(10 * var(--u));
+}
+.island[data-notch="false"] .island__housing { display: none; }
+.island__housing .i-lens {
+  position: absolute; top: 50%; left: 50%;
+  width: calc(7 * var(--u)); height: calc(7 * var(--u)); margin: calc(-3.5 * var(--u));
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 34%, rgb(90 110 255 / .35) 0 calc(1 * var(--u)), transparent calc(1.6 * var(--u))), #0A0B10;
+  box-shadow: inset 0 0 0 calc(.5 * var(--u)) rgb(255 255 255 / .04);
+}
+.island[data-state="hidden"][data-notch="false"] .island__box { opacity: 0; transition: opacity .3s; }
+
+/* Hit area: tracks the shape body each frame. */
+.island__hit {   /* sized to the largest state and scaled to the shape by island.js (≥32px tall on touch) */
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%); transform-origin: 50% 0; z-index: 2;
+  margin: 0; padding: 0; border: 0; background: transparent; color: inherit; font: inherit;
+  border-radius: 0 0 calc(14 * var(--u)) calc(14 * var(--u));
+  pointer-events: auto; cursor: pointer; outline: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.island__hit[hidden] { display: none; }
+
+/* ------------------------------------------------------------------ panes */
+.i-pane {
+  position: absolute; top: 0; left: 50%;
+  width: calc(var(--pw) * var(--u)); margin-left: calc(var(--pw) * var(--u) * -.5);
+  transform-origin: 50% 0; pointer-events: none;
+}
+.i-pane[inert] { pointer-events: none !important; }
+.i-pane--p, .i-pane--x { padding: 0 calc(39 * var(--u)) calc(16 * var(--u)); }
+.i-pane--x.i-has-links { pointer-events: auto; z-index: 2; }
+
+.island [data-tone="teal"] { --c: var(--i-teal); } .island [data-tone="lav"] { --c: var(--i-lav); }
+.island [data-tone="amber"] { --c: var(--i-amber); } .island [data-tone="red"] { --c: var(--i-red); }
+.island [data-tone="muted"] { --c: var(--i-text2); } .island [data-tone="dim"] { --c: var(--i-text3); }
+.island [data-base="teal"] { --b: var(--i-teal); } .island [data-base="lav"] { --b: var(--i-lav); } .island [data-base="amber"] { --b: var(--i-amber); }
+
+.island .i-num { display: inline-flex; }
+.island .i-rl { position: relative; display: inline-block; }
+.island .i-rl > span { display: inline-block; }
+.island .i-rl-o { position: absolute; left: 0; top: 0; }
+
+/* collapsed */
+.i-pane--c { height: calc(32 * var(--u)); }
+.i-pane--c.i-is-nn { height: calc(24 * var(--u)); display: flex; align-items: center; justify-content: center; gap: calc(10 * var(--u)); }
+.i-lane { position: absolute; top: 0; height: 100%; display: flex; align-items: center; justify-content: center; width: calc(40 * var(--u)); }
+.island[data-display="ticks"] .i-lane { width: calc(34 * var(--u)); }
+.i-lane--l { left: calc(6 * var(--u)); } .i-lane--r { right: calc(6 * var(--u)); }
+.i-cm { position: relative; display: flex; align-items: center; }
+.i-cnum { font-size: calc(10 * var(--u)); line-height: calc(12 * var(--u)); font-weight: 600; color: var(--c); letter-spacing: var(--t10); font-variation-settings: "opsz" 10; }
+.i-is-hot > .i-cnum { font-weight: 700; }
+.i-dv { width: calc(1 * var(--u)); height: calc(10 * var(--u)); border-radius: 99px; background: var(--i-track); }
+.i-tick { position: relative; width: calc(26 * var(--u)); height: calc(4 * var(--u)); border-radius: 99px; background: var(--i-track); }
+.i-tick > i, .i-fill {
+  position: absolute; inset: 0; border-radius: inherit; background: var(--c);
+  clip-path: inset(0 calc(100% - max(var(--min), var(--f, 0) * 100%)) 0 0 round 99px);
+}
+.i-tick > i { --min: calc(4 * var(--u)); }
+.i-att { position: absolute; left: 50%; top: calc(50% + 6 * var(--u)); width: calc(4 * var(--u)); height: calc(4 * var(--u)); margin-left: calc(-2 * var(--u)); border-radius: 50%; background: var(--i-amber); }
+.i-cm .i-att { top: calc(100% + 0 * var(--u)); }
+
+/* header band beside the housing */
+.i-hd { display: flex; align-items: center; height: calc(32 * var(--u)); font-size: calc(10 * var(--u)); line-height: calc(13 * var(--u)); color: var(--i-text2); letter-spacing: var(--t10); font-variation-settings: "opsz" 10; }
+.island[data-notch="false"] .i-hd { height: auto; padding-top: calc(12 * var(--u)); }
+.i-hd-l, .i-hd-r { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.i-hd-r { display: flex; justify-content: flex-end; align-items: center; gap: calc(4 * var(--u)); }
+.i-hd-gap { flex: none; width: calc((var(--nw, 185) + 12) * var(--u)); }
+.i-pin { flex: none; width: calc(8 * var(--u)); height: calc(10 * var(--u)); fill: currentColor; }
+
+/* peek: three rings */
+.i-rings { display: flex; margin-top: calc(12 * var(--u)); }
+.i-col { flex: 1 1 0; min-width: 0; padding: 0 calc(8 * var(--u)); display: flex; flex-direction: column; align-items: center; gap: calc(2 * var(--u)); }
+.i-col > span:not(.i-ring) { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.i-ring { position: relative; flex: none; width: calc(54 * var(--u)); height: calc(54 * var(--u)); margin-bottom: calc(6 * var(--u)); }
+.i-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; transform: rotate(-90deg); }
+.i-ring circle { fill: none; stroke-width: 5; }
+.i-ring .i-trk { stroke: var(--i-track); }
+.i-ring .i-prj { stroke: var(--c); opacity: .3; }
+.i-ring .i-val { stroke: var(--c); stroke-linecap: round; }
+.i-rv { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: calc(15 * var(--u)); font-weight: 500; letter-spacing: var(--t15); font-variation-settings: "opsz" 15; }
+.i-is-hot .i-rv { font-weight: 700; }
+.i-lbl { font-size: calc(11 * var(--u)); line-height: calc(14 * var(--u)); font-weight: 500; letter-spacing: var(--t11); font-variation-settings: "opsz" 11; }
+.i-cap, .i-fc { font-size: calc(10 * var(--u)); line-height: calc(13 * var(--u)); letter-spacing: var(--t10); font-variation-settings: "opsz" 10; }
+.i-cap { color: var(--i-text2); }
+.i-fc { font-weight: 500; color: var(--c); }
+
+/* note + hint */
+.i-note { display: flex; align-items: center; gap: calc(8 * var(--u)); margin-top: calc(16 * var(--u)); height: calc(13 * var(--u)); font-size: calc(10 * var(--u)); line-height: calc(13 * var(--u)); font-weight: 500; letter-spacing: var(--t10); font-variation-settings: "opsz" 10; color: var(--c); }
+.i-note > i { flex: none; width: calc(5 * var(--u)); height: calc(5 * var(--u)); border-radius: 50%; background: currentColor; }
+.i-note > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.i-hint { margin: calc(8 * var(--u)) 0 0; text-align: center; font-size: calc(10 * var(--u)); line-height: calc(13 * var(--u)); color: var(--i-text2); letter-spacing: var(--t10); font-variation-settings: "opsz" 10; }
+
+/* pinned: the table */
+.i-rows { display: flex; flex-direction: column; gap: calc(8 * var(--u)); margin-top: calc(12 * var(--u)); }
+.i-row { display: flex; align-items: center; gap: calc(12 * var(--u)); height: calc(14 * var(--u)); color: inherit; text-decoration: none; }
+.i-r-lbl { flex: none; width: calc(84 * var(--u)); font-size: calc(11 * var(--u)); line-height: calc(14 * var(--u)); letter-spacing: var(--t11); font-variation-settings: "opsz" 11; overflow: hidden; text-overflow: ellipsis; }
+.i-spk { flex: none; width: calc(44 * var(--u)); height: calc(14 * var(--u)); overflow: visible; }
+.i-spk-a { fill: var(--b); opacity: .28; }
+.i-spk-l { fill: none; stroke: var(--b); stroke-opacity: .85; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
+.i-bar { position: relative; flex: 1 1 0; min-width: 0; height: calc(6 * var(--u)); border-radius: 99px; background: var(--i-track); }
+.i-fill { --min: calc(6 * var(--u)); }
+.i-ptk { position: absolute; inset: 0; transform: translateX(min(calc(var(--pj, 0) * 100% - 1 * var(--u)), calc(100% - 2 * var(--u)))); }
+.i-ptk::before { content: ""; position: absolute; left: 0; top: 0; width: calc(2 * var(--u)); height: 100%; border-radius: 99px; background: var(--c); }
+.i-r-pct { flex: none; width: calc(38 * var(--u)); justify-content: flex-end; font-size: calc(11 * var(--u)); line-height: calc(14 * var(--u)); font-weight: 500; letter-spacing: var(--t11); font-variation-settings: "opsz" 11; }
+.i-is-hot > .i-r-pct { font-weight: 700; }
+/* 96pt like IslandView.swift; 12-hour "resets Sat 1:05 PM" is ~2pt wider, so it bleeds left into the gap instead of clipping "PM" */
+.i-r-rst { flex: none; width: calc(96 * var(--u)); display: flex; justify-content: flex-end; white-space: nowrap; font-size: calc(10 * var(--u)); line-height: calc(13 * var(--u)); color: var(--i-text2); letter-spacing: var(--t10); font-variation-settings: "opsz" 10; overflow: visible; }
+a.i-row:hover .i-r-lbl { text-decoration: underline; text-underline-offset: 2px; }
+a.i-row:focus-visible, .i-cta-row:focus-visible { outline: 2px solid var(--i-teal); outline-offset: 2px; border-radius: 4px; }
+.i-cta-row { display: flex; align-items: center; justify-content: center; margin-top: calc(12 * var(--u)); height: calc(24 * var(--u)); border-radius: 99px; background: var(--i-teal); color: #111311; font-size: calc(11 * var(--u)); font-weight: 600; letter-spacing: var(--t11); font-variation-settings: "opsz" 11; text-decoration: none; }
+
+/* settings button (only when someone listens for "contextmenu") */
+.island__more {
+  position: absolute; left: 50%; top: 0; z-index: 4; pointer-events: auto;
+  width: calc(20 * var(--u)); height: calc(20 * var(--u)); margin: calc(-10 * var(--u)) 0 0 0;
+  display: flex; align-items: center; justify-content: center; gap: calc(2 * var(--u));
+  border: 0; border-radius: 50%; background: #000; box-shadow: 0 0 0 1px rgb(255 255 255 / .14);
+  cursor: pointer; opacity: 0; transition: opacity .2s;
+}
+.island__more i { width: calc(2.5 * var(--u)); height: calc(2.5 * var(--u)); border-radius: 50%; background: #ECEDE8; }
+.island__more::before { content: ""; position: absolute; inset: min(-12px, calc(-10 * var(--u))); border-radius: 50%; }   /* ≥34px hit area at any scale */
+.island:hover .island__more, .island:focus-within .island__more { opacity: 1; }
+.island__more:focus-visible { outline: 2px solid var(--i-teal); outline-offset: 2px; }
+@media (hover: none) { .island__more { opacity: 1; } }
+.island[data-state="hidden"] .island__more { display: none; }
+
+/* after Quit */
+.island__relaunch {
+  position: absolute; left: 50%; top: calc(44 * var(--u)); transform: translateX(-50%); z-index: 4; pointer-events: auto;
+  padding: calc(6 * var(--u)) calc(12 * var(--u)); border: 1px solid rgb(255 255 255 / .14); border-radius: 999px;
+  background: #111311; color: #ECEDE8; font: 500 calc(11 * var(--u)) / 1 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  cursor: pointer; white-space: nowrap;
+}
+.island__relaunch[hidden] { display: none; }
+.island__relaunch:focus-visible { outline: 2px solid var(--i-teal); outline-offset: 2px; }
+
+.island__sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  .island__zoom, .isl-rim, .island__sh { transition: none; }
+  .island__zoom.is-hover, .island__zoom.is-press { transform: none; }
+}

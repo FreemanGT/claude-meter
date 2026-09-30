@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Claude Meter — Claude usage limits in your MacBook notch</title>
+<meta name="description" content="Free Mac app that puts your Claude Pro or Max limits in the MacBook notch: 5-hour session, weekly and per-model limits. Needs Claude Code, macOS 14.4+.">
+<!-- Signups (Mac download emails + Windows waitlist) POST here: paste the Apps Script web-app URL (web/signup-sheet.gs). Empty = Mac still downloads; the waitlist says it opens shortly. -->
+<meta name="cm-signup" content="">
+<link rel="canonical" href="https://claudemeter.vercel.app/">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="light">
+<link rel="icon" type="image/png" href="/assets/favicon.png">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://claudemeter.vercel.app/">
+<meta property="og:title" content="Claude Meter — Claude usage limits in your MacBook notch">
+<meta property="og:description" content="Free, open-source Mac app that puts your Claude Pro or Max limits in the MacBook notch: the 5-hour session, the weekly limit and per-model limits, with reset countdowns and a burn-rate forecast. Needs Claude Code and macOS 14.4+.">
+<meta property="og:image" content="https://claudemeter.vercel.app/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Claude Meter: See the wall before you hit it.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Claude Meter — Claude usage limits in your MacBook notch">
+<meta name="twitter:description" content="Free Mac app that puts your Claude Pro or Max limits in the MacBook notch: 5-hour session, weekly and per-model limits. Needs Claude Code, macOS 14.4+.">
+<meta name="twitter:image" content="https://claudemeter.vercel.app/assets/og.png">
+
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[{"@type":"SoftwareApplication","@id":"https://claudemeter.vercel.app/#app","name":"Claude Meter","operatingSystem":"macOS 14.4 or later","applicationCategory":"UtilitiesApplication","softwareVersion":"1.2","softwareRequirements":"Claude Code signed in with a Claude Pro or Max plan; macOS 14.4 or later","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"isAccessibleForFree":true,"license":"https://opensource.org/licenses/MIT","downloadUrl":"https://claudemeter.vercel.app/ClaudeMeter.dmg","author":{"@type":"Person","name":"Yiftach Freeman"},"image":"https://claudemeter.vercel.app/assets/icon-512.png","url":"https://claudemeter.vercel.app/","sameAs":["https://github.com/yiftach41/claude-meter"],"description":"Free, open-source (MIT) macOS app that puts your Claude Pro or Max limits in the MacBook notch: the 5-hour session, the weekly limit and per-model limits. Needs Claude Code signed in with a Claude Pro or Max plan. A Windows version is on a waitlist."},{"@type":"SoftwareSourceCode","@id":"https://claudemeter.vercel.app/#source","name":"Claude Meter","codeRepository":"https://github.com/yiftach41/claude-meter","programmingLanguage":"Swift","runtimePlatform":"macOS 14.4 or later","license":"https://opensource.org/licenses/MIT","author":{"@type":"Person","name":"Yiftach Freeman"},"targetProduct":{"@id":"https://claudemeter.vercel.app/#app"}}]}
+</script>
+<!-- @faq-jsonld -->
+
+<link rel="preload" href="/fonts/anybody.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/geist-mono.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/instrument-serif-italic.woff2" as="font" type="font/woff2" crossorigin>
+
+<script>
+  // Before first paint: motion mode + whether the intro plays (so the hero never flashes under it).
+  // If the modules haven't started the intro by 1.6s (slow network), drop it: the hero reveals in CSS.
+  // Also: Windows visitors get html[data-os="windows"], so sections can promote the Windows waitlist in CSS.
+  (function(){var d=document.documentElement,r=matchMedia("(prefers-reduced-motion: reduce)").matches,s;
+  d.setAttribute("data-motion",r?"reduced":"full");if(/Windows/.test(navigator.userAgent))d.setAttribute("data-os","windows");
+  try{s=sessionStorage.getItem("cm-intro")}catch(e){}
+  if(!r&&!s&&!location.hash){d.classList.add("is-intro");setTimeout(function(){if(!window.__cmIntro)d.classList.remove("is-intro")},1600)}})();
+</script>
+
+<link rel="stylesheet" href="/css/tokens.css">
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/island.css">
+<link rel="stylesheet" href="/css/signup.css">
+<!-- @section-css -->
+
+<!-- deferred scripts default to low priority, behind the high-priority module preloads; main.js can't run before them -->
+<script defer fetchpriority="high" src="/vendor/gsap.min.js"></script>
+<script defer fetchpriority="high" src="/vendor/ScrollTrigger.min.js"></script>
+<script defer fetchpriority="high" src="/vendor/SplitText.min.js"></script>
+<script defer fetchpriority="high" src="/vendor/ScrambleTextPlugin.min.js"></script>
+<script defer fetchpriority="high" src="/vendor/DrawSVGPlugin.min.js"></script>
+<script defer fetchpriority="high" src="/vendor/CustomEase.min.js"></script>
+<script defer fetchpriority="high" src="/vendor/lenis.min.js"></script>
+<!-- @modulepreload -->
+<script type="module" src="/js/main.js"></script>
+</head>
+<body>
+<a class="skip" href="#finale-cta">Skip to download</a>
+
+<header class="band">
+  <nav class="band__left" aria-label="Primary">
+    <a class="band__brand" href="#top" aria-label="Claude Meter, back to top"><img src="/assets/favicon.png" alt="" width="18" height="18"><span>Claude Meter</span></a>
+    <a class="band__link" href="#stage" data-progress=".16">How it works</a>
+    <a class="band__link" href="#privacy">Privacy</a>
+    <a class="band__link" href="#faq">FAQ</a>
+  </nav>
+  <div class="band__notch" id="nav-notch"></div>
+  <div class="band__right">
+    <span class="band__status" hidden></span>
+    <time class="band__clock"></time>
+    <a class="band__gh" href="https://github.com/yiftach41/claude-meter" target="_blank" rel="noopener" data-cta="github" aria-label="Star Claude Meter on GitHub">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      <span class="band__gh-lbl">Star</span><span class="band__gh-n" data-stars hidden></span>
+    </a>
+    <button class="band__dl band__win" type="button" data-cta="windows"><span class="band__win-dot" aria-hidden="true"></span><span class="band__dl-label">Windows waitlist</span></button>
+    <a class="band__dl band__mac" href="/ClaudeMeter.dmg" download data-cta="mac" aria-label="Download Claude Meter for Mac">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-opacity=".25" stroke-width="2.5"/><circle class="ring-val" cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" pathLength="100" transform="rotate(-90 12 12)"/><path d="M12 7.5v8m-3.5-3.5L12 15.5l3.5-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="band__dl-label">Download</span>
+    </a>
+  </div>
+</header>
+<div class="corner corner--l" aria-hidden="true"></div>
+<div class="corner corner--r" aria-hidden="true"></div>
+<p class="band__caption" aria-hidden="true">NOW METERING: THIS PAGE<i class="c-teal">READ</i><i class="c-lav">SECTIONS</i></p>
+
+<div id="intro" aria-hidden="true"><div class="intro__housing"></div><div class="intro__lens"><i class="intro__glint"></i></div></div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <filter id="cm-liquid" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency=".008" numOctaves="1" seed="7" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="18" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+</svg>
+
+<main id="top">
+<!-- @section:stage -->
+<!-- @section:wall -->
+<!-- @section:loop -->
+<!-- @section:yours -->
+<!-- @section:privacy -->
+<!-- @section:faq -->
+<!-- @section:finale -->
+</main>
+<footer class="fin-foot">
+  <div class="fin-foot__row">
+    <p class="fin-foot__id"><img src="/assets/favicon.png" alt="" width="20" height="20"><span>Claude Meter v1.2 · Made by Yiftach Freeman · Open source, MIT</span></p>
+    <nav class="fin-foot__nav" aria-label="Footer">
+      <ul role="list">
+        <li><a href="#stage" data-progress=".16">How it works</a></li>
+        <li><a href="#privacy">Privacy</a></li>
+        <li><a href="#faq">FAQ</a></li>
+        <li><a href="https://claude.ai/settings/usage" target="_blank" rel="noopener">Usage on claude.ai</a></li>
+        <li><a href="https://github.com/yiftach41/claude-meter" data-cta="github">GitHub</a></li>
+        <li><a href="#waitlist" data-cta="windows">Windows waitlist</a></li>
+        <li><a href="/llms.txt">llms.txt</a></li>
+        <li><a href="#top" class="fin-foot__top">Back to top <span aria-hidden="true">↑</span></a></li>
+      </ul>
+    </nav>
+    <p class="fin-foot__req"><span>Free · macOS 14.4+ · Apple Silicon &amp; Intel ·</span> <span>Needs Claude Code (Pro or Max)</span></p>
+  </div>
+  <p class="fin-foot__legal">Independent project. Not affiliated with or endorsed by Anthropic. Claude is a trademark of Anthropic, PBC.</p>
+  <div class="fin-foot__meter" aria-hidden="true"><i></i></div>
+</footer>
+
+</body>
+</html>

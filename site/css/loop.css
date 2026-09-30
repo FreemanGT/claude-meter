@@ -1,0 +1,250 @@
+/* §03 loop — the app's states at 1:1 on a tilted tape, a display marquee, the mid-page CTA and the icon.
+   Every rule is scoped under .s--loop. Default (no JS / reduced motion) = a static, browsable composition;
+   html[data-motion="full"] = the loops. --fu (px per pt inside the frames) is set by loop.js. */
+
+.s--loop{overflow-x:clip;--fw:600px;--fh:360px;--fgap:40px;--fu:1;
+  /* film edge: sprocket pitch divides one frame step exactly, so the perforations loop seamlessly with the frames */
+  --sp:calc((var(--fw) + var(--fgap)) / 26);--hole:10px;--edge:12px;--capgap:12px}
+@media (max-width:1199px){.s--loop{--fw:max(440px,46vw);--fh:calc(var(--fw) * .6);--fu:.75;--sp:calc((var(--fw) + var(--fgap)) / 20)}}
+@media (max-width:767px){.s--loop{--fw:min(84vw,340px);--fgap:20px;--fu:.54;--sp:calc((var(--fw) + var(--fgap)) / 15);--hole:7px;--edge:8px;--capgap:8px}}
+.s--loop .loop__defs{position:absolute;width:0;height:0;overflow:hidden}
+
+/* ---------------------------------------------------------------- running head + pause */
+.s--loop .loop__rhl{display:inline-flex;align-items:center;gap:14px}
+.s--loop .rh__datum{display:inline-flex;align-items:center;gap:8px}
+.s--loop .loop__live{width:6px;height:6px;border-radius:50%;background:var(--teal-ink);flex:none}
+html[data-motion="full"] .s--loop .loop__live{animation:loop-live 2.4s var(--ease-settle) infinite}
+html[data-motion="full"] .s--loop.is-paused .loop__live{animation-play-state:paused}
+@keyframes loop-live{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
+
+.s--loop .loop__pp{display:inline-flex;align-items:center;gap:7px;height:24px;margin:-6px 0;padding:0 10px 0 9px;border:1px solid var(--rule-c);border-radius:var(--r-pill);
+  background:none;color:inherit;font:inherit;letter-spacing:inherit;text-transform:uppercase;cursor:pointer;
+  transition:border-color var(--d-ui) var(--ease-settle),background-color var(--d-ui) var(--ease-settle),color var(--d-ui) var(--ease-settle)}
+.s--loop .loop__pp:hover{border-color:var(--ink);background:var(--ink);color:var(--paper)}
+.s--loop .loop__pp i{width:8px;height:9px;flex:none;background:linear-gradient(90deg,currentColor 0 3px,transparent 3px 5px,currentColor 5px)}
+.s--loop.is-paused .loop__pp i{background:currentColor;clip-path:polygon(0 0,100% 50%,0 100%)}
+html:not([data-motion="full"]) .s--loop .loop__pp{display:none}
+@media (max-width:767px){.s--loop .rh{flex-wrap:wrap;row-gap:10px}}
+
+/* ---------------------------------------------------------------- the two bands */
+.s--loop .loop__strips{position:relative;margin-top:60px;isolation:isolate}
+@media (max-width:767px){.s--loop .loop__strips{margin-top:44px}}
+.s--loop .lA,.s--loop .lB{position:relative;width:130vw;margin-inline:calc(50% - 65vw);transform-origin:50% 50%}
+
+/* STRIP A — a film loop: every state of the app at the size it has on the Mac, perforations and edge print moving with it */
+.s--loop .lA{background:var(--night);transform:rotate(-3deg);z-index:1;
+  box-shadow:inset 0 1px 0 rgb(255 255 255/.06),inset 0 -1px 0 rgb(255 255 255/.06)}
+.s--loop .lA__track{display:flex;gap:var(--fgap);width:max-content;align-items:flex-start;
+  padding:calc(var(--edge) * 2 + var(--hole)) 0 calc(var(--edge) * 2 + var(--hole));
+  --perf:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 10' preserveAspectRatio='xMidYMid meet'%3E%3Crect x='6' width='12' height='10' rx='2' fill='%23EDEEE9'/%3E%3C/svg%3E");
+  background:var(--perf) 0 var(--edge) / var(--sp) var(--hole) repeat-x,var(--perf) 0 calc(100% - var(--edge)) / var(--sp) var(--hole) repeat-x}
+
+.s--loop .lf{position:relative;flex:none;width:var(--fw);margin:0;outline:none;--c:92 201 166}
+.s--loop .lf[data-tint="lav"]{--c:176 168 237}
+.s--loop .lf[data-tint="amber"]{--c:250 199 117}
+.s--loop .lf[data-tint="red"]{--c:242 107 107}
+
+/* edge print: the frame's number and state, on the film above the picture */
+.s--loop .lf__cap{display:flex;align-items:center;gap:8px;height:14px;margin:0 0 var(--capgap) 2px;
+  font:500 11px/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;font-variant-numeric:tabular-nums;color:var(--fg-2);
+  white-space:nowrap;transition:color var(--d-ui) var(--ease-settle),transform var(--spring-play-dur) var(--spring-play)}
+.s--loop .lf__cap::before{content:"";width:6px;height:6px;border-radius:50%;background:rgb(var(--c));flex:none}
+.s--loop .lf__cap b{font-weight:600;color:var(--fg)}
+.s--loop .lf__cap::before{transition:box-shadow var(--d-ui) var(--ease-settle)}
+.s--loop .lf__st{display:grid}
+.s--loop .lf__st>span{grid-area:1/1;transition:opacity .22s var(--ease-settle),transform .34s var(--ease-settle)}
+.s--loop .lf__to{color:rgb(var(--c));opacity:0;transform:translateY(70%)}
+.s--loop .lf.is-play .lf__is{opacity:0;transform:translateY(-70%)}
+.s--loop .lf.is-play .lf__to{opacity:1;transform:none}
+.s--loop .lf.is-play .lf__cap::before{box-shadow:0 0 0 3px rgb(var(--c)/.24)}
+html:not([data-motion="full"]) .s--loop .lf__to{display:none}
+
+.s--loop .lf__screen{position:relative;width:var(--fw);height:var(--fh);border-radius:14px;overflow:hidden;transform-origin:50% 0;
+  background:
+    radial-gradient(90% 80% at 14% 118%,rgb(var(--c)/.14),transparent 68%),
+    radial-gradient(70% 60% at 96% 96%,rgb(var(--c)/.06),transparent 70%),
+    radial-gradient(60% 46% at 50% 0%,rgb(255 255 255/.04),transparent 72%),
+    #0D0E0D;
+  border:1px solid var(--rule-night);
+  transition:transform var(--spring-play-dur) var(--spring-play),border-color var(--d-ui) var(--ease-settle)}
+
+/* the macOS menu bar, split by the notch: the collapsed island sits in it, exactly as on the Mac */
+.s--loop .lf__bar{position:absolute;z-index:1;inset:0 0 auto;height:calc(32px * var(--fu));display:flex;align-items:center;gap:calc(15px * var(--fu));
+  padding:0 calc(14px * var(--fu));background:rgb(255 255 255/.05);border-bottom:1px solid rgb(255 255 255/.04);
+  font:500 calc(13px * var(--fu))/1 var(--f-ui);color:rgb(255 255 255/.62);white-space:nowrap}
+.s--loop .lf__bar b{font-weight:700;color:rgb(255 255 255/.86)}
+.s--loop .lf__bar span:last-child{margin-left:auto;display:inline-flex;align-items:center;gap:calc(12px * var(--fu));font-variant-numeric:tabular-nums}
+.s--loop .lf__bar span:last-child::before{content:"";width:calc(22px * var(--fu));height:calc(10px * var(--fu));border-radius:calc(3px * var(--fu));
+  box-shadow:inset 0 0 0 1px rgb(255 255 255/.5);background:linear-gradient(90deg,rgb(255 255 255/.62) 64%,transparent 0) calc(2px * var(--fu)) 50%/calc(18px * var(--fu)) calc(6px * var(--fu)) no-repeat}
+.s--loop .lf__bar>*,.s--loop .lf__call{transition:opacity var(--d-ui) var(--ease-settle)}
+/* an open island covers the menu items around the notch (and the callouts under it) */
+.s--loop .lf:has(.island:is([data-state="peek"],[data-state="pinned"])) :is(.lf__bar>*,.lf__call){opacity:0}
+.s--loop .lf--pill .lf__bar{height:calc(24px * var(--fu))}
+.s--loop .lf__host{position:absolute;z-index:2;inset:0 0 auto;height:0}
+
+/* collapsed frames: what the two readings are, drawn like a spec sheet */
+.s--loop .lf__call{position:absolute;z-index:1;inset:0;pointer-events:none}
+.s--loop .lf__call span{position:absolute;top:calc(38px * var(--fu));left:calc(50% + var(--x) * 1px * var(--fu));translate:-50% 0;padding-top:calc(50px * var(--fu));
+  font:500 max(8px,calc(10.5px * var(--fu)))/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--fg-2);white-space:nowrap}
+.s--loop .lf__call span::before{content:"";position:absolute;left:50%;top:0;width:1px;height:calc(40px * var(--fu));
+  background:linear-gradient(rgb(var(--k)),rgb(var(--k)/.12))}
+.s--loop .lf__call span::after{content:"";position:absolute;left:50%;top:calc(-3px * var(--fu));width:calc(5px * var(--fu));aspect-ratio:1;border-radius:50%;translate:-50% 0;
+  background:rgb(var(--k));box-shadow:0 0 0 calc(3px * var(--fu)) rgb(var(--k)/.18)}
+
+/* a Claude Code session under the notch: the prompt matches what the meter is saying */
+.s--loop .lf__term{position:absolute;z-index:0;left:12%;right:12%;top:50%;bottom:calc(-14px * var(--fu));border-radius:calc(9px * var(--fu));
+  padding:calc(84px * var(--fu)) calc(20px * var(--fu)) 0;
+  --l:rgb(255 255 255/.085);--p:calc(20px * var(--fu));--h:calc(4px * var(--fu));
+  background:
+    radial-gradient(circle,rgb(255 255 255/.22) 40%,transparent 50%) calc(10px * var(--fu)) calc(8px * var(--fu))/calc(9px * var(--fu)) calc(9px * var(--fu)) no-repeat,
+    radial-gradient(circle,rgb(255 255 255/.14) 40%,transparent 50%) calc(22px * var(--fu)) calc(8px * var(--fu))/calc(9px * var(--fu)) calc(9px * var(--fu)) no-repeat,
+    radial-gradient(circle,rgb(255 255 255/.14) 40%,transparent 50%) calc(34px * var(--fu)) calc(8px * var(--fu))/calc(9px * var(--fu)) calc(9px * var(--fu)) no-repeat,
+    linear-gradient(var(--l),var(--l)) var(--p) calc(40px * var(--fu))/44% var(--h) no-repeat,
+    linear-gradient(var(--l),var(--l)) var(--p) calc(52px * var(--fu))/63% var(--h) no-repeat,
+    linear-gradient(rgb(255 255 255/.05),rgb(255 255 255/.05)) var(--p) calc(64px * var(--fu))/31% var(--h) no-repeat,
+    linear-gradient(rgb(255 255 255/.02),rgb(255 255 255/.02)) 0 0/100% calc(26px * var(--fu)) no-repeat,
+    rgb(255 255 255/.024);
+  box-shadow:inset 0 0 0 1px rgb(255 255 255/.055)}
+.s--loop .lf__tt{position:absolute;top:0;left:0;right:0;height:calc(26px * var(--fu));display:grid;place-items:center;
+  font:500 max(6px,calc(10.5px * var(--fu)))/1 var(--f-ui);color:rgb(255 255 255/.36);white-space:nowrap}
+.s--loop .lf__term p{margin:0;padding-top:calc(10px * var(--fu));border-top:1px solid rgb(255 255 255/.06);
+  font:400 max(6px,calc(13px * var(--fu)))/1.4 var(--f-mono);color:rgb(255 255 255/.84);white-space:nowrap;overflow:hidden}
+.s--loop .lf__term p b{font-weight:500;color:rgb(var(--c));margin-right:.35em}
+.s--loop .lf__term p i{display:inline-block;width:.6em;height:1.15em;margin-left:.2em;vertical-align:-.2em;background:rgb(var(--c)/.75)}
+
+.s--loop .lf.is-on,.s--loop .lf.is-live{z-index:2}
+.s--loop .lf.is-on .lf__screen{transform:scale(1.06);border-color:rgb(255 255 255/.24)}
+.s--loop .lf.is-live .lf__screen{border-color:rgb(var(--c)/.42)}
+.s--loop .lf.is-on .lf__cap,.s--loop .lf.is-live .lf__cap{color:var(--fg)}
+.s--loop .lf.is-on .lf__cap{transform:translateY(-3px)}
+.s--loop .lf:focus-visible{box-shadow:none}
+.s--loop .lf:focus-visible .lf__screen{outline:2px solid var(--ink);outline-offset:3px;box-shadow:0 0 0 4px var(--teal)}
+@media (max-width:767px){
+  .s--loop .lf__cap{font-size:9px;height:11px;gap:6px}
+  .s--loop .lf__cap::before{width:5px;height:5px}
+  .s--loop .lf__screen{border-radius:10px}
+}
+
+/* STRIP B — the app's words, set huge */
+.s--loop .lB{margin-top:-40px;height:max(22vh,13vw);background:var(--ink);transform:rotate(2deg);z-index:2;
+  display:flex;align-items:center;color:var(--paper);overflow:hidden}
+.s--loop .lB__par{width:100%}
+.s--loop .lB__track{display:flex;width:max-content;margin:0;
+  font:820 11vw/.9 var(--f-display);font-stretch:70%;letter-spacing:-.025em;white-space:nowrap}
+.s--loop .lB__set{display:flex;align-items:center}
+.s--loop .lB__it{display:inline-flex;align-items:baseline}
+.s--loop .lB__it[data-tone="teal"]{color:var(--teal)}
+.s--loop .lB__it[data-tone="lav"]{color:var(--lav)}
+.s--loop .lB__it[data-tone="red"]{color:var(--red);font-weight:900}
+.s--loop .lB__n{display:inline-block;min-width:1.02em}
+/* odometer: digits roll inside their own slot instead of flying over strip A */
+.s--loop .lB__n .roller__slot{overflow:hidden;padding-block:.08em;margin-block:-.08em}
+.s--loop .lB__n .roller__ch{filter:none!important}
+.s--loop .lB__sep{flex:none;position:relative;display:block;width:.78em;height:.12em;margin:0 .34em;border-radius:1em;overflow:hidden;transform:translateY(.02em);
+  --t:var(--teal);background:rgb(255 255 255/.13)}
+/* the fill slides (a composited transform) instead of repainting a gradient on every roll */
+.s--loop .lB__sep::after{content:"";position:absolute;inset:0;border-radius:inherit;background:var(--t);
+  transform:translateX(calc(var(--fill) - 100%));transition:transform .6s var(--ease-settle)}
+.s--loop .lB__sep[data-tone="lav"]{--t:var(--lav)}
+.s--loop .lB__sep[data-tone="red"]{--t:var(--red)}
+@media (max-width:767px){.s--loop .lB{height:max(16vh,21vw);margin-top:-20px}.s--loop .lB__track{font-size:18vw}}
+
+
+/* ---------------------------------------------------------------- static composition (no JS, reduced motion) */
+html:not([data-motion="full"]) .s--loop .lA__par{width:100vw;margin-inline:auto;overflow-x:auto;overscroll-behavior-x:contain;
+  scroll-snap-type:x mandatory;scrollbar-width:none;scroll-padding-inline:var(--gutter)}
+html:not([data-motion="full"]) .s--loop .lA__par::-webkit-scrollbar{display:none}
+html:not([data-motion="full"]) .s--loop .lA__track{padding-inline:var(--gutter)}
+html:not([data-motion="full"]) .s--loop .lf{scroll-snap-align:start}
+html:not([data-motion="full"]) .s--loop .lB__par{width:100vw;margin-inline:auto;overflow:hidden;padding-left:var(--gutter);
+  -webkit-mask-image:linear-gradient(90deg,#000 62%,transparent 94%);mask-image:linear-gradient(90deg,#000 62%,transparent 94%)}
+
+/* ---------------------------------------------------------------- CTA block */
+.s--loop .loop__cta{margin-top:clamp(104px,16vh,190px);align-items:center;row-gap:48px}
+.s--loop .loop__copy{grid-column:1 / span 7}
+.s--loop .loop__copy h2{margin:0;max-width:11.5em}
+.s--loop .loop__copy h2 em{white-space:nowrap}
+.s--loop .loop__lede{margin:clamp(24px,2.6vw,40px) 0 0;max-width:40ch;
+  font:420 var(--t-lede)/var(--lh-lede) var(--f-display);font-stretch:96%;color:var(--ink-2);text-wrap:pretty}
+.s--loop .loop__go{margin-top:clamp(36px,3.8vw,56px);max-width:40rem}
+.s--loop .loop__go{position:relative}
+.s--loop .loop__go .req{margin-top:2px}
+.s--loop .loop__win{position:absolute;left:352px;top:22px;display:inline-flex;align-items:center;gap:.4em;height:24px;padding:0;border:0;background:none;cursor:pointer;
+  font:600 17px/1 var(--f-display);font-stretch:92%;color:var(--ink);white-space:nowrap;-webkit-tap-highlight-color:transparent;
+  transition:background-color var(--d-ui) var(--ease-settle),color var(--d-ui) var(--ease-settle)}
+.s--loop .loop__win-os{font-weight:420;color:var(--ink-2)}
+.s--loop .loop__win i{font-style:normal;display:inline-block;transition:transform var(--spring-play-dur) var(--spring-play)}
+.s--loop .loop__win::after{content:"";position:absolute;left:0;right:0;bottom:-3px;height:1px;background:currentColor;transform:scaleX(0);transform-origin:0 50%;
+  transition:transform .4s var(--ease-settle)}
+.s--loop .loop__win:hover::after,.s--loop .loop__win:focus-visible::after{transform:scaleX(1)}
+.s--loop .loop__win:hover i,.s--loop .loop__win:focus-visible i{transform:translateX(4px)}
+/* a Windows visitor: the waitlist is their button, so it becomes one */
+html[data-os="windows"] .s--loop .loop__win{height:44px;padding:0 20px 0 18px;top:12px;border-radius:var(--r-pill);background:var(--ink);color:var(--paper)}
+html[data-os="windows"] .s--loop .loop__win-os{color:rgb(237 238 233/.62)}
+html[data-os="windows"] .s--loop .loop__win::after{display:none}
+html[data-os="windows"] .s--loop .loop__win:hover{background:var(--black)}
+html:not([data-motion]) .s--loop .loop__win{display:none}  /* it opens a form: needs JS */
+@media (max-width:1199px){
+  .s--loop .loop__win{position:static;margin:4px 0 18px}
+  html[data-os="windows"] .s--loop .loop__win{margin-top:8px}
+}
+
+/* ---------------------------------------------------------------- the icon, built in code: a glass object you can tilt */
+.s--loop .loop__icon{grid-column:8 / span 5;justify-self:center;margin:0;display:flex;flex-direction:column;align-items:center;--is:clamp(300px,28vw,440px)}
+.s--loop .li__stage{position:relative;width:var(--is);height:var(--is);perspective:800px}
+.s--loop .li__bob,.s--loop .li__tilt{position:absolute;inset:0;transform-style:preserve-3d}
+.s--loop .li__tilt{--sx:-.3}
+.s--loop .li__amb{position:absolute;inset:7% 8% -1%;border-radius:28%;background:rgb(17 19 17/.5);filter:blur(calc(var(--is) * .06));
+  transform:translateZ(calc(var(--is) * -.04)) translateY(5%)}
+.s--loop .li__body,.s--loop .li__spec{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.s--loop .li__spec{transform:translateZ(1px)}
+.s--loop .li__notch{position:absolute;left:37.6%;top:25.6%;width:24.7%;height:6.6%;border-radius:var(--r-pill);background:#000;
+  box-shadow:inset 0 0 0 calc(var(--is) * .0025) rgb(255 255 255/.08),0 calc(var(--is) * .003) 0 rgb(255 255 255/.05),0 calc(var(--is) * .012) calc(var(--is) * .02) rgb(0 0 0/.45);
+  transform:translateZ(calc(var(--is) * .025))}
+.s--loop .li__notch i{position:absolute;right:9%;top:50%;width:calc(var(--is) * .028);aspect-ratio:1;border-radius:50%;translate:0 -50%;
+  background:radial-gradient(circle at 36% 34%,#6572a6 0 10%,#232842 40%,#07080d 72%)}
+/* three glass capsules: a tinted track, a fill clipped to --fill, a glow that follows the fill, and a moving sheen */
+.s--loop .li__m{position:absolute;left:19.5%;width:60.8%;height:8.3%;top:calc(38.4% + var(--k) * 12.3%);border-radius:var(--r-pill);
+  background:linear-gradient(180deg,rgb(var(--c)/.12),rgb(var(--c)/.22));
+  box-shadow:inset 0 calc(var(--is) * .004) calc(var(--is) * .01) rgb(0 0 0/.6),0 0 0 calc(var(--is) * .003) rgb(0 0 0/.55),0 calc(var(--is) * .004) 0 rgb(255 255 255/.05);
+  transform:translateZ(calc(var(--is) * .05))}
+.s--loop .li__glow,.s--loop .li__glass,.s--loop .li__fill{position:absolute;inset:0;border-radius:inherit}
+.s--loop .li__glow{filter:drop-shadow(0 calc(var(--is) * .016) calc(var(--is) * .03) rgb(var(--c)/.5))}
+.s--loop .li__fill{clip-path:inset(0 calc(100% - var(--fill)) 0 0 round 999px);
+  background:linear-gradient(180deg,rgb(255 255 255/.34),rgb(255 255 255/.06) 48%,rgb(0 0 0/.06)),rgb(var(--c));
+  box-shadow:inset 0 calc(var(--is) * -.005) calc(var(--is) * .008) rgb(0 0 0/.14)}
+.s--loop .li__glass{overflow:hidden}
+.s--loop .li__glass::after{content:"";position:absolute;left:5%;right:5%;top:11%;height:30%;border-radius:var(--r-pill);background:linear-gradient(rgb(255 255 255/.3),rgb(255 255 255/0))}
+.s--loop .li__glass b{position:absolute;top:0;bottom:0;left:0;width:34%;
+  background:linear-gradient(100deg,transparent 18%,rgb(255 255 255/.5) 50%,transparent 82%);
+  transform:translateX(calc(-100% + (var(--sx) - var(--k) * .08) * 395%)) skewX(-18deg)}
+.s--loop .li__shadow{position:absolute;left:16%;right:16%;bottom:-7%;height:9%;border-radius:50%;
+  background:radial-gradient(closest-side,rgb(17 19 17/.36),rgb(17 19 17/0));filter:blur(5px);transform-origin:50% 50%}
+.s--loop .li__cap{margin-top:clamp(40px,4.4vw,64px);font:500 var(--t-label)/1.2 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+/* ambient icon loops run on the compositor (base.css .is-off stops them offscreen; the pause toggle holds them) */
+html[data-motion="full"] .s--loop .li__bob{animation:loop-bob 3s cubic-bezier(.37,0,.63,1) infinite alternate}
+html[data-motion="full"] .s--loop .li__shadow{animation:loop-shadow 3s cubic-bezier(.37,0,.63,1) infinite alternate}
+@keyframes loop-bob{from{transform:translateY(6px)}to{transform:translateY(-6px)}}
+@keyframes loop-shadow{from{transform:scale(1.04);opacity:1}to{transform:scale(.84);opacity:.55}}
+/* touch: no pointer to follow, so a glint crosses the capsules now and then */
+@media (hover:none),(pointer:coarse){
+  html[data-motion="full"] .s--loop .li__glass b{animation:loop-glint 4.9s infinite}
+}
+@keyframes loop-glint{
+  0%{transform:translateX(calc(-100% + (-.3 - var(--k) * .08) * 395%)) skewX(-18deg);animation-timing-function:cubic-bezier(.45,0,.55,1)}
+  26.5%,100%{transform:translateX(calc(-100% + (1.35 - var(--k) * .08) * 395%)) skewX(-18deg)}
+}
+.s--loop.is-paused :is(.li__bob,.li__shadow,.li__glass b){animation-play-state:paused}
+
+@media (min-width:768px) and (max-width:1099px){
+  .s--loop .loop__copy{grid-column:1 / span 7}
+  .s--loop .loop__icon{grid-column:8 / span 5;--is:min(30vw,280px)}
+}
+@media (max-width:767px){
+  .s--loop .loop__cta{row-gap:40px;margin-top:72px}
+  .s--loop .loop__copy,.s--loop .loop__icon{grid-column:1 / -1}
+  .s--loop .loop__icon{order:-1;justify-self:start;align-items:flex-start;--is:min(50vw,200px)}
+  .s--loop .li__cap{margin-top:30px}
+  .s--loop .loop__go{max-width:none}
+}

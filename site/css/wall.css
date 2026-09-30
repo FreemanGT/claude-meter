@@ -1,0 +1,189 @@
+/* §02 wall — two afternoons, same refactor. Default = the static two-panel composition (no JS,
+   reduced motion). .is-live (set by wall.js) turns it into the pinned, scrubbed scene. */
+
+.s--wall{--w-ink:var(--ink);--w-ink2:var(--ink-2)}
+.s--wall .wall__night,.s--wall .wall__bg,.s--wall .wall__slam,.s--wall .wall__flash,.s--wall .wall__arrow,
+.s--wall .note,.s--wall .term__chip,.s--wall .term__scan{display:none}
+
+/* ---------- copy ---------- */
+.s--wall .act__label{font:500 var(--t-label)/1.2 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--w-ink2);margin-bottom:18px;white-space:nowrap}
+.s--wall .act__label::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:currentColor;margin-right:10px;vertical-align:.12em}
+.s--wall .act__h,.s--wall .act__h3{color:var(--w-ink);font-size:clamp(32px,3.6vw,60px)}
+.s--wall .act__sub{font:420 var(--t-lede)/var(--lh-lede) var(--f-display);font-stretch:96%;color:var(--w-ink2);max-width:30ch;margin-top:18px;text-wrap:pretty}
+/* the session clock leads every headline, set as a thin mono numeral with a small meridiem */
+.s--wall .act__t{display:block;margin-bottom:.04em;font:260 1.32em/.92 var(--f-mono);font-stretch:100%;letter-spacing:-.045em;font-variant-numeric:tabular-nums;white-space:nowrap}
+.s--wall .act__ap{font-size:.3em;font-weight:500;letter-spacing:.04em}   /* inline, so its leading space survives (screen readers say "1:12 PM") */
+.s--wall .wall__close{font:760 calc(var(--t-h3) * 1.08)/1.02 var(--f-display);font-stretch:125%;letter-spacing:-.025em;color:var(--ink);margin-top:28px;text-wrap:balance}
+
+/* ---------- terminal ---------- */
+.s--wall .term{position:relative;margin:0;background:#0E0F0E;border:1px solid var(--rule-night);border-radius:20px;box-shadow:var(--sh-float);color:var(--fg);isolation:isolate}
+.s--wall .term::after{content:"";position:absolute;inset:-1px;border-radius:inherit;border:1px solid var(--red);opacity:var(--hot,0);pointer-events:none}
+.s--wall .term__bar{height:36px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:0 14px;border-bottom:1px solid rgb(255 255 255/.06);
+  font:500 12px/1 var(--f-mono);font-variant-numeric:tabular-nums;color:var(--fg-2)}
+.s--wall .term__dots{display:flex;gap:7px}
+.s--wall .term__dots i{width:10px;height:10px;border-radius:50%;background:#3a3a3a}
+.s--wall .term__clock{justify-self:end}
+.s--wall .term__body{position:relative;padding:20px 24px;font:400 15px/1.6 var(--f-mono);font-variant-numeric:tabular-nums;overflow:hidden;border-radius:0 0 19px 19px}
+/* expanded, the island covers the top of the screen: rows scrolled up under it fade out instead of peeking past its corners */
+.s--wall.is-live .term__body{-webkit-mask:linear-gradient(transparent calc(var(--cut,0px) - 10px),#000 calc(var(--cut,0px) + 6px));mask:linear-gradient(transparent calc(var(--cut,0px) - 10px),#000 calc(var(--cut,0px) + 6px))}
+.s--wall .term__lines{display:grid;grid-template-columns:minmax(0,1fr)}
+.s--wall .l{position:relative;display:flex;gap:2ch;min-width:0;white-space:pre}
+.s--wall .l__t{position:relative;min-width:0;overflow-x:clip;overflow-y:visible;text-overflow:ellipsis}
+/* prompt glyphs take exactly two cells, so a line is always --n cells wide (the typing mask counts on it) */
+.s--wall .l__t>.p,.s--wall .l__t>.g,.s--wall .l__t>.ok,.s--wall .l__t>.x{display:inline-block;width:2ch}
+.s--wall .l--sub{padding-left:2ch}
+.s--wall .l__n{margin-left:auto;flex:none;color:var(--fg-3)}
+.s--wall .l__n b{font-weight:400;color:var(--teal)}
+.s--wall .p,.s--wall .g{color:var(--fg-3)}
+.s--wall .ok{color:var(--teal)}
+.s--wall .l--hit{color:var(--red);font-weight:700}
+.s--wall:not(.is-live) .l--hit,.s--wall:not(.is-live) .l--hit .l__t{white-space:normal}   /* the static card never truncates the reset time */
+
+/* ---------- static composition (default) ---------- */
+.s--wall .wall__grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--col-gap);margin-top:clamp(32px,5vw,64px);align-items:start}
+.s--wall:not(.is-live) .wall__a{--w-ink:var(--fg);--w-ink2:var(--fg-2)}
+.s--wall .wall__a{background:var(--night);border-radius:var(--r-stage);padding:clamp(20px,3vw,44px)}
+.s--wall:not(.is-live) .wall__a .act__h{color:var(--red);font-weight:900}
+.s--wall .wall__b{padding:clamp(20px,3vw,44px) 0}
+.s--wall .wall__a .term,.s--wall .wall__b .bezel{margin-top:clamp(24px,3vw,40px)}
+.s--wall .term--a .l--b{display:none}
+/* the top of terminal B's screen: the island hangs from its edge (wall.js sizes it to the pinned panel) */
+.s--wall .bezel{position:relative;height:36px;background:#0E0F0E;border:1px solid var(--rule-night);border-bottom:0;border-radius:20px 20px 0 0}
+.s--wall .bezel+.term{border-top-left-radius:0;border-top-right-radius:0;border-top:0}
+.s--wall .bezel__cam{position:absolute;inset:0;transform-origin:50% 0}
+.s--wall .term__bar>*{transition:opacity .28s var(--ease-settle)}
+.s--wall .term.is-under .term__bar>*,.s--wall .term.has-notch .term__title{opacity:0}
+@media (max-width:1023px){.s--wall .wall__grid{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:767px){
+  .s--wall .term__body{font-size:13px;padding:16px}
+  .s--wall .term__title{display:none}
+  .s--wall .term__bar{grid-template-columns:1fr 1fr}
+  .s--wall .term.has-notch .term__bar>*{opacity:0}   /* the collapsed notch spans most of a phone's bar: dots and clock duck (the running head keeps the time) */
+}
+
+/* ---------- live scene ---------- */
+.s--wall.is-live{padding-bottom:0}
+/* The pinned node never clips (a clipped pin logs a layout shift each time it engages): the layers clip themselves. */
+.s--wall.is-live .pin{position:relative;height:100svh;min-height:600px;display:flex;flex-direction:column;background:var(--paper);
+  padding:calc(var(--band-h) + 14px) 0 clamp(16px,3vh,32px)}
+.s--wall.is-live .wall__wrap{position:relative;z-index:2;flex:1;display:flex;flex-direction:column;min-height:0}
+.s--wall.is-live .rh{color:var(--w-ink2);border-top-color:var(--rule);transition:color .4s var(--ease-edit)}
+.s--wall.is-night .rh{border-top-color:var(--rule-night)}
+.s--wall.is-night{--w-ink:var(--fg);--w-ink2:var(--fg-2)}
+.s--wall.is-live .act__label,.s--wall.is-live .act__sub,.s--wall.is-live .wall__close{transition:color .4s var(--ease-edit)}
+/* the limit beat: the headline hits in red at full weight (a hard cut, no fade) */
+.s--wall .act.is-hit .act__h,.s--wall .act.is-hit .act__label{color:var(--red);transition:none}
+.s--wall .act.is-hit .act__h{font-weight:900}
+.s--wall.is-live:not(.is-night) .act.is-hit .act__h,.s--wall.is-live:not(.is-night) .act.is-hit .act__label{color:var(--red-ink)}   /* back on paper (rewind): AA red */
+
+.s--wall.is-live .wall__grid{flex:1;margin:0;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:var(--col-gap);
+  grid-template-rows:auto auto auto;align-content:center;align-items:start}
+.s--wall.is-live .wall__grid .wall__a,.s--wall.is-live .wall__grid .wall__b{display:contents}
+.s--wall.is-live .l{grid-column:1}
+.s--wall.is-live .l:nth-child(1){grid-row:1}.s--wall.is-live .l:nth-child(2){grid-row:2}.s--wall.is-live .l:nth-child(3){grid-row:3}
+.s--wall.is-live .l:nth-child(4){grid-row:4}.s--wall.is-live .l:nth-child(5){grid-row:5}.s--wall.is-live .l:nth-child(6){grid-row:6}
+.s--wall.is-live .l--hit{grid-row:10}
+.s--wall.is-live .wall__grid .wall__b>.act__label,.s--wall.is-live .wall__grid .wall__b>.act__h3,.s--wall.is-live .wall__grid .wall__b>.act__sub,.s--wall.is-live .wall__grid .term--b{display:none}
+.s--wall.is-live .wall__grid .term--a .l--b{display:flex}
+.s--wall.is-live .l--r7{grid-row:7}.s--wall.is-live .l--r8{grid-row:8}.s--wall.is-live .l--r9{grid-row:9}
+.s--wall.is-live .term__lines{height:calc(14 * 1.6em);grid-auto-rows:1.6em;align-content:start}   /* a fixed screen: rows past it scroll off */
+.s--wall.is-live .l__t{overflow:visible}
+.s--wall.is-live .c{display:inline-block;white-space:pre}
+/* Typing: a terminal-coloured cover hides every cell past --k (0..1, stepped one cell at a time); the
+   block cursor rides its left edge. One custom property per line instead of a span per character. */
+/* (clip-path and transform only: the typing never registers as a layout shift) */
+.s--wall.is-live .wall__grid .l__t::after{content:"";position:absolute;inset:0 -1px 0 0;background:#0E0F0E;clip-path:inset(0 0 0 calc(var(--k,1) * var(--n,0) * 1ch))}
+.s--wall.is-live .l.is-cur .l__t::before,.s--wall.is-live .term.is-idle .term__lines::before{content:"";position:absolute;z-index:1;left:0;top:.2em;width:1ch;height:1.15em;
+  transform:translateX(calc(var(--k,1) * var(--n,0) * 1ch));background:var(--fg);animation:wall-blink 1.05s steps(1) infinite}
+.s--wall.is-live .l--hit.is-cur .l__t::before{background:var(--red)}
+@keyframes wall-blink{50%{opacity:0}}
+
+/* The island hangs from the terminal's top edge (its menu bar), clipped to the screen so it drops in from the edge. */
+.s--wall.is-live .wall__grid .bezel{grid-column:1/8;grid-row:2;align-self:stretch;height:auto;margin:0;z-index:4;background:none;border:0;border-radius:20px;overflow:clip;pointer-events:none}
+.s--wall.is-live .term--a{grid-column:1/8;grid-row:2;z-index:3;margin:0}
+.s--wall.is-live .wall__close{grid-column:1/8;grid-row:3;text-align:center;margin-top:clamp(14px,2.4vh,28px);text-shadow:0 0 .3em var(--paper),0 0 .12em var(--paper)}
+.s--wall.is-live .act{grid-column:9/13;grid-row:1/3;align-self:start;padding-top:clamp(20px,5vh,56px);
+  /* reserve the tallest beat (3-line headline at wght 900, 3-line sub): copy swaps never resize the grid,
+     so the terminal, the note and the close line hold still */
+  min-height:calc(clamp(20px,5vh,56px) + 32.4px + 4.2 * clamp(40px,4.9vw,78px) + 18px + 4.26 * var(--t-lede))}
+.s--wall.is-live .act__h{font-size:clamp(40px,4.9vw,78px)}
+.s--wall.is-live .note{display:flex;gap:12px;align-items:center;grid-column:9/13;grid-row:3;align-self:start;margin:clamp(14px,2.4vh,28px) 0 0;
+  font:italic 400 24px/1.15 var(--f-serif);color:var(--w-ink);white-space:nowrap}
+.s--wall .note__check{width:26px;height:20px;flex:none;color:var(--teal-ink)}
+.s--wall .note__check path{stroke-width:3}
+
+/* rewind: an on-screen-display chip and a tracking band running up the screen */
+.s--wall.is-live .term__chip{display:inline-flex;align-items:center;gap:10px;position:absolute;left:50%;top:calc(36px + 3.2 * 24px);translate:-50% 0;z-index:3;padding:10px 18px 10px 16px;
+  border-radius:var(--r-pill);background:var(--teal);color:#06140F;font:600 13px/1 var(--f-mono);letter-spacing:.14em;text-transform:uppercase;
+  box-shadow:0 12px 32px -10px rgb(92 201 166/.7);visibility:hidden}
+.s--wall .term__chip::before{content:"◀◀";letter-spacing:-.18em;margin-right:.3em}
+.s--wall .term__chip i{font-style:normal;display:inline-block}
+.s--wall .term__chip.is-rw i{animation:wall-spin .7s linear infinite}
+@keyframes wall-spin{to{transform:rotate(-360deg)}}
+.s--wall.is-live .term__scan{display:block;position:absolute;inset:0;pointer-events:none;visibility:hidden;z-index:2;
+  background:linear-gradient(rgb(236 237 232/.6),rgb(236 237 232/.6)) top/100% 2px no-repeat,
+    repeating-linear-gradient(rgb(236 237 232/.1) 0 1px,transparent 1px 3px) top/100% 54px no-repeat,
+    linear-gradient(rgb(92 201 166/.2),transparent 54px) top/100% 54px no-repeat}
+
+.s--wall.is-live .wall__night{display:block;position:absolute;inset:0;z-index:0;background:var(--night);
+  clip-path:circle(calc(var(--nr,0) * 1%) at var(--nx,30%) var(--ny,70%))}
+.s--wall.is-live .wall__bg{display:block;position:absolute;inset:0;z-index:1;pointer-events:none;overflow:clip}
+/* Anchored by its LEFT edge (left:100%, pulled back by a transform): the wdth squeeze changes its width,
+   never its start, so the scrub logs no layout shift. --sq: 0 = wdth 150 … 1 = wdth 50 */
+.s--wall .wall__word{position:absolute;left:100%;bottom:-.1em;translate:-88% 0;font:800 var(--t-wall)/.78 var(--f-display);
+  font-stretch:calc((150 - var(--sq,0) * 100) * 1%);letter-spacing:var(--tr-wall);white-space:nowrap;user-select:none}
+.s--wall .wall__ink{position:relative;display:block;color:var(--paper-2)}
+.s--wall .wall__zig{position:absolute;left:0;top:48%;width:100%;height:38%;overflow:visible;color:var(--teal-ink)}
+.s--wall .wall__zig path{stroke-width:6}
+
+/* the wall itself: four red letters that slam up from the floor in front of the terminal (font-size set by wall.js) */
+.s--wall.is-live .wall__slam{display:block;position:absolute;inset:0;z-index:6;overflow:clip;pointer-events:none}
+/* four separate blocks with a thin run of mortar between them, so the word reads at a glance even stretched */
+.s--wall .wall__slab{position:absolute;left:0;bottom:-.09em;transform-origin:50% calc(100% - .09em);display:flex;gap:.018em;font:900 100px/.7 var(--f-display);font-stretch:50%;color:var(--red);white-space:nowrap}
+.s--wall .wall__slab i{display:block;font-style:normal}
+/* the limit line, carried onto the wall as a bolted-on sign where it printed (placed by wall.js) */
+.s--wall .wall__sign{position:absolute;left:0;top:0;margin:0;translate:-50% -50%;padding:.78em 1.5em;border-radius:5px;background:#0B0B0B;color:var(--red);
+  font:700 clamp(12px,1.2vw,17px)/1 var(--f-mono);letter-spacing:.01em;white-space:nowrap;visibility:hidden;
+  box-shadow:inset 0 0 0 1px rgb(242 107 107/.45),0 22px 44px -14px rgb(0 0 0/.75)}
+.s--wall .wall__sign b{font-weight:700}
+.s--wall .wall__sign::before,.s--wall .wall__sign::after{content:"";position:absolute;top:50%;width:5px;height:5px;margin-top:-2.5px;border-radius:50%;background:#2a2a2a;box-shadow:inset 0 1px 0 rgb(255 255 255/.14)}
+.s--wall .wall__sign::before{left:.6em}.s--wall .wall__sign::after{right:.6em}
+.s--wall.is-live .wall__flash{display:block;position:absolute;inset:0;z-index:7;background:var(--red);opacity:0;pointer-events:none}
+
+.s--wall.is-live .wall__arrow{display:block;position:absolute;inset:0;width:100%;height:100%;z-index:5;pointer-events:none;overflow:visible;color:var(--ink)}
+/* paper casing under the ink, so the stroke still reads where it crosses the black terminal */
+.s--wall .wall__arrow .wall__arrow-halo{stroke:var(--paper);stroke-width:7}
+
+/* live, stacked (tablet + phone): headline, then the terminal with its notch, then the close */
+@media (max-width:1023px){
+  .s--wall.is-live .wall__grid{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto;align-content:center}
+  .s--wall.is-live .act{grid-column:1;grid-row:1;align-self:start;padding:clamp(16px,3vh,40px) 0 clamp(20px,3vh,36px);
+    min-height:calc(clamp(16px,3vh,40px) + clamp(20px,3vh,36px) + 32.4px + 3.25 * clamp(40px,4.9vw,78px) + 18px + 2.84 * var(--t-lede))}
+  .s--wall.is-live .wall__grid .bezel,.s--wall.is-live .term--a{grid-column:1;grid-row:2}
+  .s--wall.is-live .wall__close{grid-column:1;grid-row:3}
+  .s--wall.is-live .note,.s--wall.is-live .wall__arrow{display:none}
+  .s--wall .wall__slab{left:50%;translate:-50% 0}
+}
+@media (max-width:767px){
+  .s--wall.is-live .act__label{margin-bottom:10px;font-size:11px}
+  .s--wall.is-live .act__h{font-size:calc(var(--t-h3) * 1.3);line-height:.95}
+  .s--wall.is-live .act__sub{font-size:15px;margin-top:10px;max-width:34ch}
+  /* reserve the tallest beat (label, numeral + 2 headline lines, 3-line sub) so copy swaps never nudge the terminal */
+  .s--wall.is-live .act{min-height:calc(clamp(16px,3vh,40px) + clamp(20px,3vh,36px) + 97px + var(--t-h3) * 1.3 * 3.31)}
+  .s--wall.is-live .term__lines{height:calc(10 * 1.6em)}
+  .s--wall.is-live .l__t{overflow-x:clip}
+  .s--wall.is-live .term__chip{top:calc(36px + 1.2 * 20.8px);font-size:12px;padding:8px 14px 8px 12px}
+  .s--wall.is-live .wall__close{font-size:calc(var(--t-h3) * 1.05)}
+  .s--wall.is-live .wall__bg{opacity:.6}
+  .s--wall .wall__word{font-size:60vw;bottom:auto;top:50%;translate:calc(-50% - .2em) -50%;rotate:-90deg}
+  .s--wall .wall__zig{top:52%;height:40%}
+  .s--wall .wall__zig path{stroke-width:6}
+}
+/* short phones (320×640, landscape-ish): 8 terminal rows and a tighter headline keep the whole story on one screen */
+@media (max-width:767px) and (max-height:720px){
+  .s--wall.is-live .term__lines{height:calc(8 * 1.6em)}
+  .s--wall.is-live .act__h{font-size:calc(var(--t-h3) * 1.15)}
+  .s--wall.is-live .act{padding:8px 0 14px;min-height:calc(22px + 97px + var(--t-h3) * 1.15 * 3.31)}
+  .s--wall.is-live .wall__close{font-size:calc(var(--t-h3) * .8);margin-top:10px}
+}
+@media (max-width:360px){.s--wall .wall__rhk{display:none}}

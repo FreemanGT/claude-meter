@@ -1,0 +1,127 @@
+<section id="privacy" class="s s--privacy" data-section="privacy" data-night aria-labelledby="privacy-title">
+  <div class="wrap">
+    <p class="rh"><span>§05 — PRIVACY</span><span class="rh__datum">3 HOSTS · 0 ANALYTICS</span></p>
+
+    <div class="pv-head">
+      <h2 id="privacy-title" class="pv-title">
+        <span class="sr-only">Reads. Never writes.</span>
+        <span class="pv-title__vis" aria-hidden="true">
+          <span class="pv-reads"><span class="pv-reads__w">Reads.</span></span>
+          <span class="pv-never"><span class="pv-never__in"><em class="pv-never__em">Never</em> <span class="mark pv-mark">writes.</span></span></span>
+        </span>
+      </h2>
+      <p class="pv-lead" data-reveal="lines">Claude Meter uses the sign&#8209;in Claude Code already saved on your Mac. It reads it from the macOS Keychain, through Apple’s own security tool, or from <span class="pv-nw"><code>~/.claude/.credentials.json</code>,</span> and never changes it. Short&#8209;lived tokens are refreshed in memory, never written back. Up to 24 hours of readings, kept for the sparklines and forecast, stay on your Mac.</p>
+    </div>
+
+    <figure class="pv-net" aria-labelledby="pv-net-cap">
+      <!-- Desktop: horizontal, viewBox 1200×400. Every HTML pin is anchored in viewBox units (--x/--y). -->
+      <div class="pv-stage pv-stage--h" style="--vw:1200;--vh:400">
+        <svg class="pv-svg" viewBox="0 0 1200 400" aria-hidden="true" focusable="false">
+          <defs>
+            <pattern id="pv-dots-h" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1"/></pattern>
+            <radialGradient id="pv-fade-h" cx="30%" cy="55%" r="62%"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+            <mask id="pv-grid-h"><rect width="1200" height="400" fill="url(#pv-fade-h)"/></mask>
+            <mask id="pv-else-h" maskUnits="userSpaceOnUse" x="0" y="0" width="1200" height="400"><path class="pv-else-reveal" d="M152,260 C270,260 330,300 420,322"/></mask>
+          </defs>
+          <rect class="pv-grid" width="1200" height="400" fill="url(#pv-dots-h)" mask="url(#pv-grid-h)"/>
+
+          <path class="pv-read" data-route="read" d="M100,82 L100,198"/>
+          <path class="pv-read__tip" d="M93,191 L100,198 L107,191"/>
+          <path class="pv-route pv-r--usage" data-route="usage" d="M152,242 C400,242 450,64 700,64"/>
+          <path class="pv-route pv-r--token" data-route="token" d="M152,248 C400,248 450,152 700,152"/>
+          <path class="pv-route pv-r--version" data-route="version" d="M152,254 C400,254 450,240 700,240"/>
+          <path class="pv-ghost" d="M420,322 C510,346 590,328 700,328"/>
+          <path class="pv-else" mask="url(#pv-else-h)" d="M152,260 C270,260 330,300 420,322"/>
+          <g class="pv-x" transform="translate(420 322)"><circle r="17"/><path d="M-6.5,-6.5 L6.5,6.5 M6.5,-6.5 L-6.5,6.5"/></g>
+        </svg>
+
+        <p class="pv-lbl" style="--x:100;--y:8"><span class="pv-lbl__n">01</span>Reads</p>
+        <div class="pv-src pv-pin" style="--x:100;--y:64"><span class="pv-chip"><i class="pv-dot"></i>macOS Keychain</span><span class="pv-desc">or <code>~/.claude/<wbr>.credentials.json</code></span></div>
+        <p class="pv-rw" style="--x:116;--y:124"><span class="pv-rw__r">reads</span><span class="pv-rw__w"><span class="sr-only">never </span><span class="pv-rw__wt">writes</span><svg class="ink" viewBox="0 0 60 12" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path d="M1,8 C12,5 22,7 33,5 C43,3 52,6 59,3"/></svg></span></p>
+        <div class="pv-node" style="--x:100;--y:250">
+          <svg class="pv-node__ring" viewBox="0 0 144 144" aria-hidden="true" focusable="false"><circle cx="72" cy="72" r="71"/></svg>
+          <img class="pv-node__icon" src="/assets/icon-256.png" width="96" height="96" alt="">
+          <span class="pv-node__label">YOUR MAC</span>
+        </div>
+
+        <p class="pv-lbl" style="--x:700;--y:8"><span class="pv-lbl__n">02</span>Talks to</p>
+        <ul class="pv-hosts" role="list">
+          <li class="pv-host pv-pin pv-host--usage" style="--x:700;--y:64"><span class="pv-chip"><i class="pv-dot"></i>api.anthropic.com</span><span class="pv-desc">your usage numbers</span></li>
+          <li class="pv-host pv-pin pv-host--token" style="--x:700;--y:152"><span class="pv-chip"><i class="pv-dot"></i>platform.claude.com</span><span class="pv-desc">token refresh, kept in memory</span></li>
+          <li class="pv-host pv-pin pv-host--version" style="--x:700;--y:240"><span class="pv-chip"><i class="pv-dot"></i>claudemeter.vercel.app<wbr>/version.json</span><span class="pv-desc">once a day: is there an update?</span></li>
+          <li class="pv-host pv-pin pv-host--else" style="--x:700;--y:328"><span class="pv-chip"><i class="pv-dot"></i>anything&nbsp;else</span><span class="pv-desc">nobody. that’s the list.</span></li>
+        </ul>
+      </div>
+
+      <!-- Mobile: vertical, viewBox 400×730. -->
+      <div class="pv-stage pv-stage--v" style="--vw:400;--vh:730">
+        <svg class="pv-svg" viewBox="0 0 400 730" aria-hidden="true" focusable="false">
+          <defs>
+            <pattern id="pv-dots-v" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1"/></pattern>
+            <linearGradient id="pv-fade-v" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+            <mask id="pv-grid-v"><rect width="400" height="730" fill="url(#pv-fade-v)"/></mask>
+            <mask id="pv-else-v" maskUnits="userSpaceOnUse" x="0" y="0" width="400" height="730"><path class="pv-else-reveal" d="M30,260 C30,278 24,278 24,296 L24,500"/></mask>
+          </defs>
+          <rect class="pv-grid" width="400" height="730" fill="url(#pv-dots-v)" mask="url(#pv-grid-v)"/>
+
+          <path class="pv-read" data-route="read" d="M42,78 L42,178"/>
+          <path class="pv-read__tip" d="M36,171 L42,178 L48,171"/>
+          <path class="pv-route pv-r--usage" data-route="usage" d="M54,260 C54,278 60,278 60,296 L60,330 C60,344 66,350 76,350 L84,350"/>
+          <path class="pv-route pv-r--token" data-route="token" d="M46,260 C46,278 48,278 48,296 L48,440 C48,454 58,460 70,460 L84,460"/>
+          <path class="pv-route pv-r--version" data-route="version" d="M38,260 C38,278 36,278 36,296 L36,550 C36,564 46,570 58,570 L84,570"/>
+          <path class="pv-ghost" d="M24,500 L24,660 C24,674 34,680 46,680 L84,680"/>
+          <path class="pv-else" mask="url(#pv-else-v)" d="M30,260 C30,278 24,278 24,296 L24,500"/>
+          <g class="pv-x" transform="translate(24 500)"><circle r="13"/><path d="M-5,-5 L5,5 M5,-5 L-5,5"/></g>
+        </svg>
+
+        <p class="pv-lbl" style="--x:42;--y:4"><span class="pv-lbl__n">01</span>Reads</p>
+        <div class="pv-src pv-pin" style="--x:42;--y:58"><span class="pv-chip"><i class="pv-dot"></i>macOS Keychain</span><span class="pv-desc">or <code>~/.claude/<wbr>.credentials.json</code></span></div>
+        <p class="pv-rw" style="--x:58;--y:122"><span class="pv-rw__r">reads</span><span class="pv-rw__w"><span class="sr-only">never </span><span class="pv-rw__wt">writes</span><svg class="ink" viewBox="0 0 60 12" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path d="M1,8 C12,5 22,7 33,5 C43,3 52,6 59,3"/></svg></span></p>
+        <div class="pv-node" style="--x:42;--y:220">
+          <svg class="pv-node__ring" viewBox="0 0 144 144" aria-hidden="true" focusable="false"><circle cx="72" cy="72" r="71"/></svg>
+          <img class="pv-node__icon" src="/assets/icon-256.png" width="64" height="64" alt="">
+          <span class="pv-node__label">YOUR MAC</span>
+        </div>
+
+        <p class="pv-lbl" style="--x:84;--y:282"><span class="pv-lbl__n">02</span>Talks to</p>
+        <ul class="pv-hosts" role="list">
+          <li class="pv-host pv-pin pv-host--usage" style="--x:84;--y:350"><span class="pv-chip"><i class="pv-dot"></i>api.anthropic.com</span><span class="pv-desc">your usage numbers</span></li>
+          <li class="pv-host pv-pin pv-host--token" style="--x:84;--y:460"><span class="pv-chip"><i class="pv-dot"></i>platform.claude.com</span><span class="pv-desc">token refresh, kept in memory</span></li>
+          <li class="pv-host pv-pin pv-host--version" style="--x:84;--y:570"><span class="pv-chip"><i class="pv-dot"></i>claudemeter.vercel.app<wbr>/version.json</span><span class="pv-desc">once a day: is there an update?</span></li>
+          <li class="pv-host pv-pin pv-host--else" style="--x:84;--y:680"><span class="pv-chip"><i class="pv-dot"></i>anything&nbsp;else</span><span class="pv-desc">nobody. that’s the list.</span></li>
+        </ul>
+      </div>
+
+      <div class="pv-legend">
+        <p class="pv-lbl pv-lbl--never"><span class="pv-lbl__n">03</span><svg class="pv-lbl__x" viewBox="-10 -10 20 20" aria-hidden="true" focusable="false"><circle r="9"/><path d="M-3.5,-3.5 L3.5,3.5 M3.5,-3.5 L-3.5,3.5"/></svg>Never</p>
+        <ul class="pv-zeros" role="list">
+          <li class="pv-zero"><span class="pv-zero__n" data-n="0">0</span><span class="pv-zero__txt"><span class="pv-zero__cap">analytics</span></span></li>
+          <li class="pv-zero"><span class="pv-zero__n" data-n="0">0</span><span class="pv-zero__txt"><span class="pv-zero__cap">new accounts</span><span class="pv-zero__sub">no Claude Meter login, ever</span></span></li>
+          <li class="pv-zero"><span class="pv-zero__n" data-n="0">0</span><span class="pv-zero__txt"><span class="pv-zero__cap">backends</span><span class="pv-zero__sub">the update check is one static file</span></span></li>
+          <li class="pv-zero"><span class="pv-zero__n" data-n="0">0</span><span class="pv-zero__txt"><span class="pv-zero__cap">writes to your sign&#8209;in</span></span></li>
+        </ul>
+      </div>
+
+      <figcaption id="pv-net-cap" class="pv-net__cap">Sped up here. For real: a usage check every 5 minutes (never faster than 3), a token refresh only when one expires, an update check once a day.</figcaption>
+    </figure>
+
+    <div class="pv-os">
+      <p class="pv-lbl"><span class="pv-lbl__n">04</span>Open source</p>
+      <h3 class="pv-os__h"><span class="pv-os__in">Every claim here <em class="pv-os__em">compiles.</em><svg class="pv-os__ok" viewBox="-18 -18 36 36" aria-hidden="true" focusable="false"><circle r="16"/><path d="M-7,0.5 L-2,5.5 L7.5,-5"/></svg></span></h3>
+      <div class="pv-os__go">
+        <a class="pv-gh" data-cta="github" href="https://github.com/yiftach41/claude-meter" target="_blank" rel="noopener" data-cursor="MIT · read every line">
+          <span class="pv-gh__star" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path class="pv-gh__o" d="M12 2.8l2.84 5.76 6.36.92-4.6 4.48 1.08 6.33L12 17.3l-5.68 2.99 1.08-6.33-4.6-4.48 6.36-.92z"/><path class="pv-gh__f" d="M12 2.8l2.84 5.76 6.36.92-4.6 4.48 1.08 6.33L12 17.3l-5.68 2.99 1.08-6.33-4.6-4.48 6.36-.92z"/></svg></span>
+          <span class="pv-gh__k">Star on GitHub</span><span class="pv-gh__n" data-stars></span>
+        </a>
+        <p class="pv-os__meta">MIT licensed. Read the Swift, build it with <code>./build.sh</code>, count the hosts yourself: <span class="pv-nw">github.com/yiftach41/claude-meter</span></p>
+      </div>
+    </div>
+
+    <div class="pv-site">
+      <p class="pv-lbl"><span class="pv-lbl__n">05</span>This website</p>
+      <p class="pv-site__txt" data-reveal="lines">The site asks for your email before the Mac download, and for your name too if you join the Windows waitlist. That goes to the maker’s Google Sheet, with your OS and the page that sent you here. It’s used only for Claude Meter updates and Windows launch news. Nothing else is tracked.</p>
+    </div>
+
+    <p class="pv-fine">Works with Claude Pro and Max sign&#8209;ins from Claude Code. API&#8209;key (Console) logins and a custom <code>CLAUDE_CONFIG_DIR</code> aren’t supported.</p>
+  </div>
+</section>

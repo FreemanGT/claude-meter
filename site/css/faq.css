@@ -1,0 +1,168 @@
+/* §06 faq — Questions, metered. Every rule scoped under .s--faq. */
+.s--faq{
+  --pc:clamp(40px,3.6vw,64px);          /* % label column */
+  --gc:clamp(92px,8.6vw,136px);         /* glyph column: the mini island's viewBox is 120×48 */
+  --row-pad:26px;
+  --lvl:0;                              /* this page's session, 0..1 (JS): every live reading follows it */
+  --lvl-c:var(--teal);                  /* …amber past half, and, like the app, red past 85% */
+  --lvl-ink:var(--ink);
+  interpolate-size:allow-keywords;
+}
+.s--faq.is-warm{--lvl-c:var(--amber);--lvl-ink:var(--amber-ink)}
+.s--faq.is-hot{--lvl-c:var(--red);--lvl-ink:var(--red-ink)}
+.s--faq .rh{margin-bottom:clamp(56px,8vw,128px)}
+
+/* ---------- layout: sticky head (cols 1–4) + list (cols 5–12) ---------- */
+.faq__grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:var(--col-gap);align-items:start}
+.faq__head{grid-column:1/span 4;position:sticky;top:calc(var(--band-h) + clamp(28px,5vh,56px))}
+.faq__list{grid-column:5/-1}
+.s--faq h2{font-size:clamp(42px,5.3vw,96px)}   /* "Questions," must fit four columns */
+/* "metered." is itself metered: nothing until the first answer, then its highlighter rises 10% per answer,
+   a level (a thin underline at 10%, the full mark at 100%), never a caret-like sliver */
+.s--faq .faq__mark::after{bottom:.08em;height:.42em;opacity:0;transform:scaleY(var(--lvl));transform-origin:50% 100%;
+  transition:transform .7s var(--ease-edit),opacity .3s var(--ease-settle)}
+.s--faq.is-lit .faq__mark::after{opacity:1}
+.faq__sub{margin-top:clamp(20px,2vw,32px);max-width:36ch;font:500 var(--t-label)/1.6 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+
+/* ---------- the page-session gauge (the section's hero): one ring segment per question ---------- */
+.faq__gauge{position:relative;width:min(24vw,40vh,380px);aspect-ratio:1;margin-top:clamp(36px,6vh,72px);container-type:inline-size}
+.faq__gauge svg{width:100%;height:100%;overflow:visible;transform:rotate(-90deg)}
+.faq__gauge .seg{fill:none;stroke-width:12;stroke-linecap:round;stroke-dasharray:6.2 100;stroke-dashoffset:var(--o)}
+.faq__gauge .g-trk .seg{stroke:var(--rule);transition:stroke .4s var(--ease-settle)}
+.faq__gauge .g-trk .seg.is-here{stroke:rgb(17 19 17/.34)}
+.faq__gauge .g-gho .seg{stroke:var(--lvl-c);opacity:0;transition:opacity .3s var(--ease-settle)}
+.faq__gauge .g-gho .seg.is-on{opacity:.32}
+.faq__gauge .g-val .seg{stroke:var(--lvl-c);stroke-dasharray:0 100;opacity:0;transition:stroke .5s var(--ease-settle) var(--d,0s)}
+.faq__gauge .g-val .seg.is-used{stroke-dasharray:6.2 100;opacity:1}
+.faq__gauge .g-mark{fill:var(--ink);opacity:0}
+.faq__num{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:1.8cqi;pointer-events:none}
+.faq__pctnum{font:760 27cqi/.9 var(--f-display);font-stretch:78%;letter-spacing:-.03em;font-variant-numeric:tabular-nums;
+  color:var(--lvl-ink);transition:color .4s var(--ease-settle),font-weight .4s var(--ease-settle)}
+.is-hot .faq__pctnum{font-weight:900}   /* red always comes with bold */
+.faq__used{font:500 max(10px,3.6cqi)/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)}
+/* FORECAST: the app's burn-rate line, run on your reading pace (JS writes it once two answers are open) */
+.faq__fc{width:min(24vw,40vh,380px);min-height:1.5em;margin-top:clamp(14px,2vh,22px);text-align:center;
+  font:500 13px/1.5 var(--f-mono);letter-spacing:.02em;color:var(--amber-ink);font-variant-numeric:tabular-nums}
+.faq__fc::before{content:"";display:inline-block;width:18px;height:0;margin-right:10px;vertical-align:.3em;border-top:1.5px dashed currentColor;opacity:.7}
+.faq__fc:empty::before{display:none}
+@media (max-height:700px) and (min-width:1024px){.faq__gauge,.faq__fc{display:none}}
+
+/* ---------- rows ---------- */
+.faq__item{position:relative;padding:var(--row-pad) 0}
+.faq__item::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;background:var(--rule);
+  transform:scaleX(var(--rs,1));transform-origin:0 50%;transition:background-color .3s var(--ease-settle)}
+.faq__item[open]::before{background:var(--ink)}
+.faq__item summary{
+  position:relative;display:grid;grid-template-columns:var(--pc) minmax(0,1fr) var(--gc);column-gap:var(--col-gap);align-items:baseline;
+  cursor:pointer;list-style:none;-webkit-tap-highlight-color:transparent;border-radius:4px;
+  font:680 var(--t-h3)/var(--lh-h3) var(--f-display);letter-spacing:var(--tr-h3);
+}
+.faq__item summary::-webkit-details-marker{display:none}
+.faq__item summary::marker{content:""}
+.faq__pct{font:500 13px/1 var(--f-mono);letter-spacing:.02em;color:var(--ink-2);font-variant-numeric:tabular-nums;transition:color .3s var(--ease-settle)}
+.faq__q{font-stretch:90%;text-wrap:balance;transition:font-stretch .3s var(--ease-settle)}
+
+/* the row's hairline IS its meter: it previews the cost on hover and fills on first open, then stays filled
+   ("used"), taking the page's level colour in a wave out from the row just opened (--d) */
+.faq__bar{position:absolute;left:0;right:0;top:calc(-1 * var(--row-pad) - .5px);height:2px;border-radius:1px;pointer-events:none}
+.faq__fill,.faq__ghost{position:absolute;inset:0;border-radius:inherit;background:var(--lvl-c);transform:scaleX(0);transform-origin:0 50%;
+  transition:background-color .5s var(--ease-settle) var(--d,0s)}
+.faq__ghost{opacity:.4;transition:transform .5s var(--ease-edit),background-color .5s var(--ease-settle)}
+.faq__item.is-used .faq__fill{transform:scaleX(1)}
+
+/* the mini island (JS-built, only on the hovered or open row) hangs from the hairline the way the real one
+   hangs from the bezel: its top corners flare into the line (NotchShape); opening the row drops it into a peek
+   that shows the answer's key reading */
+.faq__glyph{position:relative;z-index:1;align-self:start;justify-self:end;width:var(--gc);height:calc(var(--gc) * .4);overflow:visible;
+  margin:calc(-1 * var(--row-pad)) clamp(4px,.8vw,12px) 0 0;pointer-events:none}
+.faq__glyph .g-shape{fill:var(--black)}
+.faq__glyph .g-lens{fill:#16202B;stroke:#2A3644;stroke-width:1}
+.faq__glyph .g-wt{fill:rgb(255 255 255/.2)}
+.faq__glyph .g-wf--lav{fill:var(--lav)}
+.faq__glyph .g-wf--lvl{fill:var(--lvl-c);transform:scaleX(var(--lvl));transform-box:fill-box;transform-origin:0 50%;
+  transition:transform .6s var(--ease-edit) var(--d,0s),fill .4s var(--ease-settle) var(--d,0s)}
+.faq__glyph .g-peek{opacity:0}
+.faq__glyph .g-trk{fill:none;stroke:rgb(255 255 255/.2);stroke-width:2.6}
+.faq__glyph .g-arc{fill:none;stroke-width:2.6;stroke-linecap:round;stroke:var(--lvl-c);stroke-dasharray:calc(var(--lvl) * 100px) 200px;
+  transition:stroke-dasharray .6s var(--ease-edit) var(--d,0s),stroke .4s var(--ease-settle) var(--d,0s)}
+.faq__glyph .g-key{font:600 14px/1 var(--f-ui);letter-spacing:-.01em;fill:#fff;font-variant-numeric:tabular-nums;-webkit-font-smoothing:auto}
+
+/* hover / focus: wdth 90 → 100, label to teal-ink, the hairline previews its cost */
+@media (hover:hover){
+  .faq__item summary:hover .faq__q{font-stretch:100%}
+  .faq__item summary:hover .faq__pct{color:var(--teal-ink)}
+  .faq__item:has(summary:hover)::before{background:rgb(17 19 17/.42)}
+  .faq__item:not(.is-used) summary:hover .faq__ghost{transform:scaleX(1)}
+}
+.faq__item summary:focus-visible .faq__q{font-stretch:100%}
+.faq__item summary:focus-visible .faq__pct,.faq__item[open] .faq__pct{color:var(--teal-ink)}
+.faq__item:not(.is-used) summary:focus-visible .faq__ghost{transform:scaleX(1)}
+.faq__item summary:focus-visible{outline-offset:8px}
+
+/* "+10%" that rises off the glyph on first open (JS-made) */
+.faq__plus{position:absolute;right:calc(var(--gc) + 12px);top:-6px;height:20px;padding:0 8px;border-radius:10px;background:var(--black);color:var(--teal);font:600 11px/20px var(--f-mono);letter-spacing:.02em;pointer-events:none;white-space:nowrap}
+
+/* ---------- answer ---------- */
+.faq__item::details-content{block-size:0;overflow:clip;transition:block-size .5s var(--ease-edit),content-visibility .5s allow-discrete}
+.faq__item[open]::details-content{block-size:auto}
+.faq__a{padding:clamp(18px,1.6vw,24px) 0 4px calc(var(--pc) + var(--col-gap));color:var(--ink-2)}
+.faq__a p{font:400 var(--t-body)/var(--lh-body) var(--f-display);font-stretch:100%;max-width:60ch;text-wrap:pretty}
+.faq__a code{font:500 .86em/1 var(--f-mono);color:var(--ink);padding:.12em .36em;border-radius:5px;background:rgb(17 19 17/.06);white-space:nowrap}
+
+/* an answer's one action: a small black capsule, the island's material on paper */
+.faq__a .faq__acts{margin-top:clamp(16px,1.4vw,22px)}
+.faq__act{display:inline-flex;align-items:center;gap:10px;min-height:44px;padding:0 20px 0 16px;border-radius:var(--r-pill);
+  background:var(--black);color:var(--fg);font:500 13px/1 var(--f-mono);letter-spacing:.01em;text-decoration:none;
+  transition:background-color .3s var(--ease-settle),transform .5s var(--spring-play)}
+.faq__act-ico{flex:none;width:16px;height:16px;overflow:visible;transition:transform .6s var(--spring-play)}
+.faq__act-ico path{fill:none;stroke:var(--teal);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;transition:fill .3s var(--ease-settle)}
+.faq__stars{margin-left:2px;padding:4px 8px;border-radius:var(--r-pill);background:rgb(255 255 255/.12);color:var(--fg);font-variant-numeric:tabular-nums}
+.faq__stars:empty,.faq__stars[hidden]{display:none}
+@media (hover:hover){
+  .faq__act:hover{background:#1C1D1F}
+  .faq__act:hover .faq__act-ico{transform:rotate(-12deg) scale(1.12)}
+  .faq__act:hover .faq__act-ico path{fill:var(--teal)}
+  button.faq__act:hover .faq__act-ico{transform:translateX(3px)}
+  button.faq__act:hover .faq__act-ico path{fill:none}
+}
+.faq__act:active{transform:scale(.97)}
+.faq__act:focus-visible{outline-offset:4px}
+
+/* ---------- after the list ---------- */
+.faq__foot{position:relative;padding-top:28px}
+.faq__foot::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;background:var(--rule)}
+.faq__done{display:inline-flex;align-items:center;flex-wrap:wrap;gap:6px 12px;min-height:44px;padding:4px 0;text-align:left;
+  font:500 14px/1.4 var(--f-mono);letter-spacing:.02em;color:var(--ink-2);font-variant-numeric:tabular-nums;transition:color .3s var(--ease-settle)}
+.faq__done-ring{width:22px;height:22px;flex:none;overflow:visible}
+.faq__done-ring circle{fill:none;stroke-width:2.5}
+.faq__done-ring .trk{stroke:var(--rule)}
+.faq__done-ring .val{stroke:var(--lvl-c);stroke-linecap:round;stroke-dasharray:0 100;transition:stroke-dasharray .5s var(--ease-edit),stroke .4s var(--ease-settle)}
+.faq__done-go{color:var(--ink-2);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:.3em;text-decoration-color:var(--rule)}
+.faq__done:hover .faq__done-go,.faq__done:focus-visible .faq__done-go{text-decoration-color:currentColor}
+.faq__done.is-full{color:var(--ink)}
+.faq__done.is-full .faq__done-go{color:var(--ink)}
+.faq__done-arw{margin-left:-6px;display:inline-block}
+
+/* ---------- ≤1023: one column; the head is no longer sticky ---------- */
+@media (max-width:1023px){
+  .faq__head{grid-column:1/-1;position:static;display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:24px;align-items:end}
+  .faq__head h2{grid-column:1/-1}
+  .faq__gauge{grid-column:2;grid-row:2;width:clamp(112px,26vw,200px);margin-top:clamp(20px,4vw,40px)}
+  .faq__sub{grid-column:1;grid-row:2;align-self:end}
+  .faq__fc{display:none}   /* the head scrolls away on one column: nobody would see it update */
+  .faq__list{grid-column:1/-1;margin-top:clamp(48px,8vw,80px)}
+  .s--faq h2{font-size:var(--t-h2)}
+}
+@media (max-width:767px){
+  .s--faq{--pc:34px;--gc:84px;--row-pad:22px}
+  .faq__item summary{column-gap:12px}
+  .faq__pct{font-size:11px}
+  .faq__glyph .g-key{font-size:16px}
+  .faq__gauge .seg{stroke-width:14}
+  .faq__a{padding-left:0}
+}
+
+/* ---------- reduced motion: nothing transitions; states swap instantly ---------- */
+html[data-motion="reduced"] .s--faq *,
+html[data-motion="reduced"] .s--faq *::before{transition:none!important}
+html[data-motion="reduced"] .s--faq .faq__item::details-content{transition:none}

@@ -1,0 +1,68 @@
+<!doctype html>
+<!-- OG image source. Render: node web/og.mjs → site/assets/og.png (1200×630, DPR 1).
+     Same language as the hero: a framed night display, a beam falling from the notch, the WALL filling like a meter. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face{font-family:"Anybody";src:url(../site/fonts/anybody.woff2) format("woff2");font-weight:100 900;font-stretch:50% 150%}
+  @font-face{font-family:"Instrument Serif";src:url(../site/fonts/instrument-serif-italic.woff2) format("woff2");font-style:italic}
+  @font-face{font-family:"Geist Mono";src:url(../site/fonts/geist-mono.woff2) format("woff2");font-weight:100 900}
+  :root{--paper:#EDEEE9;--night:#070708;--fg:#ECEDE8;--fg-2:#A8A8A8;--teal:#5CC9A6;--lav:#B0A8ED;--amber:#FAC775}
+  *{margin:0;box-sizing:border-box}
+  html,body{width:1200px;height:630px;overflow:hidden;background:var(--paper);font-family:"Anybody",sans-serif}
+  /* the display: black glass inside a thin paper margin, like the hero */
+  .display{position:absolute;inset:0 10px 10px;background:var(--night);border-radius:0 0 26px 26px;overflow:hidden;isolation:isolate}
+  .band{position:absolute;inset:0 0 auto;height:44px;background:#000;z-index:3}
+  .beam{position:absolute;inset:0;z-index:0;
+    background:conic-gradient(from 180deg at 50% 120px,rgb(92 201 166/.5),transparent 20deg 340deg,rgb(176 168 237/.34));
+    -webkit-mask-image:linear-gradient(#000 35%,transparent 95%);filter:blur(22px)}
+  .dust{position:absolute;inset:0;z-index:1;opacity:.55;
+    background:radial-gradient(1.4px 1.4px at 48% 30%,#fff 50%,transparent 51%),radial-gradient(1.2px 1.2px at 53% 44%,#fff 50%,transparent 51%),
+      radial-gradient(1px 1px at 45% 52%,#fff 50%,transparent 51%),radial-gradient(1.6px 1.6px at 56% 61%,#fff 50%,transparent 51%),
+      radial-gradient(1px 1px at 50% 70%,#fff 50%,transparent 51%),radial-gradient(1.2px 1.2px at 42% 38%,#fff 50%,transparent 51%),
+      radial-gradient(1px 1px at 59% 34%,#fff 50%,transparent 51%),radial-gradient(1.3px 1.3px at 47% 80%,#fff 50%,transparent 51%)}
+  /* the island, peeked: three rings (the app's peek state) */
+  .island{position:absolute;left:50%;top:0;translate:-50% 0;width:420px;height:142px;z-index:4}
+  .island svg.shape{position:absolute;inset:0;overflow:visible}
+  .rings{position:absolute;left:0;right:0;top:40px;display:flex;justify-content:space-around;padding:0 36px}
+  .ring{display:grid;justify-items:center;gap:6px;font:600 11px/1 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;color:#fff}
+  .ring svg{width:52px;height:52px}
+  .ring small{font-weight:400;font-size:9.5px;color:var(--fg-2)}
+  .ring b{position:absolute;margin-top:18px;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+  .copy{position:absolute;left:44px;top:176px;z-index:2;color:var(--fg)}
+  .l1{font-weight:640;font-stretch:78%;font-size:60px;line-height:.95;letter-spacing:-.035em;white-space:nowrap}
+  .l1 em{font-family:"Instrument Serif",serif;font-weight:400;font-stretch:100%;font-size:1.1em;letter-spacing:-.01em}
+  .wall{position:absolute;left:30px;bottom:-34px;z-index:2;font-weight:900;font-stretch:150%;font-size:268px;line-height:.8;letter-spacing:-.045em;white-space:nowrap}
+  .wall span{display:block}
+  .wall .o{color:transparent;-webkit-text-stroke:2.5px var(--fg)}
+  .wall .f{position:absolute;inset:0;color:var(--teal);
+    -webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 100' preserveAspectRatio='none'><path d='M0 55 Q 62.5 50 125 55 T 250 55 T 375 55 T 500 55 T 625 55 T 750 55 T 875 55 T 1000 55 V100 H0Z'/></svg>") 0 0/100% 100% no-repeat}
+  .side{position:absolute;right:44px;top:262px;z-index:2;width:330px;font:400 19px/1.45 "Anybody";font-stretch:100%;color:var(--fg-2)}
+  .side strong{color:var(--fg);font-weight:600}
+  .sig{margin-top:22px;font:500 14px/1.6 "Geist Mono",monospace;color:var(--fg-2);letter-spacing:.02em}
+  .sig i{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--teal);margin-right:8px;vertical-align:1px}
+</style>
+</head>
+<body>
+  <div class="display">
+    <div class="beam"></div><div class="dust"></div>
+    <div class="band"></div>
+    <div class="island">
+      <svg class="shape" viewBox="0 0 420 142" aria-hidden="true"><defs><linearGradient id="rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".03"/><stop offset="1" stop-color="#fff" stop-opacity=".2"/></linearGradient></defs>
+        <path fill="#000" stroke="url(#rim)" stroke-width="1.2" d="M0 0Q12 0 12 12L12 112Q12 142 42 142L378 142Q408 142 408 112L408 12Q408 0 420 0Z"/>
+        <circle cx="210" cy="20" r="5.5" fill="#0A0B10"/><circle cx="208.6" cy="18.6" r="2.2" fill="rgb(90 110 255)" fill-opacity=".35"/></svg>
+      <div class="rings">
+        <div class="ring"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="22" fill="none" stroke="#fff" stroke-opacity=".14" stroke-width="5"/><circle cx="26" cy="26" r="22" fill="none" stroke="#5CC9A6" stroke-width="5" stroke-linecap="round" pathLength="100" stroke-dasharray="46 100" transform="rotate(-90 26 26)"/></svg><b>46%</b>Session<small>resets in 2h 13m</small></div>
+        <div class="ring"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="22" fill="none" stroke="#fff" stroke-opacity=".14" stroke-width="5"/><circle cx="26" cy="26" r="22" fill="none" stroke="#B0A8ED" stroke-width="5" stroke-linecap="round" pathLength="100" stroke-dasharray="38 100" transform="rotate(-90 26 26)"/></svg><b>38%</b>Weekly<small>resets Sat 1:05 PM</small></div>
+        <div class="ring"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="22" fill="none" stroke="#fff" stroke-opacity=".14" stroke-width="5"/><circle cx="26" cy="26" r="22" fill="none" stroke="#FAC775" stroke-width="5" stroke-linecap="round" pathLength="100" stroke-dasharray="62 100" transform="rotate(-90 26 26)"/></svg><b>62%</b>Opus<small>resets Sat 1:05 PM</small></div>
+      </div>
+    </div>
+    <div class="copy">
+      <p class="l1">See the wall <em>before</em> you hit it.</p>
+    </div>
+    <p class="side">Your <strong>Claude usage limits</strong> in the MacBook notch: the 5-hour session, the weekly limit, and any per-model limit. Free for macOS.<span class="sig" style="display:block"><i></i>Claude Meter · open source</span></p>
+    <p class="wall" aria-hidden="true"><span class="o">WALL</span><span class="f">WALL</span></p>
+  </div>
+</body>
+</html>

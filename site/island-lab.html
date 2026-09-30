@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Island Lab</title>
+<link rel="stylesheet" href="/css/island.css">
+<style>
+  :root { color-scheme: dark; --bg: #0c0d0c; --fg: #ECEDE8; --fg2: #9a9d96; --rule: rgb(236 237 232 / .12); }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 13px/1.5 ui-monospace, "SF Mono", Menlo, monospace; }
+  h2 { font: 600 12px/1 ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--fg2); margin: 0 0 12px; }
+  section { padding: 24px 16px; border-bottom: 1px solid var(--rule); }
+  .stage { position: relative; overflow: hidden; }
+  .desk-neutral { background: linear-gradient(rgb(87 87 87), rgb(36 36 36)); }
+  .desk-bright { background: linear-gradient(rgb(252 242 224), rgb(184 212 242)); }
+  .desk-dark { background: linear-gradient(rgb(26 26 26), rgb(8 8 8)); }
+  .desk-night { background: radial-gradient(120% 90% at 50% 0%, #1b1d22, #070708 70%); }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; align-items: center; }
+  button, select, label.chk { font: inherit; color: var(--fg); background: #1a1c1a; border: 1px solid var(--rule); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+  button:focus-visible, select:focus-visible { outline: 2px solid #5CC9A6; outline-offset: 2px; }
+  #play .stage { height: 520px; max-width: 1240px; margin: 0 auto; border-radius: 12px; }
+  #log { color: var(--fg2); min-height: 1.5em; margin-top: 8px; }
+  #scrub .stage { height: 380px; max-width: 1240px; margin: 0 auto; border-radius: 12px; }
+  input[type=range] { width: min(520px, 100%); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(620px, 1fr)); gap: 16px; }
+  .cell figcaption { color: var(--fg2); padding: 6px 2px; }
+  .cell .stage { width: 620px; height: 380px; max-width: 100%; }
+  #tests li.fail { color: #F26B6B; } #tests li.pass { color: #5CC9A6; }
+  #tests ul { margin: 0; padding-left: 18px; columns: 2 420px; }
+  body.solo { overflow: hidden; }
+  body.solo .stage { width: 1240px; height: 760px; }
+  body.solo .ref { position: absolute; inset: 0; width: 1240px; height: 760px; mix-blend-mode: difference; pointer-events: none; z-index: 9; }
+  body.solo .ref.plain { mix-blend-mode: normal; opacity: var(--ro, 1); }
+  @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } .cell .stage { width: 100%; } }
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script type="module">
+import { Island, derive, fmtReset, fmtDur } from "/js/lib/island.js";
+import { notchPath } from "/js/lib/notch-path.js";
+import { DEMO } from "/js/lib/demo.js";
+
+const qs = new URLSearchParams(location.search);
+if (qs.get("gsap") === "1") await new Promise((r) => { const s = document.createElement("script"); s.src = "/vendor/gsap.min.js"; s.onload = s.onerror = r; document.head.append(s); });
+
+// ---------------------------------------------------------------- mocks (UsageModel.mock, verbatim rules)
+const RESET_IN = 2 * 3600 + 13 * 60 + 50;
+function mock(name) {
+  const cfg = { ok30: [30, 6], ok70: [70, 14], ok90: [88, 20], idle: [42, 0], models: [42, 9], limit: [64, 9],
+    throttled: [42, 9], ratelimited: [42, 9], unauthorized: [42, 9], demo: null }[name];
+  if (!cfg) return structuredClone(DEMO);
+  const [base, rate] = cfg;
+  const names = name === "models" ? ["Opus", "Sonnet", "Haiku", "Fable", "Opus mini", "Sonnet 4.5"] : ["Opus"];
+  const trend = (pct) => Array.from({ length: 13 }, (_, i) => Math.max(0, pct - rate * (12 - i) * 300 / 3600));
+  const w = (pct, reset) => ({ pct, ...reset, spark: trend(pct) });
+  const session = w(base, { resetIn: RESET_IN });
+  if (rate > 0.5) {
+    const at = ((100 - base) / rate) * 3600;
+    if (at > 0) session.forecast = at >= RESET_IN ? { clears: true } : { exhaustsIn: at };
+    session.projected = Math.min(100, base + rate * RESET_IN / 3600);
+  }
+  const d = { plan: "Max 20x", updated: "just now", session, weekly: w(Math.min(100, base + 19), { reset: "Sat 13:05" }),
+    models: names.map((n, i) => ({ name: n, ...w(Math.min(100, base + 36 - i * 11), { reset: "Sat 13:05" }) })) };
+  if (name === "throttled") d.note = { text: "just refreshed · updating in 47s", tone: "dim" };
+  if (name === "ratelimited") d.note = { text: "rate limited · retrying 14:32", tone: "amber", attention: true };
+  if (name === "unauthorized") d.note = { text: "session expired — open Claude Code to refresh", tone: "red", attention: true };
+  return d;
+}
+// Snapshot.swift scenes: [mock, state, {notch, percent, material, desk, welcome}]
+const SCENES = {
+  "collapsed-ticks": ["ok30", "collapsed", { percent: false }],
+  "collapsed-percent": ["ok30", "collapsed"],
+  "collapsed-warn": ["ok90", "collapsed"],
+  "collapsed-nonotch": ["ok30", "collapsed", { notch: false }],
+  "collapsed-nonotch-ticks": ["ok30", "collapsed", { notch: false, percent: false }],
+  "collapsed-limit": ["limit", "collapsed"],
+  "peek": ["ok30", "peek"],
+  "peek-burning": ["ok90", "peek"],
+  "peek-idle": ["idle", "peek"],
+  "peek-limit": ["limit", "peek"],
+  "pinned": ["ok70", "pinned"],
+  "pinned-warn": ["ok90", "pinned"],
+  "pinned-6models": ["models", "pinned"],
+  "pinned-limit": ["limit", "pinned"],
+  "pinned-throttled": ["throttled", "pinned"],
+  "pinned-ratelimited": ["ratelimited", "pinned"],
+  "pinned-unauthorized": ["unauthorized", "pinned"],
+  "pinned-welcome": ["ok30", "pinned", { welcome: true }],
+  "material-frosted-bright": ["ok70", "pinned", { material: "frosted", desk: "bright" }],
+  "material-glass-bright": ["ok70", "pinned", { material: "glass", desk: "bright" }],
+  "material-black-bright": ["ok70", "pinned", { desk: "bright" }],
+  "material-frosted-dark": ["ok70", "pinned", { material: "frosted", desk: "dark" }],
+  "material-glass-dark": ["ok70", "pinned", { material: "glass", desk: "dark" }],
+  "material-collapsed-frosted": ["ok70", "collapsed", { material: "frosted", desk: "bright" }],
+};
+function sceneIsland(host, name, scale, extra = {}) {
+  const [m, state, o = {}] = SCENES[name];
+  host.classList.add(`desk-${o.desk || "neutral"}`);
+  return new Island(host, { scale, state, notchWidth: 189, notch: o.notch !== false, display: o.percent === false ? "ticks" : "percent",
+    material: o.material || "solid", hint: !!o.welcome, interactive: false, live: false, data: mock(m), ...extra });
+}
+
+const app = document.getElementById("app");
+const solo = qs.get("solo");
+
+if (solo) {
+  // ---------------------------------------------------------------- solo: pixel compare with snaps2/<scene>.png
+  document.body.classList.add("solo");
+  app.innerHTML = `<div class="stage"></div>`;
+  const stage = app.firstElementChild;
+  const morph = qs.get("morph"), at = +qs.get("at");
+  let queue = null;
+  if (morph) { queue = []; window.requestAnimationFrame = (cb) => { queue.push(cb); return queue.length; }; window.cancelAnimationFrame = () => {}; }
+  const isl = sceneIsland(stage, solo, +(qs.get("scale") || 2), qs.get("interactive") ? { interactive: true } : {});
+  window.isl = isl;
+  if (morph) {
+    isl.setState(morph);
+    const T0 = performance.now();
+    for (let t = 0; t <= at; t += 1000 / 60) { const cbs = queue.splice(0); cbs.forEach((cb) => cb(T0 + t)); }
+    document.getAnimations().forEach((a) => { a.pause(); a.currentTime = Math.min(at, a.effect.getComputedTiming().endTime); });
+  }
+  if (qs.get("scrub")) isl.modeTimeline(isl.state, qs.get("scrub")).progress(+qs.get("p"));
+  if (qs.get("opts")) { for (const kv of qs.get("opts").split(";")) { const [k, v] = kv.split("="); isl.setOption(k, v === "true" ? true : v === "false" ? false : v); } }
+  if (qs.get("go")) isl.setState(qs.get("go"), { instant: true });
+  if (qs.get("quit")) { isl.quit(); }
+  if (qs.get("ref")) {
+    const img = new Image();
+    img.className = "ref" + (qs.get("ref") === "plain" ? " plain" : "");
+    img.src = `http://localhost:4322/snaps2/${solo}.png`;
+    stage.append(img);
+  }
+} else {
+  // ---------------------------------------------------------------- full lab
+  app.innerHTML = `
+  <section id="play">
+    <h2>Playground · hover 200ms to peek · click to pin · Esc · right-click / long-press · Tab + Enter</h2>
+    <div class="controls">
+      <button data-s="collapsed">collapsed</button><button data-s="peek">peek</button><button data-s="pinned">pinned</button><button data-s="hidden">hidden</button>
+      <select id="preset" aria-label="Data preset">${["demo", "ok30", "ok70", "ok90", "idle", "limit", "models", "throttled", "unauthorized"].map((n) => `<option>${n}</option>`).join("")}</select>
+      <select id="material" aria-label="Material"><option value="solid">Solid</option><option value="frosted">Frosted</option><option value="glass">Liquid Glass</option></select>
+      <select id="scale" aria-label="Scale"><option>1</option><option>1.5</option><option selected>2</option><option>3</option></select>
+      <label class="chk"><input type="checkbox" id="pct" checked> percent</label>
+      <label class="chk"><input type="checkbox" id="notch" checked> notch</label>
+      <label class="chk"><input type="checkbox" id="burn" checked> burn-rate</label>
+      <label class="chk"><input type="checkbox" id="hint" checked> hint</label>
+      <label class="chk"><input type="checkbox" id="bezel" checked> bezel</label>
+      <button id="rnd">random update</button><button id="pulse">pulse</button><button id="quit">quit</button><button id="lock">lock</button>
+    </div>
+    <div class="stage desk-night" id="playStage"></div>
+    <div id="log" aria-live="polite"></div>
+  </section>
+  <section id="scrub">
+    <h2>modeTimeline scrub</h2>
+    <div class="controls">
+      <select id="from" aria-label="From">${["collapsed", "peek", "pinned", "hidden"].map((s) => `<option>${s}</option>`).join("")}</select> →
+      <select id="to" aria-label="To">${["peek", "pinned", "collapsed", "hidden"].map((s) => `<option>${s}</option>`).join("")}</select>
+      <input type="range" id="p" min="0" max="1" step="0.001" value="0" aria-label="Progress"> <span id="pv">0</span>
+    </div>
+    <div class="stage desk-night" id="scrubStage"></div>
+  </section>
+  <section id="tests"><h2>Self-test</h2><ul></ul></section>
+  <section><h2>All app scenes (scale 1, notch 189pt like snaps2)</h2><div class="grid" id="grid"></div></section>`;
+
+  // playground
+  const log = (t) => (document.getElementById("log").textContent = t);
+  let isl;
+  const make = () => {
+    isl?.destroy();
+    isl = new Island(document.getElementById("playStage"), {
+      scale: +document.getElementById("scale").value, bezel: document.getElementById("bezel").checked,
+      notch: document.getElementById("notch").checked, display: document.getElementById("pct").checked ? "percent" : "ticks",
+      material: document.getElementById("material").value, burnRate: document.getElementById("burn").checked,
+      hint: document.getElementById("hint").checked, data: mock(document.getElementById("preset").value),
+    });
+    isl.on("state", (s, p) => log(`state ${p} → ${s}`));
+    isl.on("contextmenu", (e) => log(`contextmenu (${e.source}) at ${Math.round(e.x)},${Math.round(e.y)}: menu.js opens here`));
+    window.isl = isl;
+  };
+  make();
+  document.querySelectorAll("[data-s]").forEach((b) => b.addEventListener("click", () => isl.setState(b.dataset.s)));
+  document.getElementById("preset").addEventListener("change", (e) => isl.update(mock(e.target.value)));
+  document.getElementById("material").addEventListener("change", (e) => isl.setOption("material", e.target.value));
+  document.getElementById("pct").addEventListener("change", (e) => isl.setOption("display", e.target.checked ? "percent" : "ticks"));
+  document.getElementById("notch").addEventListener("change", (e) => isl.setOption("notch", e.target.checked));
+  document.getElementById("burn").addEventListener("change", (e) => isl.setOption("burnRate", e.target.checked));
+  document.getElementById("hint").addEventListener("change", (e) => isl.setOption("hint", e.target.checked));
+  document.getElementById("scale").addEventListener("change", make);
+  document.getElementById("bezel").addEventListener("change", make);
+  document.getElementById("pulse").addEventListener("click", () => isl.pulse());
+  document.getElementById("quit").addEventListener("click", () => isl.quit());
+  document.getElementById("lock").addEventListener("click", (e) => { const on = !isl._locked; isl.lock(on); e.target.textContent = on ? "unlock" : "lock"; });
+  document.getElementById("rnd").addEventListener("click", () => {
+    const r = (a, b) => Math.round(a + Math.random() * (b - a));
+    const s = r(5, 99);
+    isl.update({ session: { pct: s, projected: Math.min(100, s + r(3, 30)), forecast: Math.random() < 0.5 ? { clears: true } : { exhaustsIn: r(20, 150) * 60 } },
+      weekly: { pct: r(5, 99) }, models: [{ name: "Opus", pct: r(5, 100), reset: "Sat 1:05 PM", spark: DEMO.models[0].spark }] });
+  });
+
+  // scrub
+  const sIsl = new Island(document.getElementById("scrubStage"), { scale: 2, bezel: true, interactive: false, live: false, data: mock("demo") });
+  let tl = null;
+  const retl = () => { tl?.kill?.(); tl = sIsl.modeTimeline(document.getElementById("from").value, document.getElementById("to").value); tl.progress(+document.getElementById("p").value); };
+  ["from", "to"].forEach((id) => document.getElementById(id).addEventListener("change", retl));
+  document.getElementById("p").addEventListener("input", (e) => { document.getElementById("pv").textContent = (+e.target.value).toFixed(3); tl.progress(+e.target.value); });
+  retl();
+
+  // gallery
+  const grid = document.getElementById("grid");
+  const gallery = [];
+  for (const name of Object.keys(SCENES)) {
+    const fig = document.createElement("figure");
+    fig.className = "cell";
+    fig.style.margin = 0;
+    fig.innerHTML = `<div class="stage"></div><figcaption>${name}</figcaption>`;
+    grid.append(fig);
+    gallery.push([name, sceneIsland(fig.firstElementChild, name, 1)]);
+  }
+
+  // ---------------------------------------------------------------- self-test (derive rules + geometry)
+  const results = [];
+  const ok = (c, m) => results.push([!!c, m]);
+  const base = () => structuredClone(mock("demo"));
+  { const d = base(); ok(derive(d).right.key === "m:Opus", "right wing: Opus 62 > weekly 38 → Opus (amber)"); ok(derive(d).right.tone === "amber", "right wing tone amber"); }
+  { const d = base(); d.models[0].pct = 30; ok(derive(d).right.key === "weekly" && derive(d).right.tone === "lav", "right wing: Opus 30 < weekly 38 → weekly (lavender)"); }
+  { const d = base(); d.models[0].pct = 38; ok(derive(d).right.key === "weekly", "right wing: tie → weekly (strict >)"); }
+  { const d = base(); d.session.pct = 85; ok(derive(d).session.tone === "teal" && !derive(d).session.hot, "85 → teal, not bold"); d.session.pct = 85.1; ok(derive(d).session.tone === "red" && derive(d).session.hot, "85.1 → red + bold"); }
+  { const d = base(); d.session.forecast = { exhaustsIn: 3599 }; ok(derive(d).forecast.tone === "red", "forecast 3599s → red"); d.session.forecast = { exhaustsIn: 3600 }; ok(derive(d).forecast.tone === "amber" && derive(d).forecast.text === "hits the cap in 1h 0m", "forecast 3600s → amber, 'hits the cap in 1h 0m'"); }
+  { const d = base(); d.session.forecast = { clears: true }; ok(derive(d).forecast.text === "on track — resets first" && derive(d).forecast.tone === "muted", "clears → 'on track — resets first' muted"); }
+  { const d = base(); ok(!derive(d, { burnRate: false }).forecast && derive(d, { burnRate: false }).projected == null, "burnRate off → no forecast, no projection"); }
+  ok(fmtReset(2 * 3600 + 13 * 60) === "resets in 2h 13m", "reset <48h: 'resets in 2h 13m'");
+  ok(fmtReset(36 * 60 + 59) === "resets in 36m", "reset: 'resets in 36m' (truncates)");
+  ok(fmtReset(48 * 3600 - 60) === "resets in 47h 59m", "reset 47h59m stays relative");
+  ok(/^resets \w{3} /.test(fmtReset(48 * 3600)), "reset ≥48h → weekday + time");
+  ok(fmtReset(0) === "resetting…" && fmtReset(-5) === "resetting…", "reset ≤0 → 'resetting…'");
+  ok(fmtReset("Sat 1:05 PM") === "resets Sat 1:05 PM", "preformatted reset string");
+  ok(fmtDur(72 * 60) === "1h 12m" && fmtDur(59) === "0m", "fmtDur");
+  { const d = base(); d.models[0].pct = 100; const v = derive(d); ok(v.notePeek?.text === "Opus limit reached · resets Sat 1:05 PM" && v.notePeek.tone === "red", "limit note text"); ok(v.notePinned === v.notePeek, "limit note beats the forecast footer when pinned"); }
+  { const d = base(); d.weekly.pct = 100; d.models[0].pct = 100; ok(derive(d).notePeek.text.startsWith("Weekly limit reached"), "limit note: first window in app order (Weekly before Opus)"); }
+  { const v = derive(base()); ok(v.notePeek === null, "peek: no footer without a limit"); ok(v.notePinned?.text === "Session hits the cap in 1h 12m" && v.notePinned.tone === "amber", "pinned footer: 'Session hits the cap in 1h 12m' amber"); }
+  { const v = derive(base()); ok(v.aria === "Claude usage, session 46 percent, Opus 62 percent", "aria label"); }
+  { const d = base(); d.models[0].pct = 30; ok(derive(d).aria.endsWith("weekly 38 percent"), "aria uses 'weekly' for the weekly wing"); }
+  { const v = derive(mock("models")); ok(v.rows.map((r) => r.showReset).join() === "true,true,false,false,false,false,false,false", "pinned reset column only when it changes"); }
+  { const c = gallery.find(([n]) => n === "collapsed-percent")[1]; const d = c._pFill.getAttribute("d"); const ox = (600 - 281) / 2;
+    const want = notchPath(281, 32, 6, 14).replace(/-?\d+(\.\d+)?/g, (n, _, i, str) => n); // same command stream, offset by ox on x
+    const xs = (p) => p.match(/-?\d+(\.\d+)?/g).map(Number);
+    const a = xs(d), b = xs(want); ok(a.length === b.length && a.every((v, i) => Math.abs(v - (i % 2 === 0 ? b[i] + ox : b[i])) < 0.01), "rendered shape == notch-path.js (offset in the box)"); }
+  // designed heights == laid-out heights (the morph never measures, so these must agree)
+  for (const [name, gi] of gallery) {
+    for (const [k, s] of [["p", "peek"], ["x", "pinned"]]) {
+      const h = gi._pane[k].offsetHeight / gi._u, g = gi._geom(s).h;
+      if (Math.abs(h - g) > 0.51) ok(false, `${name}: ${s} height designed ${g} vs laid out ${h}`);
+    }
+  }
+  ok(true, "designed heights checked against layout for every scene");
+  const pass = results.filter((r) => r[0]).length;
+  document.querySelector("#tests h2").textContent = `Self-test · ${pass}/${results.length} pass`;
+  document.querySelector("#tests ul").innerHTML = results.map(([p, m]) => `<li class="${p ? "pass" : "fail"}">${p ? "✓" : "✗"} ${m}</li>`).join("");
+  window.__islandTests = { pass, total: results.length, fails: results.filter((r) => !r[0]).map((r) => r[1]) };
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,369 @@
+/* §04 yours — the playground. Scoped under .s--yours. */
+
+.s--yours .yr-datum { color: var(--fg-text); }
+
+/* ---------------------------------------------------------------- layout */
+.s--yours .yr-grid {
+  display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--col-gap);
+  margin-top: clamp(40px, 7vh, 80px);
+}
+.s--yours .yr-copy { grid-column: 1 / 5; }
+.s--yours .yr-sticky { position: sticky; top: 96px; }
+.s--yours .yr-play { grid-column: 5 / 13; min-width: 0; display: flex; flex-direction: column; }
+
+/* the settings section speaks mono: the headline reads like the preference it opens */
+.s--yours h2 { font: 480 clamp(34px, 3.9vw, 72px) / .98 var(--f-mono); font-stretch: 100%; letter-spacing: -.055em; }
+.s--yours .yr-lede {
+  margin-top: clamp(20px, 3vh, 32px); max-width: 32ch;
+  font: 420 var(--t-lede)/var(--lh-lede) var(--f-display); font-stretch: 96%; color: var(--fg-text-2); text-wrap: pretty;
+}
+.s--yours .yr-fine { margin-top: 14px; max-width: 40ch; font: 400 15px/1.5 var(--f-display); font-stretch: 96%; color: var(--fg-text-2); text-wrap: pretty; }
+.s--yours .yr-facts { list-style: none; margin: clamp(28px, 5vh, 48px) 0 0; padding: 0; max-width: 360px; }
+.s--yours .yr-facts li {
+  display: flex; align-items: center; gap: 14px; padding: 13px 0; border-top: 1px solid var(--rule-c);
+  font: 500 12px/1.3 var(--f-mono); letter-spacing: .08em; color: var(--fg-text);
+}
+.s--yours .yr-facts li:last-child { border-bottom: 1px solid var(--rule-c); }
+.s--yours .yr-tick { position: relative; flex: none; width: 26px; height: 4px; border-radius: 99px; background: var(--rule-c); overflow: hidden; }
+.s--yours .yr-tick b { position: absolute; inset: 0; border-radius: inherit; background: var(--teal); transform-origin: 0 50%; }
+
+/* ---------------------------------------------------------------- the desk (a MacBook screen) */
+.s--yours .yr-bezel {
+  position: relative; padding: 10px; border-radius: 28px; background: #000;
+  box-shadow: 0 50px 90px -46px rgb(10 12 10 / .6), 0 0 0 1px rgb(255 255 255 / .04) inset;
+}
+.s--yours .yr-desk {
+  --k: 1.4;
+  --mb: calc(32px * var(--k)); /* a notched Mac: the menu bar is exactly as tall as the notch */
+  --nw: calc(185px * var(--k));
+  --iw: calc(277px * var(--k)); /* collapsed island (wings) */
+  position: relative; aspect-ratio: 16 / 10; border-radius: 18px; isolation: isolate; container-type: inline-size;
+  /* clip-path, not overflow:hidden — Chrome clips backdrop filters inside a rounded overflow clip to the
+     clip-path's bounding box, which leaks the island's Frosted/Glass blur past its notch shape */
+  clip-path: inset(0 round 18px);
+  background: var(--night-2); color: var(--fg);
+  -webkit-user-select: none; user-select: none;
+}
+.s--yours .yr-desk::after { /* glass edge + faint top highlight */
+  content: ""; position: absolute; inset: 0; z-index: 7; border-radius: inherit; pointer-events: none;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .06), inset 0 0 0 1px rgb(255 255 255 / .03);
+}
+
+/* wallpaper: the only blobs on the site (the desktop behind the glass). Radial gradients, no filter, and
+   static: the drifting windows are what the materials show off. The brightest light sits right behind the
+   notch, so even a collapsed island reads Solid (black), Frosted (a soft glow) or Liquid Glass (clear colour). */
+.s--yours .yr-wall { position: absolute; inset: -12% -6%; z-index: 0; }
+.s--yours .yr-blob { position: absolute; width: 58%; aspect-ratio: 1; border-radius: 50%; }
+.s--yours .yr-blob--t { left: 12%; top: -26%; background: radial-gradient(closest-side, rgb(92 201 166 / .62) 22%, rgb(92 201 166 / .24) 60%, transparent); }
+.s--yours .yr-blob--l { right: 8%; top: -24%; background: radial-gradient(closest-side, rgb(176 168 237 / .6) 22%, rgb(176 168 237 / .22) 60%, transparent); }
+.s--yours .yr-blob--a { left: 30%; bottom: -22%; background: radial-gradient(closest-side, rgb(250 199 117 / .3) 30%, rgb(250 199 117 / .12) 62%, transparent); }
+
+/* windows: the same Claude Code session as §02 (terminal) beside the file it is editing. They drift slowly
+   behind the island (compositor-only CSS keyframes) so Frosted blurs and Liquid Glass bends moving text. */
+.s--yours .yr-win {
+  position: absolute; z-index: 1; overflow: hidden; border-radius: 12px; display: flex; flex-direction: column;
+  font: 400 clamp(5.5px, 1.1cqw, 10.5px)/1.62 var(--f-mono); font-variant-numeric: tabular-nums;
+  box-shadow: 0 30px 60px -24px rgb(0 0 0 / .7), 0 0 0 .5px rgb(0 0 0 / .5);
+  animation: 14s ease-in-out infinite alternate paused;
+}
+.s--yours .yr-win--a { left: 8%; top: 13%; width: 50%; height: 60%; background: var(--paper); color: var(--ink-2); animation-name: yr-slide-a; }
+.s--yours .yr-win--b { right: 7%; top: 36%; width: 41%; height: 47%; background: #0E0F0E; color: var(--fg); box-shadow: 0 30px 60px -24px rgb(0 0 0 / .8), inset 0 0 0 1px rgb(255 255 255 / .08); animation-name: yr-slide-b; animation-duration: 19s; }
+.s--yours .yr-desk.is-live .yr-win { animation-play-state: running; }
+.s--yours .yr-desk.is-full .yr-win { animation-play-state: paused; }
+@keyframes yr-slide-a { from { transform: translateX(-4%); } to { transform: translateX(11%); } }
+@keyframes yr-slide-b { from { transform: translateX(3%); } to { transform: translateX(-12%); } }
+.s--yours .yr-win__bar {
+  position: relative; flex: none; display: flex; align-items: center; gap: .5em; height: 1.55em; padding: 0 .85em;
+  background: rgb(17 19 17 / .05); border-bottom: 1px solid rgb(17 19 17 / .08);
+}
+.s--yours .yr-win__bar i { width: .64em; height: .64em; border-radius: 50%; background: rgb(17 19 17 / .2); }
+.s--yours .yr-win__t { position: absolute; left: 0; right: 0; text-align: center; font-size: .86em; white-space: nowrap; color: rgb(17 19 17 / .5); }
+.s--yours .yr-term .yr-win__bar { background: rgb(255 255 255 / .03); border-color: rgb(255 255 255 / .07); }
+.s--yours .yr-term .yr-win__bar i { background: #3a3a3a; }
+.s--yours .yr-term .yr-win__t { color: var(--fg-3); }
+
+/* editor */
+.s--yours .yr-ed__tabs { flex: none; display: flex; border-bottom: 1px solid rgb(17 19 17 / .08); background: var(--paper-2); font-size: .9em; }
+.s--yours .yr-ed__tabs span { white-space: nowrap; padding: .45em 1.3em; border-right: 1px solid rgb(17 19 17 / .07); color: rgb(17 19 17 / .5); }
+.s--yours .yr-ed__tabs .is-on { background: var(--paper); color: var(--ink); box-shadow: inset 0 2px 0 var(--lav-ink); }
+.s--yours .yr-code { counter-reset: ln 11; padding: .9em 0; }
+.s--yours .yr-code .ln { display: block; position: relative; white-space: pre; padding: 0 1em 0 5.2ch; }
+.s--yours .yr-code .ln::before {
+  counter-increment: ln; content: counter(ln); position: absolute; left: 0; width: 3.6ch; text-align: right; color: rgb(17 19 17 / .3);
+}
+.s--yours .yr-code .add { background: rgb(92 201 166 / .16); box-shadow: inset 2px 0 var(--teal-ink); }
+.s--yours .yr-code .del { background: rgb(242 107 107 / .12); box-shadow: inset 2px 0 var(--red-ink); color: rgb(17 19 17 / .45); text-decoration: line-through; text-decoration-color: rgb(179 48 45 / .45); }
+.s--yours .yr-code .k { color: var(--lav-ink); }
+.s--yours .yr-code .s { color: var(--teal-ink); }
+.s--yours .yr-code .t { color: var(--amber-ink); }
+.s--yours .yr-code .f { color: var(--ink); font-weight: 600; }
+.s--yours .yr-caret { display: inline-block; width: 1.5px; height: 1.25em; margin-left: 1px; vertical-align: -.25em; background: var(--ink); }
+
+/* terminal: fills from the top like a fresh shell; JS streams lines while the session climbs and keeps it scrolled down */
+.s--yours .yr-term__lines { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; padding: .8em 1.1em 1em; }
+.s--yours .yr-term p { white-space: pre; display: flex; gap: 2ch; min-width: 0; flex: none; overflow: hidden; text-overflow: ellipsis; }
+.s--yours .yr-term p.sub { padding-left: 2ch; }
+.s--yours .yr-term .g { color: var(--fg-3); }
+.s--yours .yr-term .ok { color: var(--teal); }
+.s--yours .yr-term .n { margin-left: auto; flex: none; color: var(--fg-3); }
+.s--yours .yr-term .n b { font-weight: 400; color: var(--teal); }
+.s--yours .yr-term__cur i { display: block; width: .62em; height: 1.2em; margin-top: .2em; background: var(--fg-2); }
+.s--yours .yr-caret, .s--yours .yr-term__cur i { animation: yr-blink 1.1s steps(1) infinite paused; }
+.s--yours .yr-desk.is-live .yr-caret, .s--yours .yr-desk.is-live .yr-term__cur i { animation-play-state: running; }
+@keyframes yr-blink { 50% { opacity: 0; } }
+
+/* full-screen app: the editor, maximised */
+.s--yours .yr-full {
+  position: absolute; inset: var(--mb) 0 0; z-index: 2; overflow: hidden; background: var(--paper); color: var(--ink-2);
+  font: 400 clamp(7px, 1.45cqw, 14px)/1.62 var(--f-mono); font-variant-numeric: tabular-nums;
+}
+.s--yours .yr-full__doc .yr-ed__tabs span { padding-block: .6em; }
+.s--yours .yr-full__cap {
+  position: absolute; right: 5%; bottom: 7%; max-width: 16ch; text-align: right; color: var(--ink);
+  font: 700 clamp(24px, 3.2vw, 50px)/.95 var(--f-display); font-stretch: 82%; letter-spacing: -.025em; text-wrap: balance;
+}
+.s--yours .yr-full__cap em { font-family: var(--f-serif); font-style: italic; font-weight: 400; font-stretch: 100%; font-size: 1.08em; letter-spacing: -.01em; }
+.s--yours .yr-full__cap::before { /* paper halo so the caption reads over code */
+  content: ""; position: absolute; inset: -40% -18% -30% -30%; z-index: -1; background: radial-gradient(closest-side, var(--paper) 55%, rgb(237 238 233 / 0));
+}
+
+/* menu bar: split around the notch, thin enough to let the wallpaper's light through */
+.s--yours .yr-mb {
+  position: absolute; inset: 0 0 auto; z-index: 3; height: var(--mb);
+  display: flex; align-items: center; justify-content: space-between; padding: 0 clamp(10px, 1.6%, 16px);
+  background: rgb(0 0 0 / .2); -webkit-backdrop-filter: blur(20px) saturate(1.4); backdrop-filter: blur(20px) saturate(1.4);
+  font: 400 12px/1 var(--f-ui); color: rgb(255 255 255 / .9); text-shadow: 0 0 4px rgb(0 0 0 / .25); white-space: nowrap;
+  transition: background-color .35s var(--ease-edit);
+}
+.s--yours .yr-mb > div {
+  display: flex; flex-wrap: wrap; align-items: center; align-content: flex-start; height: 16px; row-gap: 16px; line-height: 16px;
+  min-width: 0; max-width: calc(50% - var(--iw) / 2 - 10px); overflow: hidden; transition: opacity .3s var(--ease-edit);
+}
+.s--yours .yr-mb__l { gap: clamp(10px, 1.9%, 18px); }
+.s--yours .yr-mb__l b { font-weight: 700; }
+.s--yours .yr-mb__r { gap: 12px; justify-content: flex-end; }
+.s--yours .yr-status { font: 500 11px/1 var(--f-ui); font-variant-numeric: tabular-nums; white-space: pre; }
+.s--yours .yr-clock { font-variant-numeric: tabular-nums; }
+.s--yours .yr-desk[data-notch="false"] { --iw: calc(117px * var(--k)); }
+.s--yours .yr-desk.is-full .yr-mb { background: #000; }
+/* an open island owns the top of the screen: the menu titles step back (pinned always; peek on narrow desks) */
+.s--yours .yr-desk[data-isl="pinned"] .yr-mb > div { opacity: 0; }
+.s--yours .yr-desk.is-full .yr-mb > div { opacity: 0; }
+
+.s--yours .yr-notch {
+  position: absolute; top: 0; left: 50%; z-index: 4; width: var(--nw); height: calc(32px * var(--k)); margin-left: calc(var(--nw) / -2);
+  background: #000; border-radius: 0 0 calc(10px * var(--k)) calc(10px * var(--k)); transform-origin: 50% 0;
+}
+/* display wake: the screen starts dimmed (not black) and brightens as the island springs out (JS sets the start) */
+.s--yours .yr-wake { position: absolute; inset: 0; z-index: 3; background: #000; opacity: 0; pointer-events: none; }
+.s--yours .yr-isl { position: absolute; inset: 0 0 auto; z-index: 5; height: calc(32px * var(--k)); pointer-events: none; }
+.s--yours .yr-desk.is-full .island__relaunch { visibility: hidden; }
+/* while a pick shows off its material the island is a display, not a target: clicks reach the menu under it */
+.s--yours .yr-desk.is-show .island__hit, .s--yours .yr-desk.is-show .island__more { pointer-events: none; }
+
+/* Liquid Glass: a lens on the island's body bends what's behind it, strongest at the rim like the real glass
+   (#yr-lens, JS-built edge map), before the island's own thin blur. Only exists in Glass. */
+.s--yours .yr-lens { display: none; position: absolute; top: 0; left: 50%; transform: translateX(-50%); border-radius: 0 0 calc(16px * var(--k)) calc(16px * var(--k)); pointer-events: none; }
+@supports (backdrop-filter: url(#a)) {
+  .s--yours .yr-desk[data-mat="glass"] .yr-lens { display: block; backdrop-filter: url(#yr-lens); }
+}
+
+/* the demo pointer: it right-clicks the island once on wake, then steps aside for the real one */
+.s--yours .yr-ptr {
+  position: absolute; left: 0; top: 0; z-index: 8; width: calc(12.6px * var(--k)); height: calc(18.2px * var(--k));
+  opacity: 0; pointer-events: none; transform-origin: 8% 6%;
+  filter: drop-shadow(0 1px 1.5px rgb(0 0 0 / .45));
+}
+.s--yours .yr-ptr svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.s--yours .yr-ptr path { fill: #000; stroke: #fff; stroke-width: 1.3; stroke-linejoin: round; }
+
+/* ---------------------------------------------------------------- the menu (menu.js items, open) */
+.s--yours .yr-menu { position: relative; z-index: 4; font: 400 13px/1 var(--f-ui); color: var(--fg); }
+.s--yours .yr-menu__main, .s--yours .yr-menu__sub {
+  width: 20em; padding: .385em; border-radius: .77em;
+  background: rgb(40 40 42 / .82); -webkit-backdrop-filter: blur(30px) saturate(1.6); backdrop-filter: blur(30px) saturate(1.6);
+  border: 1px solid rgb(255 255 255 / .12); box-shadow: 0 1.4em 3em -1em rgb(0 0 0 / .6), 0 .15em .5em rgb(0 0 0 / .25);
+  transform-origin: 0 0;
+}
+.s--yours .yr-menu__sub { position: absolute; left: calc(20em - .3em); top: var(--sub-top, 6.9em); width: 13.85em; }
+.s--yours .yr-mi {
+  display: flex; align-items: center; gap: .3em; height: 1.7em; padding: 0 .6em 0 .3em; border-radius: .385em;
+  color: inherit; text-decoration: none; cursor: default; white-space: nowrap; outline: none;
+}
+.s--yours .yr-mi__ck { flex: none; width: 1.23em; text-align: center; font-size: .92em; }
+.s--yours .yr-mi__lb { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: pre; font-variant-numeric: tabular-nums; }
+.s--yours .yr-mi__ar { flex: none; width: .46em; height: .77em; opacity: .85; }
+.s--yours .yr-mi[aria-disabled="true"] { color: rgb(236 237 232 / .55); }
+.s--yours .yr-mi:not([aria-disabled="true"]):hover, .s--yours .yr-mi:focus-visible, .s--yours .yr-mi.is-hot, .s--yours .yr-mi[aria-expanded="true"] { background: rgb(176 168 237 / .28); }
+.s--yours .yr-mi:focus-visible { box-shadow: inset 0 0 0 1.5px rgb(176 168 237 / .9); }
+.s--yours .yr-mi.is-blink { animation: yr-blink-row .2s steps(1) 1; }
+@keyframes yr-blink-row { 0%, 50% { background: transparent; } }
+.s--yours .yr-mi-sep { height: 1px; margin: .385em .6em; background: rgb(255 255 255 / .1); }
+.s--yours .yr-mi-group { display: contents; }
+
+/* on the desk: hangs from the island's left wing, where the right-click landed */
+.s--yours .yr-desk .yr-menu {
+  position: absolute; top: calc(32px * var(--k) + 2px);
+  font-size: clamp(11px, calc(9.3px * var(--k)), 13px);
+  /* never under the lever: 24px inset + lever + 12px air + menu and submenu */
+  left: min(calc(50% - 112px * var(--k)), calc(100% - 60px - 31.4px * var(--k) - 33.55em));
+  transition: opacity .25s var(--ease-settle), visibility 0s;
+}
+.s--yours .yr-desk.is-full .yr-menu, .s--yours .yr-desk.is-quit .yr-menu { opacity: 0; visibility: hidden; transition: opacity .2s var(--ease-settle), visibility 0s .2s; }
+
+/* ---------------------------------------------------------------- PACE lever (desktop, full motion); scales with the desk */
+.s--yours .yr-lever {
+  --tone: var(--teal);
+  --kn: calc(31.4px * var(--k)); --tr: calc(128px * var(--k));
+  position: absolute; right: 24px; bottom: 24px; z-index: 4;
+  display: none; flex-direction: column; align-items: center; gap: 7px; padding: 14px 8px 12px; border-radius: 30px;
+  background: rgb(12 13 12 / .86);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .09), 0 20px 40px -20px rgb(0 0 0 / .6);
+  font: 500 10px/1 var(--f-mono); letter-spacing: .06em; color: var(--fg-2); white-space: nowrap;
+  transition: opacity .3s var(--ease-edit), visibility 0s;
+}
+.s--yours .yr-desk.is-full .yr-lever { opacity: 0; visibility: hidden; transition: opacity .3s var(--ease-edit), visibility 0s .3s; }
+.s--yours [data-tone="amber"] { --tone: var(--amber); }
+.s--yours [data-tone="red"] { --tone: var(--red); }
+.s--yours .yr-lever__lbl { color: var(--fg); letter-spacing: .12em; margin-bottom: 3px; }
+.s--yours .yr-lever__track { position: relative; width: var(--kn); height: var(--tr); margin: 2px 0; }
+.s--yours .yr-lever__rail { position: absolute; left: 50%; top: calc(var(--kn) / 2); bottom: calc(var(--kn) / 2); width: 6px; margin-left: -3px; border-radius: 99px; background: var(--track); overflow: hidden; }
+.s--yours .yr-lever__fill { position: absolute; inset: 0; border-radius: inherit; background: var(--tone); transform-origin: 50% 100%; transform: scaleY(var(--fs, 0)); transition: background-color .3s; }
+.s--yours .yr-lever__ticks {
+  position: absolute; left: 12%; width: 7px; top: calc(var(--kn) / 2); bottom: calc(var(--kn) / 2 - 1px);
+  background: repeating-linear-gradient(to top, rgb(255 255 255 / .26) 0 1px, transparent 1px calc(10% - .1px));
+}
+.s--yours .yr-lever__mark { position: absolute; right: 12%; width: 7px; height: 2px; border-radius: 2px; margin-bottom: -1px; }
+.s--yours .yr-lever__mark--a { bottom: calc(var(--kn) / 2 + (var(--tr) - var(--kn)) * .15); background: var(--amber); }
+.s--yours .yr-lever__mark--r { bottom: calc(var(--kn) / 2 + (var(--tr) - var(--kn)) * .70); background: var(--red); }
+.s--yours .yr-lever__knob {
+  position: absolute; left: 0; bottom: 0; width: var(--kn); height: var(--kn); border-radius: 50%; cursor: grab; touch-action: none;
+  background: radial-gradient(circle at 50% 30%, #fff, #D7D9D2 70%);
+  box-shadow: 0 8px 18px -4px rgb(0 0 0 / .55), inset 0 -2px 3px rgb(0 0 0 / .14), inset 0 1px 0 #fff;
+}
+.s--yours .yr-lever__knob:active { cursor: grabbing; }
+.s--yours .yr-lever__knob:focus-visible { outline-offset: 4px; border-radius: 50%; }
+.s--yours .yr-lever__knob > i { /* grip + the forecast tone */
+  position: absolute; left: 50%; top: 50%; width: 16px; height: 12px; margin: -6px 0 0 -8px;
+  background: linear-gradient(rgb(17 19 17 / .28) 0 1px, transparent 1px 3px, var(--tone) 3px 9px, transparent 9px 11px, rgb(17 19 17 / .28) 11px);
+  border-radius: 2px;
+}
+.s--yours .yr-lever__tip {
+  position: absolute; right: calc(100% + 12px); top: 50%; padding: 7px 10px; border-radius: 9px;
+  background: rgb(22 22 24 / .92); box-shadow: inset 0 0 0 1px rgb(255 255 255 / .1);
+  font: 500 11px/1 var(--f-ui); letter-spacing: .01em; color: var(--tone); pointer-events: none;
+  opacity: 0; transform: translate(6px, -50%); transition: opacity .2s var(--ease-settle), transform .3s var(--ease-settle);
+}
+.s--yours .yr-lever[data-tone="clear"] .yr-lever__tip { color: var(--fg-2); }
+.s--yours .yr-lever.is-drag .yr-lever__tip, .s--yours .yr-lever__knob:focus-visible .yr-lever__tip { opacity: 1; transform: translate(0, -50%); }
+
+/* ---------------------------------------------------------------- under the desk: range (mobile / reduced) */
+.s--yours .yr-under { display: flex; margin: 18px 4px 0; }
+.s--yours .yr-range { --tone: var(--teal-ink); flex: 1 1 260px; display: grid; gap: 6px; min-width: 0; }
+.s--yours .yr-range[data-tone="amber"] { --tone: var(--amber-ink); }
+.s--yours .yr-range[data-tone="red"] { --tone: var(--red-ink); }
+html[data-night] .s--yours .yr-range { --tone: var(--teal); }
+html[data-night] .s--yours .yr-range[data-tone="amber"] { --tone: var(--amber); }
+html[data-night] .s--yours .yr-range[data-tone="red"] { --tone: var(--red); }
+.s--yours .yr-range__top, .s--yours .yr-range__ends { display: flex; justify-content: space-between; gap: 12px; font: 500 11px/1.2 var(--f-mono); letter-spacing: .06em; color: var(--fg-text-2); }
+.s--yours .yr-range__lbl { color: var(--fg-text); letter-spacing: .12em; }
+.s--yours .yr-range__out { color: var(--tone); font-weight: 600; letter-spacing: .02em; text-align: right; }
+.s--yours .yr-range input {
+  --p: 0%;
+  width: 100%; height: 32px; margin: 0; background: transparent; -webkit-appearance: none; appearance: none; cursor: pointer; touch-action: pan-y;
+}
+.s--yours .yr-range input::-webkit-slider-runnable-track { height: 6px; border-radius: 99px; background: linear-gradient(90deg, var(--tone) var(--p), var(--rule-c) var(--p)); }
+.s--yours .yr-range input::-moz-range-track { height: 6px; border-radius: 99px; background: linear-gradient(90deg, var(--tone) var(--p), var(--rule-c) var(--p)); }
+.s--yours .yr-range input::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 28px; height: 28px; margin-top: -11px; border-radius: 50%;
+  background: var(--paper); box-shadow: 0 0 0 2px var(--ink), 0 4px 10px -2px rgb(0 0 0 / .35);
+}
+.s--yours .yr-range input::-moz-range-thumb { width: 28px; height: 28px; border: 0; border-radius: 50%; background: var(--paper); box-shadow: 0 0 0 2px var(--ink), 0 4px 10px -2px rgb(0 0 0 / .35); }
+.s--yours .yr-range input:focus-visible { outline: none; box-shadow: none; }
+.s--yours .yr-range input:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px var(--ink), 0 0 0 5px var(--teal); }
+.s--yours .yr-range input:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 2px var(--ink), 0 0 0 5px var(--teal); }
+
+@media (min-width: 768px) {
+  html[data-motion="full"] .s--yours .yr-lever { display: flex; }
+  html[data-motion="full"] .s--yours .yr-under { display: none; }
+}
+
+/* ---------------------------------------------------------------- simulate: the things the app decides by itself */
+.s--yours .yr-links { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 30px; margin: 22px 4px 0; }
+.s--yours .yr-links__lbl { margin-right: -8px; font: 500 11px/1 var(--f-mono); letter-spacing: .12em; color: var(--fg-text-2); }
+.s--yours .yr-lnk {
+  display: inline-flex; align-items: center; gap: 10px; min-height: 44px;
+  font: 500 13px/1 var(--f-mono); letter-spacing: .01em; color: var(--fg-text); text-align: left;
+}
+.s--yours .yr-lnk svg { flex: none; width: 18px; height: 18px; overflow: visible; transition: transform .6s var(--spring-play); }
+.s--yours .yr-lnk circle { fill: none; stroke: currentColor; stroke-width: 1.2; }
+.s--yours .yr-lnk path { fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; transition: opacity .3s var(--ease-settle); }
+.s--yours .yr-lnk[data-act="busy"] path { fill: currentColor; stroke: none; }
+.s--yours .yr-lnk__pill { opacity: 0; }
+.s--yours .yr-lnk[aria-pressed="true"] .yr-lnk__notch { opacity: 0; }
+.s--yours .yr-lnk[aria-pressed="true"] .yr-lnk__pill { opacity: 1; }
+.s--yours .yr-lnk:hover svg { transform: rotate(-12deg) scale(1.08); }
+.s--yours .yr-lnk__t { position: relative; padding-bottom: 7px; }
+.s--yours .yr-lnk__t::before, .s--yours .yr-lnk__t::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; }
+.s--yours .yr-lnk__t::before { height: 1px; bottom: 2px; background: currentColor; opacity: .35; transform-origin: 100% 50%; transition: transform .45s var(--ease-edit); }
+.s--yours .yr-lnk__t::after {
+  height: 6px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='6' viewBox='0 0 12 6'%3E%3Cpath d='M0 3c3 0 3-2.4 6-2.4S9 3 12 3' fill='none' stroke='%23000' stroke-width='1.3'/%3E%3C/svg%3E") repeat-x 0 50% / 12px 6px;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='6' viewBox='0 0 12 6'%3E%3Cpath d='M0 3c3 0 3-2.4 6-2.4S9 3 12 3' fill='none' stroke='%23000' stroke-width='1.3'/%3E%3C/svg%3E") repeat-x 0 50% / 12px 6px;
+  clip-path: inset(0 100% 0 0); transition: clip-path .55s var(--ease-edit);
+}
+.s--yours .yr-lnk:hover .yr-lnk__t::before, .s--yours .yr-lnk:focus-visible .yr-lnk__t::before,
+.s--yours .yr-lnk.is-on .yr-lnk__t::before, .s--yours .yr-lnk[aria-pressed="true"] .yr-lnk__t::before { transform: scaleX(0); }
+.s--yours .yr-lnk:hover .yr-lnk__t::after, .s--yours .yr-lnk:focus-visible .yr-lnk__t::after,
+.s--yours .yr-lnk.is-on .yr-lnk__t::after, .s--yours .yr-lnk[aria-pressed="true"] .yr-lnk__t::after { clip-path: inset(0 0 0 0); }
+.s--yours .yr-lnk[aria-disabled="true"] { opacity: .5; cursor: progress; }
+
+/* banners live inside the desk, under its menu bar */
+.s--yours .yr-desk .cm-banners { top: calc(var(--mb) + 10px); right: 12px; }
+
+/* ---------------------------------------------------------------- tablet + mobile */
+@media (max-width: 1023px) {
+  .s--yours .yr-copy, .s--yours .yr-play { grid-column: 1 / -1; }
+  .s--yours .yr-sticky { position: static; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 var(--col-gap); align-items: end; }
+  .s--yours .yr-sticky h2 { grid-column: 1 / -1; }
+  .s--yours .yr-facts { max-width: none; }
+  .s--yours .yr-play { margin-top: clamp(36px, 6vh, 56px); }
+}
+@media (max-width: 767px) {
+  .s--yours .yr-sticky { display: block; }
+  /* the screen stays in view while the menu scrolls under it, so every tap shows on the island */
+  .s--yours .yr-bezel { position: sticky; top: calc(var(--band-h) + 10px); z-index: 5; padding: 6px; border-radius: 24px; }
+  .s--yours .yr-desk { aspect-ratio: 1; border-radius: 18px; clip-path: inset(0 round 18px); }
+  .s--yours .yr-mb { font-size: 10px; }
+  .s--yours .yr-mb__l { gap: 9px; }
+  .s--yours .yr-mb__l span:nth-child(n+4) { display: none; }
+  .s--yours .yr-status { font-size: 10px; }
+  .s--yours .yr-desk[data-isl="peek"] .yr-mb > div { opacity: 0; }
+  .s--yours .yr-mb__r:has(.yr-status:not([hidden])) .yr-clock { display: none; }
+  .s--yours .yr-win { font-size: clamp(5.5px, 1.75cqw, 8px); }
+  .s--yours .yr-win--a { left: 5%; top: 17%; width: 84%; height: 44%; }
+  .s--yours .yr-win--b { right: 5%; top: 52%; width: 80%; height: 42%; }
+  .s--yours .yr-full { font-size: clamp(6px, 2cqw, 9px); }
+  .s--yours .yr-desk .cm-banners { top: calc(var(--mb) + 60px); right: 10px; width: 340px; transform: scale(.84); transform-origin: 100% 0; }
+
+  .s--yours .yr-under { order: 1; margin-inline: 2px; }
+  /* the menu at touch size: same items, same order; Appearance's submenu opens in place */
+  .s--yours .yr-menu { order: 2; margin-top: 18px; font-size: 15px; }
+  .s--yours .yr-menu__main { width: auto; padding: 6px; border-radius: 16px; background: rgb(28 28 30 / .96); }
+  html:not([data-night]) .s--yours .yr-menu__main { box-shadow: 0 30px 60px -30px rgb(10 12 10 / .5); }
+  .s--yours .yr-mi { height: 44px; padding: 0 12px 0 6px; border-radius: 10px; }
+  .s--yours .yr-mi-sep { margin: 6px 12px; }
+  .s--yours .yr-mi--head { height: 34px; color: rgb(236 237 232 / .55); font-size: .8em; letter-spacing: .02em; }
+  .s--yours .yr-mi-group .yr-mi { padding-left: 22px; }
+  .s--yours .yr-links { order: 3; flex-direction: column; align-items: flex-start; gap: 0; margin: 16px 4px 0; }
+  .s--yours .yr-links__lbl { margin: 0 0 4px; }
+}
+
+/* ---------------------------------------------------------------- reduced motion: everything works, nothing drifts */
+html[data-motion="reduced"] .s--yours .yr-win { animation: none; }
+html[data-motion="reduced"] .s--yours .yr-win--a { left: 14%; top: 13%; }
+html[data-motion="reduced"] .s--yours .yr-win--b { right: 12%; top: 30%; }
+@media (prefers-reduced-motion: reduce) {
+  .s--yours *, .s--yours *::before, .s--yours *::after { transition-duration: 0s !important; }
+}

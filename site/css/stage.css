@@ -1,0 +1,276 @@
+/* §01 stage — hero + dolly-in tour (SPEC §9.1, review round 1). Scoped under .s--stage.
+   Paper, ink and one black object: the menu bar and the island hanging from it.
+   Base rules are the STATIC composition (no JS, reduced motion): the hero, then the six beats as a list.
+   stage.js adds .is-live in motion mode: the display becomes the pinned 100svh screen and the camera rig
+   (bezel, island, annotations, ghost cursor) is placed in viewport coordinates from the island geometry.
+   WALL metrics (Anybody 900, measured in Chrome, em units): ink width 4.293 @150% / 2.821 @100%,
+   baseline .66 in a .78 line box, cap height .675. So the fit is pure CSS: no runtime measuring. */
+
+@property --lvl{syntax:"<number>";inherits:true;initial-value:.46}
+
+.s--stage{
+  --T:calc(var(--band-h) + clamp(36px,9svh,110px));  /* top of the headline: a peek at the hero camera clears the WALL */
+  --dsz:clamp(48px,min(8.6vw,11.5svh),148px);        /* "See the" / "before you hit it." */
+  --wrest:150%; --wk:4.293; --wl0:.027;              /* WALL rest stretch, ink width (em), left bearing (em) */
+  padding:0;background:var(--paper);color:var(--ink);
+}
+.s--stage:focus{outline:none}   /* focus parks here (tabindex=-1) when the island leaves the tab order */
+.s--stage .pin,.s--stage .display{background:var(--paper)}
+.s--stage .display{position:relative;isolation:isolate}
+.s--stage .flush{position:absolute;inset:0;z-index:1;background:var(--red);opacity:0;pointer-events:none}
+
+/* ---------------------------------------------------------------- the camera rig (above the band) */
+.s--stage .stage-rig{position:absolute;left:0;right:0;top:0;height:100svh;z-index:84;pointer-events:none;overflow:clip}
+.s--stage.is-live .stage-rig{position:fixed}
+.s--stage .stage-cam{position:absolute;left:50%;top:0;width:0;height:0;transform-origin:0 0}
+.s--stage .island-host{position:absolute;left:0;top:0;width:0;height:0}
+
+/* first-paint island (no JS yet): collapsed at the hero scale heroScale() will pick */
+.s--stage .isl-ph{
+  --u:clamp(1.25px,(100vw - 352px) / 277,2px);
+  position:absolute;left:0;top:0;width:calc(277 * var(--u));height:calc(32 * var(--u));translate:-50% 0;
+  font:600 calc(10 * var(--u))/1 var(--f-ui);font-variant-numeric:tabular-nums;letter-spacing:.033em;
+}
+@media (min-width:1280px){.s--stage .isl-ph{--u:clamp(1.25px,(100vw - 812px) / 277,2px)}}
+@media (max-width:767px){.s--stage .isl-ph{--u:min(1.1px,(100vw - 96px) / 277)}}
+.s--stage .isl-ph svg{position:absolute;inset:0;width:100%;height:100%;fill:#000}
+.s--stage .isl-ph b{position:absolute;top:0;height:100%;width:calc(40 * var(--u));display:flex;align-items:center;justify-content:center;font-weight:600}
+.s--stage .isl-ph__l{left:calc(6 * var(--u));color:var(--teal)}
+.s--stage .isl-ph__r{right:calc(6 * var(--u));color:var(--amber)}
+.s--stage .isl-ph__lens{position:absolute;left:50%;top:50%;width:calc(7 * var(--u));height:calc(7 * var(--u));translate:-50% -50%;border-radius:50%;background:#0A0B10}
+
+/* the menu bar, dollied: a band-height black strip scaled from the top edge, with the screen's corners under it */
+.s--stage .bezel{display:none}
+.s--stage.is-live .bezel{display:block;position:absolute;left:0;top:0;width:100%;height:var(--band-h);opacity:0;pointer-events:none}
+.s--stage.is-tour .bezel{pointer-events:auto}    /* covered band items can't be clicked blind */
+.s--stage .bezel::before{content:"";position:absolute;inset:0;background:#000;transform-origin:50% 0;transform:scaleY(var(--bk,1))}
+.s--stage .bezel__c{position:absolute;top:0;width:18px;height:18px;transform:translateY(calc(var(--band-h) * var(--bk,1))) scale(var(--bk,1))}
+.s--stage .bezel__c--l{left:0;transform-origin:0 0;background:radial-gradient(circle at 100% 100%,transparent 17.5px,#000 18px)}
+.s--stage .bezel__c--r{right:0;transform-origin:100% 0;background:radial-gradient(circle at 0 100%,transparent 17.5px,#000 18px)}
+
+/* the peek shadow, tuned for paper: tight contact + soft lift (the app's 32pt black blur smears at 2–3×) */
+.s--stage .island__sh{box-shadow:0 calc(2 * var(--u)) calc(6 * var(--u)) rgb(10 12 10/.16),0 calc(12 * var(--u)) calc(30 * var(--u)) calc(-6 * var(--u)) rgb(10 12 10/.22)}
+
+/* tour-only reveals driven by stage.js (sparklines draw, bars fill) */
+.s--stage.is-tour .i-spk-l{stroke-dasharray:64;stroke-dashoffset:calc(64 * (1 - var(--spk,1)))}
+.s--stage.is-tour .i-spk-a{opacity:calc(.28 * var(--spa,1))}
+.s--stage.is-tour .i-fill{clip-path:inset(0 calc(100% - max(var(--min), var(--f,0) * var(--bar,1) * 100%)) 0 0 round 99px)}
+.s--stage.is-tour .i-ptk{opacity:calc(var(--bar,1));transform:translateX(min(calc(var(--pj,0) * var(--bar,1) * 100% - 1 * var(--u)), calc(100% - 2 * var(--u))))}
+.s--stage.is-tour .island__more{display:none}
+.s--stage.is-tour .i-pane--p :is(.i-cap,.i-fc){opacity:var(--ptx,1)}   /* peek captions fade in as the rings fill (the app never scrambles) */
+
+/* b1 annotations: hand-drawn ink pointing at the two wings (origin = the arrow tip, placed by stage.js) */
+.s--stage .anno,.s--stage .spec,.s--stage .spec-labels{display:none}
+.s--stage.is-live .anno{display:block;position:absolute;left:0;top:0;width:0;height:0;color:var(--ink-2);opacity:0}
+/* the ink curls up from the note (toward the centre) to the wing: left note mirrored, right note as drawn */
+.s--stage .anno__ink{position:absolute;top:0;right:-6px;width:clamp(64px,7.4vw,116px);max-width:none;height:auto;overflow:visible}
+.s--stage .anno__t{position:absolute;top:calc(clamp(64px,7.4vw,116px) * .9);right:calc(clamp(64px,7.4vw,116px) * .72);width:max-content;max-width:34vw;
+  font:400 clamp(24px,2.5vw,38px)/1.02 var(--f-serif);font-style:italic;letter-spacing:-.01em;color:var(--ink);rotate:3deg;transform-origin:100% 0}
+.s--stage .anno--l .anno__ink{right:auto;left:-6px;scale:-1 1}
+.s--stage .anno--l .anno__t{right:auto;left:calc(clamp(64px,7.4vw,116px) * .72);rotate:-3deg;transform-origin:0 0}
+
+/* b3 spec sheet: markup drawn over the pinned island + mono labels under it */
+.s--stage.is-live .spec{display:block;position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.s--stage .spec :is(rect,line,circle){fill:none;stroke:var(--teal);stroke-width:1.5;vector-effect:non-scaling-stroke}
+.s--stage.is-live .spec-labels{display:block}
+.s--stage .spec-labels p{position:absolute;left:0;top:0;opacity:0;white-space:nowrap;translate:-50% 0;
+  font:500 12px/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}
+.s--stage .spec-labels p::before{content:"";display:inline-block;width:6px;height:6px;margin:0 8px 1px 0;border-radius:50%;background:var(--teal)}
+
+/* ghost cursor (tour, desktop) / tap ripple (mobile) */
+.s--stage .ghost{display:none;position:absolute;left:0;top:0;width:0;height:0;opacity:0}
+.s--stage .ghost svg{max-width:none}
+.s--stage.is-live .ghost{display:block}
+.s--stage .ghost__arrow{position:absolute;left:-5px;top:-2.5px;width:22px;height:22px;overflow:visible;transform-origin:5px 2.5px;
+  filter:drop-shadow(0 2px 3px rgb(0 0 0/.35))}
+.s--stage .ghost__arrow path{fill:#fff;stroke:#000;stroke-width:1.2;stroke-linejoin:round}
+.s--stage .ghost__ring{position:absolute;left:-20px;top:-20px;width:40px;height:40px;overflow:visible;transform:rotate(-90deg)}
+.s--stage .ghost__ring circle{fill:none;stroke:var(--teal);stroke-width:2.5;stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:var(--dwell,100)}
+.s--stage .ghost__dwell{position:absolute;left:24px;top:22px;padding:4px 7px;border-radius:99px;background:#000;color:#fff;white-space:nowrap;
+  font:500 11px/1 var(--f-mono);letter-spacing:.04em;opacity:var(--dwo,0)}
+.s--stage .ghost__ripple{position:absolute;left:-24px;top:-24px;width:48px;height:48px;border-radius:50%;border:2px solid var(--ink);opacity:0}
+
+/* ---------------------------------------------------------------- hero */
+.s--stage .hero{
+  position:relative;z-index:2;min-height:100svh;background:var(--paper);   /* the paper is the WALL's blend backdrop */
+  container-type:inline-size;transform-origin:50% 0;
+  display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:var(--col-gap);align-content:start;
+  grid-template-areas:"h h h h h h h h h h h h" "l l l l l l . a a a a a";
+  padding:var(--T) var(--gutter) clamp(88px,12svh,140px);
+}
+.s--stage .stage-h1{grid-area:h;margin:0;font:560 var(--dsz)/var(--lh-display) var(--f-display);font-stretch:75%;letter-spacing:var(--tr-display);color:var(--ink)}
+.s--stage .l1,.s--stage .l3,.s--stage .ln{display:block}
+/* masked lines: clip only below the (padded) bottom edge so descenders and the italic overhang survive */
+.s--stage .ln{padding-bottom:.16em;margin-bottom:-.16em;clip-path:inset(-60% -30% 0 -30%)}
+.s--stage .ln__i{display:inline-block}
+.s--stage .l3{text-align:right;margin-top:.1em}
+.s--stage .l3 em{font-size:1.08em}
+
+/* WALL: a liquid meter in the headline slot.
+   One blend group (multiply onto paper): white ground → fill glyphs (z -1) → the tank (screen: white air above a
+   travelling sine surface, black liquid below, so only the glyphs under the surface keep their colour) → the
+   outline glyphs on top. The surface moves by transform only (composited); the level is --lvl (= session %). */
+.s--stage .wall{
+  --wscroll:var(--wrest);--fill-c:var(--teal);--sw:max(1.5px,.13vw);--wl:40vw;--wa:.075em;
+  display:block;position:relative;margin:-.1em 0 0 calc(var(--wl0) * -1em);padding-top:.14em;
+  background:var(--paper);clip-path:inset(0 -12px);   /* own paper backdrop: safe to clip/animate without breaking the blend; the clip hides the rising letters */
+  box-shadow:0 0 0 24px var(--paper);   /* opaque apron (wider than the clip) under the clip's side edges: a fractional edge over a half-covered backdrop let the white box show through as a hairline */
+  font:900 min(calc(100cqw / var(--wk)),40svh,500px)/.78 var(--f-display);letter-spacing:var(--tr-wall);white-space:nowrap;
+  -webkit-user-select:none;user-select:none;
+}
+.s--stage .wall__word{position:relative;display:inline-block;padding:.07em .06em .02em;margin:-.07em -.06em -.02em;background:#fff;isolation:isolate;mix-blend-mode:multiply}
+.s--stage .ch{position:relative;display:inline-block;color:transparent;-webkit-text-stroke:var(--sw) var(--ink);
+  font-stretch:clamp(50%, calc(var(--wscroll) * var(--wb,1) * (1 - .55 * var(--sq,0))), 150%)}
+.s--stage .ch__f{position:absolute;left:0;top:0;z-index:-1;color:var(--fill-c);-webkit-text-stroke:0 transparent}
+.s--stage .wall__tank{position:absolute;inset:0;z-index:0;overflow:hidden;mix-blend-mode:screen;pointer-events:none}
+.s--stage .wall__liq{position:absolute;left:-12%;right:-12%;top:-1.5em;height:3em;background:linear-gradient(#fff 50%,#000 50%);
+  translate:0 calc(.73em - var(--lvl) * (1 - var(--drain,0)) * .675em)}
+.s--stage .wall__wave{position:absolute;left:0;top:calc(50% - var(--wa) / 2);width:calc(100% + var(--wl));height:var(--wa);
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 20' preserveAspectRatio='none'%3E%3Cpath fill='%23fff' d='M0 0H200V10C175 17 175 17 150 10S125 3 100 10S75 17 50 10S25 3 0 10Z'/%3E%3Cpath d='M0 10C25 3 25 3 50 10S75 17 100 10S125 3 150 10S175 17 200 10V20H0Z'/%3E%3C/svg%3E") 0 0 / var(--wl) 100% repeat-x}
+.s--stage .wall.is-wave .wall__wave{animation:stage-wave 3.2s linear infinite}
+@keyframes stage-wave{to{transform:translateX(calc(var(--wl) * -1))}}
+.s--stage .wall[data-tone="amber"]{--fill-c:var(--amber)}
+.s--stage .wall[data-tone="red"]{--fill-c:var(--red);--sw:max(2.25px,.2vw)}
+
+/* lede beside "before you hit it.", the CTA hanging under it */
+.s--stage .lede{grid-area:l;max-width:34em;margin-top:calc(var(--dsz) * -.94 - 4px);
+  font:420 var(--t-lede)/var(--lh-lede) var(--f-display);font-stretch:96%;color:var(--ink-2);text-wrap:pretty}
+.s--stage .lede .k{color:var(--ink);font-weight:560}
+.s--stage .chip{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;margin:2px 0;border-radius:var(--r-pill);
+  background:#000;font:500 13px/1 var(--f-mono);color:var(--fg);white-space:nowrap;font-variant-numeric:tabular-nums;vertical-align:.08em}
+.s--stage .chip .dot{flex:none}
+.s--stage .chip__n{display:inline-block;min-width:3ch;text-align:right}   /* rolling digits never reflow the lede */
+.s--stage .v-tap{display:none}
+@media (hover:none){.s--stage .v-hover{display:none}.s--stage .v-tap{display:inline}}
+.s--stage .act{grid-area:a;margin-top:clamp(18px,3svh,36px)}
+.s--stage .act .cta-hang{border-top-color:var(--rule)}
+.s--stage .act .req{margin-top:2px;font-size:12px}
+.s--stage .req .nw{white-space:nowrap}
+.s--stage .send{display:inline-flex;align-items:center;gap:8px;margin-top:14px;height:40px;padding:0 16px 0 12px;border:1px solid var(--rule);border-radius:var(--r-pill);
+  background:transparent;color:var(--ink);font:600 15px/1 var(--f-display);font-stretch:96%;cursor:pointer}
+.s--stage .send[hidden]{display:none}
+.s--stage .send svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+
+/* hand-drawn note, right of the island */
+.s--stage .note{position:absolute;z-index:3;left:calc(50% + 138.5px * var(--hs,2) + 18px);top:calc(var(--band-h) + 16px);display:flex;align-items:flex-start;gap:4px;color:var(--ink-2);pointer-events:none}
+.s--stage .note__ink{width:58px;height:42px;flex:none;margin-top:-26px;overflow:visible}
+.s--stage .note__t{margin-top:8px;font:400 22px/1.1 var(--f-serif);font-style:italic;letter-spacing:-.005em;white-space:nowrap;rotate:-4deg;transform-origin:0 50%}
+.s--stage .note__in > *{transition:opacity .3s var(--ease-settle)}
+.s--stage.is-open .note__in > *{opacity:0}   /* the note steps aside while the island is open */
+
+/* scroll cue */
+.s--stage .cue{display:none}
+.s--stage.is-live .cue{display:flex;position:absolute;left:var(--gutter);bottom:clamp(24px,4.4svh,44px);pointer-events:none;
+  font:500 12px/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.s--stage .cue__in{display:flex;align-items:center;gap:10px}
+.s--stage .cue__tick{position:relative;display:block;width:26px;height:4px;border-radius:99px;background:var(--paper-3);overflow:hidden}
+.s--stage .cue__tick i{position:absolute;inset:0;border-radius:inherit;background:var(--ink);transform-origin:0 50%;transform:scaleX(.46)}
+.s--stage .cue.is-on .cue__tick i{animation:stage-tick 2.4s var(--ease-edit) infinite}
+@keyframes stage-tick{0%{transform:scaleX(.08)}70%,100%{transform:scaleX(1)}}
+
+/* ---------------------------------------------------------------- b4: the session bar, magnified across the screen */
+.s--stage .fc{display:none}
+.s--stage.is-live .fc{display:block;position:absolute;z-index:3;left:var(--gutter);right:var(--gutter);top:0;opacity:0;pointer-events:none}
+.s--stage .fc__top{display:flex;justify-content:space-between;gap:16px;font:500 12px/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.s--stage .fc__bar{position:relative;height:14px;margin-top:12px;border-radius:99px;background:rgb(17 19 17/.1)}
+.s--stage .fc__fill{position:absolute;inset:0;border-radius:inherit;background:var(--teal);transform-origin:0 50%;transform:scaleX(var(--s,.46))}
+.s--stage .fc__cap{position:absolute;right:0;top:0;width:10px;height:100%;border-radius:0 99px 99px 0;background:var(--red);opacity:var(--cap,0)}
+.s--stage .fc__tick{position:absolute;left:0;top:-9px;width:4px;height:32px;margin-left:-2px;border-radius:2px;background:var(--ink);transform:translateX(var(--tx,0px))}
+.s--stage .fc__tick::after{content:"";position:absolute;left:50%;top:-5px;width:9px;height:9px;margin-left:-4.5px;border-radius:50%;background:inherit}
+.s--stage .fc__read{margin-top:clamp(18px,3svh,32px);text-align:right;font:640 clamp(34px,4.4vw,72px)/1 var(--f-display);font-stretch:88%;letter-spacing:-.03em;color:var(--ink)}
+.s--stage .fc__txt{padding:0 .08em;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.s--stage .fc[data-tone="amber"] .fc__txt{background:linear-gradient(transparent 58%,var(--hl-amber) 58% 94%,transparent 94%)}   /* highlighter: amber is never text on paper */
+.s--stage .fc[data-tone="red"] .fc__read{color:var(--red-ink);font-weight:860}
+.s--stage .fc[data-tone="red"] .fc__tick{background:var(--red-ink)}
+
+/* ---------------------------------------------------------------- captions: static list (base) */
+.s--stage .captions{position:relative;z-index:2;list-style:none;margin:0;padding:clamp(56px,10vh,120px) var(--gutter) clamp(72px,12vh,140px);display:grid;gap:clamp(56px,9vh,104px)}
+.s--stage .cap{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);grid-template-rows:auto auto 1fr;column-gap:var(--col-gap);align-items:start}
+.s--stage .cap > :not(.cap__isl){grid-column:1}
+.s--stage .cap__isl{grid-column:2;grid-row:1/span 3;position:relative;min-height:1px;padding-top:0;border-top:1px solid var(--rule)}
+.s--stage .cap__isl:empty{display:none}
+.s--stage .cap__idx{font:500 var(--t-label)/1.2 var(--f-mono);letter-spacing:.08em;color:var(--ink-2);font-variant-numeric:tabular-nums}
+/* the tour's own voice: Anybody's width and weight axes, expanded, heavy line then hairline line */
+.s--stage .cap__t{--cw:780;margin-top:14px;font:var(--cw) clamp(30px,3.3vw,54px)/1.02 var(--f-display);font-stretch:122%;letter-spacing:-.03em;color:var(--ink);text-wrap:balance}
+.s--stage .cap__lt{display:block;font-weight:calc(var(--cw) - 550)}
+.s--stage .cap__b{margin-top:16px;max-width:42ch;font:400 var(--t-body)/var(--lh-body) var(--f-display);color:var(--ink-2);text-wrap:pretty}
+.s--stage .cap__banners{position:relative;margin-top:24px;width:min(340px,100%);margin-left:auto;margin-right:auto}
+.s--stage .cap__banners .cm-banners{position:static;width:100%}
+
+/* ---------------------------------------------------------------- live: the pinned 100svh screen */
+.s--stage.is-live .display{height:100svh;overflow:hidden}
+.s--stage.is-live .hero{height:100svh;min-height:0}
+.s--stage.is-live .captions{position:absolute;inset:0;z-index:3;display:block;padding:0;pointer-events:none}
+.s--stage.is-live .cap{position:absolute;left:var(--gutter);bottom:clamp(36px,7svh,84px);width:min(560px,42vw);display:block}
+.s--stage.is-live .cap__isl{display:none}
+/* each beat gets its own framing: the thin collapsed shots (01, 06) carry display-size captions, the ghost's
+   beat (02) answers from the right, the dense panels (03–05) keep a compact caption under them */
+@media (min-width:1024px){
+  .s--stage.is-live .cap--c{left:50%;width:min(1000px,calc(100% - 2 * var(--gutter)));translate:-50% 0;text-align:center}
+  .s--stage.is-live .cap--c .cap__b{margin-inline:auto;max-width:46ch}
+  .s--stage.is-live .cap--r{left:auto;right:var(--gutter)}
+  .s--stage.is-live .cap--big{bottom:auto;top:52%;translate:0 -50%;width:min(1100px,74vw)}
+  .s--stage.is-live :is(.cap--c,.cap--big) .cap__t{font-size:clamp(44px,5.6vw,100px);line-height:.98;letter-spacing:-.035em}
+  .s--stage.is-live :is(.cap--c,.cap--big) .cap__b{font-size:clamp(18px,1.35vw,21px);margin-top:22px}
+}
+.s--stage .cap:nth-child(5) :is(.cap__idx,.cap__b){color:var(--ink)}   /* it sits on the red flush: AA needs full ink */
+.s--stage .display > .cm-banners{top:calc(var(--band-h) + 20px);right:20px}
+
+/* ---------------------------------------------------------------- hero reveal
+   CSS keyframes from the first paint, so the hero never waits for the module graph (LCP ≈ FCP).
+   Paused while the intro covers the page; intro.js adds .is-revealing as the black lifts.
+   Chars rise on `top` (no transform: a stacking context would pull the fill glyph out of the blend group). */
+html[data-motion="full"] .s--stage .ln__i{animation:stage-rise .95s var(--ease-edit) backwards}
+html[data-motion="full"] .s--stage .l3 .ln__i{animation-delay:.14s}
+html[data-motion="full"] .s--stage .wall{animation:stage-fill 1.8s cubic-bezier(.45,0,.55,1) .45s backwards}
+html[data-motion="full"] .s--stage .wall .ch{animation:stage-char 1s var(--ease-edit) .06s backwards}
+html[data-motion="full"] .s--stage .wall .ch:nth-child(3){animation-delay:.12s}
+html[data-motion="full"] .s--stage .wall .ch:nth-child(4){animation-delay:.18s}
+html[data-motion="full"] .s--stage .wall .ch:nth-child(5){animation-delay:.24s}
+html[data-motion="full"] .s--stage :is(.lede,.act){animation:stage-side .8s var(--ease-edit) .3s backwards}
+html[data-motion="full"] .s--stage .act{animation-delay:.4s}
+html.is-intro:not(.is-revealing) .s--stage :is(.ln__i,.wall,.wall .ch,.lede,.act){animation-play-state:paused}
+html[data-motion="full"] .s--stage:not(.is-live) .note{opacity:0}   /* the note points at the island, which needs JS */
+@keyframes stage-rise{from{transform:translateY(135%)}}   /* clear of the .16em mask padding */
+@keyframes stage-char{from{top:.95em}}
+@keyframes stage-side{from{transform:translateY(18px);opacity:0}}
+@keyframes stage-fill{from{--lvl:0}}
+
+/* ---------------------------------------------------------------- ≤1023: stacked hero */
+@media (max-width:1023px){
+  .s--stage{--T:calc(var(--band-h) + clamp(48px,8svh,96px));--dsz:clamp(44px,min(11vw,9svh),96px)}
+  .s--stage .hero{grid-template-columns:minmax(0,1fr);grid-template-areas:"h" "l" "a"}
+  .s--stage .l3{text-align:left}
+  .s--stage .lede{max-width:560px;margin-top:clamp(18px,2.6svh,28px)}
+  .s--stage .act{max-width:560px;margin-top:clamp(16px,2.4svh,28px)}
+  .s--stage .note{left:auto;right:var(--gutter);top:calc(var(--band-h) + 12px)}
+  .s--stage .note__t{font-size:19px;rotate:-3deg}
+  .s--stage .cap{grid-template-columns:minmax(0,1fr);row-gap:0}
+  .s--stage .cap__isl{grid-column:1;grid-row:auto;margin-top:28px}
+  .s--stage.is-live .cap{width:auto;right:var(--gutter);max-width:560px;top:max(44svh,280px);bottom:auto}
+}
+@media (min-width:768px) and (max-width:1023px){.s--stage{--wrest:100%;--wk:2.821;--wl0:.0155}}
+@media (max-width:767px){
+  .s--stage{--T:clamp(124px,17svh,150px);--dsz:min(14vw,7.2svh);--wrest:100%;--wk:2.821;--wl0:.0155}
+  .s--stage .island__more{display:none}   /* collides with the band's download button; long-press still opens the menu */
+  .s--stage .wall{--wl:70vw}
+  .s--stage .note{top:calc(var(--band-h) + 16px)}
+  .s--stage .note__ink{width:40px;height:30px;margin-top:-20px}
+  .s--stage .note__t{font-size:18px;margin-top:4px}
+  .s--stage .lede{font-size:16px;margin-top:16px}
+  .s--stage .act{margin-top:14px}
+  .s--stage .act .req{font-size:min(11px,2.82vw)}
+  .s--stage .req__sep{display:none}
+  .s--stage .req__trust{display:block}
+  .s--stage.is-live .cue{display:none}
+  .s--stage.is-live .cap{left:var(--gutter);right:var(--gutter);width:auto;top:max(44svh,280px);bottom:auto}
+  .s--stage.is-live .cap__t{font-size:clamp(26px,7.4vw,32px)}
+  .s--stage.is-live .cap__b{font-size:16px;margin-top:10px}
+  .s--stage .fc__read{font-size:clamp(24px,7vw,32px);text-align:left}
+  .s--stage .fc__top{font-size:11px}
+  .s--stage .anno__ink{width:46px}
+  .s--stage .anno__t{top:44px;right:30px;width:max-content;max-width:min(28vw,120px);font-size:16px;line-height:1.08}
+  .s--stage.is-live :is(.cap--c,.cap--big) .cap__t{font-size:min(9vw,40px)}
+  .s--stage .anno--l .anno__t{left:30px}
+}
+@media (max-width:767px) and (max-height:700px){.s--stage .lede__chips{display:none}}

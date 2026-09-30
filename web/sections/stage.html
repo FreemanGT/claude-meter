@@ -1,0 +1,86 @@
+<section id="stage" class="s s--stage" data-section="stage" data-own-island aria-labelledby="stage-title" tabindex="-1">
+  <!-- The camera rig sits outside .pin so the island can hang over the band (the pinned display is its own stacking context).
+       Everything in it is placed in viewport coordinates from the island's geometry (pt × camera scale). -->
+  <div class="stage-rig">
+    <div class="bezel" aria-hidden="true"><i class="bezel__c bezel__c--l"></i><i class="bezel__c bezel__c--r"></i></div>
+    <div class="stage-cam"><div class="island-host">
+      <!-- first paint (and no-JS): a static collapsed island, replaced by the live one when island.js mounts -->
+      <div class="isl-ph" aria-hidden="true"><svg viewBox="0 0 277 32" preserveAspectRatio="none"><path d="M0 0Q6 0 6 6L6 18Q6 32 20 32L257 32Q271 32 271 18L271 6Q271 0 277 0Z"/></svg><b class="isl-ph__l">46%</b><i class="isl-ph__lens"></i><b class="isl-ph__r">62%</b></div>
+    </div></div>
+    <div class="anno anno--l" aria-hidden="true">
+      <svg class="anno__ink ink" viewBox="0 0 96 84"><path d="M8 80C4 56 22 34 54 20C66 14 78 10 90 8"/><path d="M76 2l14 6-9 12"/></svg>
+      <p class="anno__t">your 5‑hour session</p>
+    </div>
+    <div class="anno anno--r" aria-hidden="true">
+      <svg class="anno__ink ink" viewBox="0 0 96 84"><path d="M8 80C4 56 22 34 54 20C66 14 78 10 90 8"/><path d="M76 2l14 6-9 12"/></svg>
+      <p class="anno__t">weekly, or the tightest model</p>
+    </div>
+    <svg class="spec" aria-hidden="true"><g class="spec__g"></g></svg>
+    <div class="spec-labels" aria-hidden="true"><p>6 hours of history</p><p>projected at reset</p><p>every reset time</p></div>
+    <!-- b02: the three ring readings, set big under the peek (outline + fill, the WALL's grammar) -->
+    <div class="nums" aria-hidden="true">
+      <p class="num num--teal"><span class="num__o">46%</span><span class="num__f">46%</span><span class="num__k">Session</span></p>
+      <p class="num num--lav"><span class="num__o">38%</span><span class="num__f">38%</span><span class="num__k">Weekly</span></p>
+      <p class="num num--amber"><span class="num__o">62%</span><span class="num__f">62%</span><span class="num__k">Opus</span></p>
+    </div>
+    <div class="ghost" aria-hidden="true">
+      <svg class="ghost__ring" viewBox="0 0 40 40"><circle cx="20" cy="20" r="16" pathLength="100"/></svg>
+      <span class="ghost__dwell">hover · 0.2s</span>
+      <i class="ghost__ripple"></i>
+      <svg class="ghost__arrow" viewBox="0 0 22 22"><path d="M5 2.5v15.2l3.6-3.4 2.4 5.6 2.6-1.1-2.4-5.5h5z"/></svg>
+    </div>
+  </div>
+
+  <div class="pin">
+    <div class="display">
+      <div class="flush" aria-hidden="true"></div>
+
+      <div class="hero">
+        <h1 id="stage-title" class="stage-h1">
+          <span class="l1"><span class="ln"><span class="ln__i">See the</span></span></span>
+          <span class="wall" data-cursor="squash"><span class="sr-only">wall</span><span class="wall__word" aria-hidden="true"><span class="wall__tank"><span class="wall__liq"><span class="wall__wave"></span></span></span><span class="ch">W<span class="ch__f">W</span></span><span class="ch">A<span class="ch__f">A</span></span><span class="ch">L<span class="ch__f">L</span></span><span class="ch">L<span class="ch__f">L</span></span></span></span>
+          <span class="l3"><span class="ln"><span class="ln__i"><em>before</em> you hit it.</span></span></span>
+        </h1>
+        <p class="lede">Claude Meter turns your MacBook’s notch into <span class="k">a live gauge for your Claude plan</span><span class="lede__chips">: the 5‑hour session <span class="chip"><i class="dot dot--teal"></i><span class="chip__n" data-k="session">46%</span></span>, the weekly limit <span class="chip"><i class="dot dot--lav"></i><span class="chip__n" data-k="weekly">38%</span></span>, and any model limit your account reports <span class="chip"><i class="dot dot--amber"></i>Opus <span class="chip__n" data-k="opus">62%</span></span></span>. <span class="k verbs"><span class="v-hover">Hover to peek. Click to pin.</span><span class="v-tap">Tap the island above to try it.</span></span> Stop finding out mid‑task.</p>
+        <div class="act">
+          <!-- Two tabs hang from one hairline: the island-shaped Mac download and the Windows waitlist.
+               data-cta: the shared script opens the email / waitlist modals (the .dmg href is the no-JS fallback). -->
+          <div class="cta-hang cta-hang--full"><a class="cta" id="hero-cta" href="/ClaudeMeter.dmg" download data-cta="mac" data-cursor="free · .dmg · v1.2">
+            <svg class="cta__shape" aria-hidden="true" width="276" height="88" viewBox="-2 0 276 88"><path d="M0 0Q10 0 10 10L10 34Q10 56 32 56L240 56Q262 56 262 34L262 10Q262 0 272 0Z"/><path class="rim-hot"/></svg>
+            <span class="cta__row"><span class="cta__ring" aria-hidden="true"><svg viewBox="0 0 24 24"><circle class="trk" cx="12" cy="12" r="10"/><circle class="val" cx="12" cy="12" r="10" pathLength="100"/><path class="arrow" d="M12 7.5v8m-3.5-3.5L12 15.5l3.5-3.5"/></svg></span><span class="cta__label">Download for Mac</span></span>
+            <span class="cta__meta">Free · v1.2 · macOS 14.4+</span>
+          </a><button class="win" type="button" data-cta="windows" data-cursor="we’ll email you at launch">
+            <span class="win__row"><span class="win__l"><span class="win__pre">Download for </span>Windows</span><span class="win__tag"><span class="sr-only"> — </span>waitlist</span></span>
+            <span class="win__meta" aria-hidden="true">Not out yet · we’ll email you</span>
+          </button></div>
+          <p class="req">Needs Claude Code signed in with Claude Pro or Max<br><span class="nw">Apple Silicon &amp; Intel</span><span class="req__sep"> · </span><span class="req__trust nw"><span class="seal" aria-hidden="true">✓</span> Developer ID signed · notarized by Apple</span></p>
+          <p class="act__more">
+            <a class="gh" href="https://github.com/yiftach41/claude-meter" target="_blank" rel="noopener" data-cta="github" data-cursor="MIT · read every line"><svg class="gh__star" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 1.6l1.95 4.02 4.43.6-3.23 3.1.8 4.4L8 11.6l-3.95 2.12.8-4.4-3.23-3.1 4.43-.6z"/></svg><span class="gh__t">Open source <span class="gh__dim">· Star on GitHub</span></span><span class="gh__n" data-stars></span></a>
+            <button class="send" type="button" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 12.5V2.8m-3.6 3.4L10 2.6l3.6 3.6M5.5 9H4.2v8.4h11.6V9h-1.3"/></svg>Send the link to my Mac</button>
+          </p>
+        </div>
+        <div class="note" aria-hidden="true"><div class="note__in">
+          <svg class="note__ink ink" viewBox="0 0 72 52"><path d="M66 44C48 47 22 40 12 12"/><path d="M5 19l7-9 8 7"/></svg>
+          <p class="note__t">psst — it’s live. <span class="v-hover">hover it.</span><span class="v-tap">tap it.</span></p>
+        </div></div>
+      </div>
+
+      <!-- The session bar: docked under the hero as the scroll cue, it is the session the tour burns
+           (46 → 71 → 80), magnified under the pinned island at beat 04, and it resets to empty at the end. -->
+      <div class="fc" aria-hidden="true">
+        <p class="fc__top"><span class="fc__k"><span class="fc__cue">Scroll to burn the session <i class="fc__arw">↓</i></span><span class="fc__lbl">Session · 5‑hour window</span></span><span class="fc__rs"><b class="fc__pct">46%</b><span class="fc__sep"> · </span><span class="fc__rt">resets in 2h 13m</span></span></p>
+        <div class="fc__bar"><i class="fc__prj"></i><i class="fc__fill"></i><i class="fc__cap"></i><i class="fc__tick"></i></div>
+        <p class="fc__read"><span class="fc__txt">on track — resets first</span></p>
+      </div>
+
+      <ol class="captions" role="list">
+        <li class="cap cap--c"><p class="cap__idx">01 / 06</p><h2 class="cap__t">Two numbers, <span class="cap__lt">hugging the notch.</span></h2><p class="cap__b">Left: your 5‑hour session, in teal. Right: your weekly limit in lavender, or whichever model limit is tighter, in amber. Percentages by default. Tick bars if you prefer.</p><div class="cap__isl"></div></li>
+        <li class="cap"><p class="cap__idx">02 / 06</p><h2 class="cap__t">Hover. <span class="cap__lt">No click needed.</span></h2><p class="cap__b">Rest the pointer on the notch for a beat and it opens: three rings, when each one resets, and where your session is heading.</p><div class="cap__isl"></div></li>
+        <li class="cap"><p class="cap__idx">03 / 06</p><h2 class="cap__t">Click, <span class="cap__lt">and it stays.</span></h2><p class="cap__b">Six hours of history per limit, a bar for each, a tick for where your session is heading, every reset time, and your plan in the corner.</p><div class="cap__isl"></div></li>
+        <li class="cap"><p class="cap__idx">04 / 06</p><h2 class="cap__t">It clocks <span class="cap__lt">your pace.</span></h2><p class="cap__b">Burning fast? It tells you when you’ll hit the session cap: amber when it’s coming, red when it’s under an hour. Ease off and it says “on track — resets first.”</p><div class="cap__isl"></div></li>
+        <li class="cap"><p class="cap__idx">05 / 06</p><h2 class="cap__t">Past 85%, <span class="cap__lt">it gets loud.</span></h2><p class="cap__b">Red and bold at once, so it reads even if red and green look alike to you. At 100% it tells you which limit, and when it’s back.</p><div class="cap__isl"></div></li>
+        <li class="cap cap--big"><p class="cap__idx">06 / 06</p><h2 class="cap__t">Or it taps you <span class="cap__lt">on the shoulder.</span></h2><p class="cap__b">Opt‑in alerts at 50, 80 and 95% of a session, at 80 and 95% of weekly and model limits, and once more when a tight window is back to full.</p><div class="cap__isl"></div></li>
+      </ol>
+    </div>
+  </div>
+</section>

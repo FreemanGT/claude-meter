@@ -5,13 +5,14 @@ import { gsap, ScrollTrigger, untracked } from "./gsap.js";
 import { SPR } from "./motion.js";
 import { meter } from "./meter.js";
 import { demo } from "./demo.js";
+import { noMac } from "./cta.js";
 
 const fmtMS = (s) => { s = Math.max(0, Math.round(s)); const m = Math.floor(s / 60); return m ? `${m}m ${s % 60}s` : `${s}s`; };
 const NOOP = { island: null, pulse() {}, destroy() {}, show() {}, hide() {}, settle() {} };
 const NOTE = "This one meters the page. The real one meters Claude.";
 // The pinned table's last row follows the CTA contract (lib/signup.js): the waitlist on Windows.
 const WIN = () => document.documentElement.dataset.os === "windows";
-const CTA = () => (WIN() ? { href: "#waitlist", label: "Join the Windows waitlist", cta: "windows" } : { href: "/ClaudeMeter.dmg", label: "Download for Mac", cta: "mac" });
+const CTA = () => (WIN() ? { href: "#waitlist", label: "Windows · join the waitlist", cta: "windows" } : { href: "/ClaudeMeter.dmg", label: noMac() ? "Get it on your Mac" : "Download for Mac", cta: "mac" });
 
 /**
  * initNav({ Island, reduced, mobile }) → { island, pulse(), show(), hide(), settle(), destroy() }
@@ -34,7 +35,9 @@ export function initNav({ Island, reduced, mobile }) {
   let forecast = { text: "on track — resets first", tone: "muted" };
   const pageData = () => ({
     plan: "This page", updated: "just now",
-    session: { pct: meter.display, caption: "resets at the top", forecast, spark: S.length ? S.map((s) => s.read) : null },
+    // Only the session wing may go red, and only while the finale holds the meter (its HIT): the island's own
+    // threshold stays 101, so the sections and FAQ wings never turn red, not even at 100%.
+    session: { pct: meter.display, warn: meter.overridden != null ? 85 : 101, caption: "resets at the top", forecast, spark: S.length ? S.map((s) => s.read) : null },
     weekly: { pct: meter.sectionsPct, caption: `${meter.sectionsRead} of ${S.length}` },
     models: [{ name: "FAQ", pct: (meter.faq.opened / meter.faq.total) * 100, caption: `${meter.faq.total} questions` }],
     rows: S.map((s) => ({ label: s.label, pct: s.read, spark: s.history.length > 1 ? s.history : null, caption: `§0${s.index}`, href: `#${s.id}`, tone: "teal" })),
@@ -44,7 +47,7 @@ export function initNav({ Island, reduced, mobile }) {
 
   let island;
   try {
-    // warn 101: the page meter never turns red on its own; only the finale's HIT (meter.override) may.
+    // warn 101: the page meter never turns red on its own; only the session wing during the finale's HIT may (pageData).
     island = new Island(wrap, { scale, state: "collapsed", bezel: false, live: false, interactive: !mobile, touchPeek: !mobile, labels, warn: 101, data: demo() });
   } catch (e) {
     console.error("[nav] Island failed to construct", e);
@@ -69,35 +72,58 @@ export function initNav({ Island, reduced, mobile }) {
     } else forecast = { text: "on track — resets first", tone: "muted" };
   };
 
-  // Scrubbed path: mutate numbers + render(), throttled, only when a rounded value changes.
+  // Scrubbed path: mutate numbers + render(), throttled, only when something the current state shows changes.
+  // Collapsed (nearly always, while scrolling) shows two wing numbers: the forecast (it ticks with the velocity)
+  // and the FAQ ring only count once the island is open, and opening it re-renders at once (island "state").
   let shown = false, last = "", t = 0, trail = 0;
   const onMeter = () => {
     if (!shown) return;
     const now = performance.now();
     clearTimeout(trail);
-    if (now - t < 90) { trail = setTimeout(onMeter, 90 - (now - t)); return; } // trailing render: the last value always lands
+    const gap = Math.abs(meter.velocity) > 1500 ? 240 : 90;   // a fast fling: fewer full renders, the trailing one lands
+    if (now - t < gap) { trail = setTimeout(onMeter, gap - (now - t)); return; } // trailing render: the last value always lands
     t = now;
+    if (capTl && overMenu()) endCap();
     sync();
     const d = pageData();
     sheet && sheet.render(d);
-    const warn = meter.overridden != null ? 85 : 101;
-    if (island.opts.warn !== warn) island.setOption("warn", warn);
-    const key = [d.session.pct, d.weekly.pct, d.models[0].pct].map(Math.round).join("|") + island.state + forecast.text;
+    const open = island.state !== "collapsed";
+    const key = [d.session.pct, d.weekly.pct, open ? d.models[0].pct : 0].map(Math.round).join("|") + island.state + (open ? forecast.text : "") + d.session.warn;
     if (key === last) return;
     last = key;
     try { Object.assign(island.data, d); island.render(); } catch (e) { console.error("[nav] render", e); }
   };
   const unsub = meter.subscribe(onMeter);
+  const onState = () => { t = 0; onMeter(); };
+  island.on?.("state", onState);
 
   // Visibility: hidden while any [data-own-island] section owns the notch spot.
   // show/hide run in ScrollTrigger callbacks, so their tweens stay out of any gsap.context.
   const owners = new Set();
   const cap = document.querySelector(".band__caption");
   let first = true, capTl = null, capDone = false;
+  // The caption is a HUD: it gets out of the way the moment the visitor touches the page or opens a menu (on
+  // phones it rides at the bottom, over whatever is there, like #yours' Appearance rows).
+  const endCap = () => {
+    if (!capTl) return;
+    capTl.kill(); capTl = null; capDone = true;
+    gsap.to(cap, { opacity: 0, duration: 0.2, overwrite: true });
+  };
+  const onMenu = (e) => e.detail && endCap();
+  /** Would the caption sit on a menu? (#yours on phones keeps its menu open inline, under the bottom caption.) */
+  const overMenu = () => {
+    const c = cap.getBoundingClientRect();
+    return [...document.querySelectorAll('[role="menu"]')].some((m) => {
+      const r = m.getBoundingClientRect();
+      return r.width > 0 && r.bottom > c.top && r.top < c.bottom && r.right > c.left && r.left < c.right;
+    });
+  };
+  addEventListener("pointerdown", endCap, { capture: true, passive: true });
+  document.addEventListener("cm:menu", onMenu);
   const show = () => untracked(() => {
     gsap.to(wrap, { yPercent: 0, autoAlpha: 1, ...SPR.open, overwrite: true });
     // "NOW METERING: THIS PAGE", once — replayed on the next show if a section took the notch mid-caption.
-    if (cap && !reduced && !capDone && !capTl) capTl = gsap.timeline({ onComplete: () => { capDone = true; capTl = null; } })
+    if (cap && !reduced && !capDone && !capTl && !overMenu()) capTl = gsap.timeline({ onComplete: () => { capDone = true; capTl = null; } })
       .to(cap, { opacity: 1, duration: 0.3 }).to(cap, { opacity: 0, duration: 0.4 }, 3.4);
     if (first) {
       first = false;
@@ -134,7 +160,8 @@ export function initNav({ Island, reduced, mobile }) {
     /** Call once after all sections are initialised: watches [data-own-island] sections and shows the island unless one owns the notch. */
     settle: () => { if (!sts.length) watch(); if (!owners.size) show(); },
     destroy() {
-      unsub(); clearTimeout(trail); capTl && capTl.kill(); cap && gsap.set(cap, { opacity: 0 }); sts.forEach((s) => s.kill());
+      unsub(); clearTimeout(trail); capTl && capTl.kill();
+      removeEventListener("pointerdown", endCap, { capture: true }); document.removeEventListener("cm:menu", onMenu); cap && gsap.set(cap, { opacity: 0 }); sts.forEach((s) => s.kill());
       sheet && sheet.destroy();
       try { island.destroy && island.destroy(); } catch {}
       host.replaceChildren();

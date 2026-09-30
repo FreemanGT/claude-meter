@@ -239,7 +239,7 @@ if (solo) {
   ok(fmtDur(72 * 60) === "1h 12m" && fmtDur(59) === "0m", "fmtDur");
   { const d = base(); d.models[0].pct = 100; const v = derive(d); ok(v.notePeek?.text === "Opus limit reached · resets Sat 1:05 PM" && v.notePeek.tone === "red", "limit note text"); ok(v.notePinned === v.notePeek, "limit note beats the forecast footer when pinned"); }
   { const d = base(); d.weekly.pct = 100; d.models[0].pct = 100; ok(derive(d).notePeek.text.startsWith("Weekly limit reached"), "limit note: first window in app order (Weekly before Opus)"); }
-  { const v = derive(base()); ok(v.notePeek === null, "peek: no footer without a limit"); ok(v.notePinned?.text === "Session hits the cap in 1h 12m" && v.notePinned.tone === "amber", "pinned footer: 'Session hits the cap in 1h 12m' amber"); }
+  { const d = base(); d.session.forecast = { exhaustsIn: 72 * 60 }; const v = derive(d); ok(v.notePeek === null, "peek: no footer without a limit"); ok(v.notePinned?.text === "Session hits the cap in 1h 12m" && v.notePinned.tone === "amber", "pinned footer: 'Session hits the cap in 1h 12m' amber"); }
   { const v = derive(base()); ok(v.aria === "Claude usage, session 46 percent, Opus 62 percent", "aria label"); }
   { const d = base(); d.models[0].pct = 30; ok(derive(d).aria.endsWith("weekly 38 percent"), "aria uses 'weekly' for the weekly wing"); }
   { const v = derive(mock("models")); ok(v.rows.map((r) => r.showReset).join() === "true,true,false,false,false,false,false,false", "pinned reset column only when it changes"); }

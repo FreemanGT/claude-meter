@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1080">
+<meta name="robots" content="noindex, nofollow">
+<title>Limit Poster</title>
+<link rel="stylesheet" href="/css/tokens.css">
+<link rel="stylesheet" href="/css/island.css">
+<style>
+  *{box-sizing:border-box;margin:0}
+  html,body{width:1080px;height:1350px;overflow:hidden;background:#000}
+  body{color:var(--fg);font-family:var(--f-display);-webkit-font-smoothing:antialiased;position:relative}
+
+  /* MacBook screen: black menu-bar band, rounded screen below (like the site) */
+  .band{position:absolute;inset:0 0 auto;height:54px;background:#000}
+  .clock{position:absolute;top:0;right:40px;height:54px;display:flex;align-items:center;
+    font:400 19px/1 var(--f-mono);color:#8d8f89;letter-spacing:.02em}
+  .screen{position:absolute;inset:54px 0 0;border-radius:30px 30px 0 0;overflow:hidden;
+    background:
+      radial-gradient(46% 34% at 26% 6%, rgb(176 168 237 / .38), transparent 70%),
+      radial-gradient(40% 30% at 80% 14%, rgb(92 201 166 / .26), transparent 70%),
+      radial-gradient(70% 45% at 50% 0%, #17181d, transparent 80%),
+      var(--night)}
+  .screen::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.07;mix-blend-mode:screen;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    background-size:180px 180px}
+
+  .host{position:absolute;top:0;left:0;right:0;height:0;z-index:5}
+
+  .pad{position:absolute;left:64px;right:64px}
+
+  /* the old way: struck out */
+  .term{top:306px;-webkit-mask-image:linear-gradient(90deg,#000 50%,rgb(0 0 0 / .35));font:400 29px/1 var(--f-mono);color:#8b8d87;letter-spacing:-.01em;white-space:nowrap}
+  .term b{font-weight:400;color:var(--red)}
+  .term .line{position:relative;display:inline-block}
+  .term svg{position:absolute;left:-6px;right:-6px;top:50%;width:calc(100% + 12px);height:22px;transform:translateY(-50%);overflow:visible}
+  .term path{fill:none;stroke:var(--red);stroke-width:3.5;stroke-linecap:round}
+
+  h1{top:360px;font:900 200px/.92 var(--f-display);font-stretch:72%;letter-spacing:-.04em;color:var(--fg)}
+  h1 em{font:italic 400 1.1em/1 var(--f-serif);letter-spacing:-.015em;color:var(--amber);position:relative;top:.02em;line-height:.92}
+  h1 .l1{display:block;margin-bottom:30px}
+  .lede{top:1006px;font:420 31px/1.34 var(--f-display);font-stretch:96%;color:var(--fg-2);max-width:880px}
+  .lede strong{color:var(--fg);font-weight:640}
+
+  .foot{bottom:56px;display:flex;align-items:center;gap:22px}
+  .foot img{width:96px;height:96px;margin:-8px}
+  .name{font:800 36px/1 var(--f-display);font-stretch:92%;letter-spacing:-.02em}
+  .meta{font:400 17px/1.3 var(--f-mono);color:#9a9c96;margin-top:8px;letter-spacing:.01em}
+  .url{margin-left:auto;text-align:right;font:500 21px/1.35 var(--f-mono);color:var(--fg)}
+  .url small{display:block;font-size:14px;color:#7b7d78;margin-top:6px;font-weight:400}
+</style>
+</head>
+<body>
+<div class="band"></div>
+<div class="screen">
+  <p class="pad term"><span class="line"><b>✗</b> Claude usage limit reached · resets 3pm<svg viewBox="0 0 100 22" preserveAspectRatio="none"><path d="M0 13 C 20 9, 45 14, 70 10 S 92 11, 100 9"/></svg></span></p>
+  <h1 class="pad"><span class="l1">Stop</span>finding out<br><em>mid-task.</em></h1>
+  <p class="lede pad">Your Claude limits, live in the MacBook notch, <br>with a <strong>heads-up before the wall.</strong></p>
+  <div class="pad foot">
+    <img src="/assets/icon-256.png" alt="">
+    <div><div class="name">Claude Meter</div><div class="meta">Free · open source (MIT) · macOS 14.4+</div></div>
+    <div class="url">claudemeter.vercel.app<small>Independent project · not affiliated with Anthropic</small></div>
+  </div>
+</div>
+<div class="host" id="host"></div>
+<script type="module">
+import { Island } from "/js/lib/island.js";
+import { spark } from "/js/lib/demo.js";
+new Island(document.getElementById("host"), {
+  scale: 1.85, maxScale: 1.85, state: "pinned", material: "solid", notch: true, notchWidth: 185, bezel: true,
+  burnRate: true, interactive: false, live: false, hint: false,
+  data: {
+    plan: "Max 20x", updated: "just now",
+    session: { pct: 74, resetIn: 2 * 3600 + 41 * 60, projected: 100, forecast: { exhaustsIn: 72 * 60 }, spark: spark("s3", 74, { drop: true }) },
+    weekly: { pct: 41, reset: "Sat 1:05 PM", spark: spark("w", 41) },
+    models: [{ name: "Opus", pct: 63, reset: "Sat 1:05 PM", spark: spark("o", 63) }],
+  },
+});
+</script>
+</body>
+</html>

@@ -38,6 +38,12 @@ export function termLine(n) {
 
 const MATS = ["solid", "frosted", "glass"];
 const MAT_LABEL = { solid: "SOLID", frosted: "FROSTED", glass: "LIQUID GLASS" };
+// what each Appearance actually does (IslandView.swift); Glass lenses only on macOS 26, below it falls back to Frosted
+const MAT_CAP = {
+  solid: "pure black, fused to the notch",
+  frosted: "heavy blur under a dark scrim",
+  glass: 'a thin lens, rim lit by your pointer<span class="yr-cap__os"> · macOS 26</span>',
+};
 const ROLE = { check: "menuitemcheckbox", radio: "menuitemradio" };
 const ARROW = '<svg class="yr-mi__ar" viewBox="0 0 6 10" aria-hidden="true"><path d="M1.2 1.2 4.8 5 1.2 8.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const KEY = "cm-yours";
@@ -49,7 +55,7 @@ export default function init(root, ctx) {
   const desk = $(".yr-desk"), bezel = $(".yr-bezel"), knob = $(".yr-lever__knob"), lever = $(".yr-lever"), wall = $(".yr-wall");
   const range = $(".yr-range input"), rangeWrap = $(".yr-range"), rangeOut = $(".yr-range__out");
   const full = $(".yr-full"), winA = $(".yr-win--a"), notchEl = $(".yr-notch"), ptr = $(".yr-ptr");
-  const status = $(".yr-status"), clock = $(".yr-clock"), datum = $(".yr-datum");
+  const status = $(".yr-status"), clock = $(".yr-clock"), datum = $(".yr-datum"), cap = $(".yr-cap__t");
   const termEl = $(".yr-term__lines"), termCur = $(".yr-term__cur");
   const menu = $(".yr-menu"), menuHome = menu.parentNode, menuNext = menu.nextSibling;
   const termHTML = termEl?.innerHTML, menuHTML = menu.innerHTML; // restored on cleanup, so a re-init starts over
@@ -103,19 +109,23 @@ export default function init(root, ctx) {
   }
   const setIsland = (patch, opts) => isl && isl.update(patch, opts);
 
-  // Liquid Glass lens: tracks the island's body (the hit area is resized to it every frame), inset so its
-  // square corners stay inside the shape's rounded ones.
+  // Liquid Glass lens: tracks the island's body, inset so its square corners stay inside the shape's rounded
+  // ones. island.js sizes .island__sh to the largest state once and scales it to the body every frame (transform
+  // only), so the lens follows its style writes rather than a ResizeObserver (which never sees a transform).
   const lens = h("div", "yr-lens", { "aria-hidden": "true" });
-  const hit = isl?.el.querySelector(".island__hit");
-  let roLens = null;
-  if (hit) {
+  const hit = isl?.el.querySelector(".island__hit"), sh = isl?.el.querySelector(".island__sh");
+  let moLens = null;
+  if (sh) {
     $(".yr-isl").prepend(lens);
-    roLens = new ResizeObserver(([e]) => {
-      const { inlineSize: w, blockSize: bh } = e.borderBoxSize[0], i = 6 * k;
-      lens.style.width = `${Math.max(0, w - 2 * i)}px`;
-      lens.style.height = `${Math.max(0, bh - i)}px`;
-    });
-    roLens.observe(hit, { box: "border-box" });
+    const fit = () => {
+      const m = /scale\(([-\d.e]+),\s*([-\d.e]+)\)/.exec(sh.style.transform), i = 6 * k;
+      if (!m) return;
+      lens.style.width = `${Math.max(0, parseFloat(sh.style.width) * m[1] - 2 * i)}px`;
+      lens.style.height = `${Math.max(0, parseFloat(sh.style.height) * m[2] - i)}px`;
+    };
+    moLens = new MutationObserver(fit);
+    moLens.observe(sh, { attributes: true, attributeFilter: ["style"] });
+    fit();
   }
   const projected = () => {
     const f = forecastFor(P.v);
@@ -128,7 +138,11 @@ export default function init(root, ctx) {
   function showMat(m) {
     isl?.setOption("material", m);
     desk.dataset.mat = m;
-    if (datum.textContent !== MAT_LABEL[m]) scramble(datum, MAT_LABEL[m], { chars: "ABCDEFGHIJKLMNOPQRSTUVWXYZ " });
+    if (datum.textContent !== MAT_LABEL[m]) {
+      scramble(datum, MAT_LABEL[m], { chars: "ABCDEFGHIJKLMNOPQRSTUVWXYZ " });
+      cap.innerHTML = MAT_CAP[m];   // a label: it cross-fades in behind the scrambling name
+      if (!reduced) cap.animate?.([{ opacity: 0, transform: "translateY(.35em)", filter: "blur(3px)" }, { opacity: 1, transform: "none", filter: "none" }], { duration: 420, delay: 60, easing: "cubic-bezier(.2,.8,.2,1)", fill: "backwards" });
+    }
     rows.filter((r) => r._it.type === "radio").forEach((r, i) => paintCheck(r, MATS[i] === m));
   }
   const apply = {
@@ -143,8 +157,9 @@ export default function init(root, ctx) {
     login: () => {},
     notch: (v) => setNotch(v),
   };
-  // A material only shows over something: the island blooms over the windows and the menu for a beat, then
-  // folds back (unless the user took over). While it blooms it ignores the pointer, so the next pick still lands.
+  // A material only shows over something: the island blooms over the windows and the menu's first rows (the
+  // Appearance submenu stays clear, see placeMenu), then folds back unless the user took over. While it blooms
+  // it ignores the pointer, so a click on the rows under it still lands.
   function showOff() {
     if (!isl || !P.launched || P.quit || P.full || P.tour) return;
     if (!(isl.state === "collapsed" || (P.autoPeek && isl.state === "peek"))) return;
@@ -152,16 +167,23 @@ export default function init(root, ctx) {
     P.autoPeek = true;
     desk.classList.add("is-show");
     clearTimeout(P.showT); timers.delete(P.showT);
-    P.showT = later(() => {
-      desk.classList.remove("is-show");
-      if (P.autoPeek && P.v <= 15 && !P.busy && isl.state === "peek") isl.setState("collapsed");
-      P.autoPeek = false;
-    }, 2200);
+    P.showT = later(fold, 2200);
+  }
+  // still in the Appearance submenu: the viewer is comparing, keep the island open. Otherwise fold, and hand
+  // the pointer back to the island only once it is collapsed (a stationary pointer would re-peek it mid-fold).
+  function fold() {
+    const sub = menu.querySelector(".yr-menu__sub");
+    if (sub && (sub.matches(":hover") || sub.querySelector(":focus-visible"))) { P.showT = later(fold, 600); return; }
+    const done = () => desk.classList.remove("is-show");
+    if (P.autoPeek && P.v <= 15 && !P.busy && isl.state === "peek") isl.setState("collapsed").then(done, done);
+    else done();
+    P.autoPeek = false;
   }
   function set(key, val) {
     S[key] = val;
     apply[key](val);
     syncMenu();
+    placeMenu();
     paintLid();
     save();
   }
@@ -231,6 +253,26 @@ export default function init(root, ctx) {
     const f = flat(defaultItems(isl, hooks));
     rows.forEach((r, i) => f[i] && paintRow(r, f[i]));
   }
+  // The desk's menu opens on the peek (where a right-click lands) and sits just low enough that the peek never
+  // covers the Appearance submenu: its top clears the tallest peek seen by 14pt, and the whole menu stays on the
+  // screen. Heights are kept in pt (--u is the island's applied scale; a rescale is deferred while it is open).
+  function placeMenu() {
+    const main = onDesk && isl && menu.querySelector(".yr-menu__main"), sub = main && menu.querySelector(".yr-menu__sub");
+    if (!sub) return;
+    const u = parseFloat(isl.el.style.getPropertyValue("--u")) || k;
+    P.peekPt = Math.max(P.peekPt || 0, isl.size("peek").h / u);
+    const low = desk.clientHeight - main.offsetHeight - 12;
+    menu.style.setProperty("--menu-top", `${Math.round(Math.min(low, Math.max(32 * k + 2, (P.peekPt + 14) * k - sub.offsetTop)))}px`);
+    // under the left wing, but never over the lever (its labels set its width, so measure it)
+    const right = (lever?.offsetParent ? lever.offsetLeft : desk.clientWidth) - 12 - (sub.offsetLeft + sub.offsetWidth);
+    menu.style.setProperty("--menu-left", `${Math.round(Math.max(12, Math.min(desk.clientWidth / 2 - 112 * k, right)))}px`);
+  }
+  // the tour opens the menu over the peek; it drops back under the island once the island has folded
+  function unCtx() {
+    if (!isl || !desk.classList.contains("is-ctx")) return;
+    if (isl.state !== "collapsed") { later(unCtx, 300); return; }
+    isl.setState("collapsed").then(() => isl.state === "collapsed" && desk.classList.remove("is-ctx"));
+  }
   const menuOf = (r) => r.closest(".yr-menu__sub, .yr-menu__main");
   const live = (r) => r._it.type !== "info";
   function focusRow(r) { rows.forEach((x) => (x.tabIndex = -1)); r.tabIndex = 0; r.focus({ preventScroll: true }); }
@@ -246,6 +288,7 @@ export default function init(root, ctx) {
   if (isl) {
     if (onDesk) desk.append(menu);
     renderMenu();
+    placeMenu();
     on(menu, "click", (e) => {
       const r = e.target.closest(".yr-mi");
       if (!r || !rows.includes(r)) return;
@@ -522,10 +565,12 @@ export default function init(root, ctx) {
   const clockId = setInterval(() => { if (!document.hidden) { tickClock(); syncMenu(); } }, 15000);
   const ro = new ResizeObserver(() => {
     const nk = k0();
-    if (nk === k) return;
-    k = nk;
-    desk.style.setProperty("--k", k);
-    isl?.setOption("scale", k); // applies while collapsed (deferred otherwise)
+    if (nk !== k) {
+      k = nk;
+      desk.style.setProperty("--k", k);
+      isl?.setOption("scale", k); // applies while collapsed (deferred otherwise)
+    }
+    placeMenu(); // past the 1.4 cap the desk still widens: re-centre under the wing
   });
   ro.observe(desk);
 
@@ -548,31 +593,37 @@ export default function init(root, ctx) {
     const W = desk.clientWidth, H = desk.clientHeight;
     const A = at(main, 0, 0), ap = at(app, 0.3, 0.55);
     const order = [...MATS.filter((m) => m !== S.material), S.material]; // end on the viewer's own look
-    const pk = isl.size("peek");
+    const pk = isl.size("peek"), wing = { x: W / 2 - isl.size("collapsed").w * 0.4, y: 16 * k };
     const tl = gsap.timeline({ onComplete: () => endTour(false) });
     gsap.set(ptr, { x: W * 0.72, y: H * 0.84, scale: 1, opacity: 0 });
     tl.to(ptr, { opacity: 1, duration: 0.3 })
-      .to(ptr, { x: A.x + 1, y: A.y - 3, duration: 1.05, ease: "power3.inOut" }, "<")
+      .to(ptr, { x: wing.x, y: wing.y, duration: 1.05, ease: "power3.inOut" }, "<")      // onto the left wing…
+      .add(() => isl.setState("peek"), "+=.2")                                              // …the hover peeks it
+      .to(ptr, { x: A.x + 1, y: A.y - 3, duration: 0.5, ease: "power2.inOut" }, "+=.3")  // right-click on the peek
       .to(ptr, { scale: 0.84, duration: 0.08, ease: "power2.in" })
-      .to(main, { autoAlpha: 1, scale: 1, duration: 0.14, ease: "settle" })   // right-click: menu.js's own open
+      .add(() => desk.classList.add("is-ctx"))
+      .to(main, { autoAlpha: 1, scale: 1, duration: 0.14, ease: "settle" })   // menu.js's own open, over everything
       .to(ptr, { scale: 1, duration: 0.3, ease: "back.out(3)" }, "<")
-      .to(ptr, { x: ap.x, y: ap.y, duration: 0.55, ease: "power2.inOut" }, "+=.3")
+      .add(() => { isl.setState("collapsed"); unCtx(); }, "+=.3")             // the pointer leaves for the menu: it folds
+      .to(ptr, { x: ap.x, y: ap.y, duration: 0.55, ease: "power2.inOut" }, "<")
       .to(sub, { autoAlpha: 1, scale: 1, duration: 0.14, ease: "settle" }, "+=.06");
+    // back to back, like a viewer comparing: the first pick blooms the island over the menu's top rows, the
+    // next ones swap the material in place while it stays open
     order.forEach((m, i) => {
       const r = radios[MATS.indexOf(m)], p = at(r, 0.36, 0.55);
-      tl.to(ptr, { x: p.x, y: p.y, duration: 0.42, ease: "power2.inOut", onStart: () => hot(null) }, "+=.2")
+      tl.to(ptr, { x: p.x, y: p.y, duration: i && order[i - 1] === "glass" ? 0.6 : 0.42, ease: "power2.inOut", onStart: () => hot(null) }, "+=.2")
         .add(() => hot(r))
         .to(ptr, { scale: 0.84, duration: 0.08, ease: "power2.in" }, "+=.16")
         .add(() => { blink(r); showMat(m); })
-        .to(ptr, { scale: 1, duration: 0.3, ease: "back.out(3)" })
-        .add(() => isl.setState("peek"), "+=.1");
+        .to(ptr, { scale: 1, duration: 0.3, ease: "back.out(3)" });
+      if (!i) tl.add(() => { desk.classList.remove("is-ctx"); isl.setState("peek"); }, "+=.1");
       if (m === "glass") { // sweep the pointer along the lower rim: the light travels with it
         const y = pk.h - 10 * k;
         tl.to(ptr, { x: W / 2 - pk.w * 0.28, y, duration: 0.5, ease: "power2.inOut", onUpdate: light }, "+=.25")
-          .to(ptr, { x: W / 2 + pk.w * 0.3, duration: 1.2, ease: "sine.inOut", onUpdate: light })
-          .add(() => isl.setState("collapsed"), "+=.15");
-      } else tl.add(() => isl.setState("collapsed"), i === order.length - 1 ? "+=1.1" : "+=1.5");
+          .to(ptr, { x: W / 2 + pk.w * 0.3, duration: 1.2, ease: "sine.inOut", onUpdate: light });
+      } else tl.to({}, { duration: 0.9 }); // let the look read
     });
+    tl.add(() => isl.setState("collapsed"), "+=.4");
     P.tour = tl;
   }
   function endTour(abort) {
@@ -585,6 +636,7 @@ export default function init(root, ctx) {
       hot(null);
       showMat(S.material);
       if (isl?.state === "peek" && !hit?.matches(":hover")) isl.setState("collapsed");
+      unCtx();
       gsap.to(ptr, { opacity: 0, duration: 0.2, overwrite: true });
     }
   }
@@ -646,6 +698,7 @@ export default function init(root, ctx) {
 
   // ------------------------------------------------------------------ first paint from the store
   datum.textContent = MAT_LABEL[S.material];
+  cap.innerHTML = MAT_CAP[S.material];
   desk.dataset.mat = S.material;
   desk.dataset.notch = S.notch;
   status.hidden = !S.menuBar;
@@ -659,7 +712,7 @@ export default function init(root, ctx) {
     timers.forEach(clearTimeout);
     clearInterval(clockId);
     ro.disconnect();
-    roLens?.disconnect();
+    moLens?.disconnect();
     lens.remove();
     stopLoops();
     P.tour?.kill();
@@ -674,7 +727,8 @@ export default function init(root, ctx) {
     menu.innerHTML = menuHTML;
     gsap.set([knob, notchEl, full, status, wake, lever, ptr], { clearProps: "all" });
     full.hidden = true;
-    desk.classList.remove("is-full", "is-live", "is-show", "is-quit");
+    desk.classList.remove("is-full", "is-live", "is-show", "is-quit", "is-ctx");
+    menu.style.removeProperty("--menu-top"); menu.style.removeProperty("--menu-left");
     desk.querySelector(".cm-banners")?.remove();
     fullLbl.textContent = FULL_OFF;
     fullBtn.classList.remove("is-on");

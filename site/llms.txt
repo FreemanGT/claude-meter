@@ -50,7 +50,7 @@ Refreshes every 5 minutes and when you hover, never faster than every 3 minutes 
 
 ## This website and your data
 
-- The Mac download asks for an email; the Windows waitlist asks for a name and email. They are stored in the developer's Google Sheet, used only for Claude Meter updates and the Windows launch, and never shared or sold.
+- The Mac download asks for an email; the Windows waitlist asks for a name and email. They are stored in the developer's Google Sheet and never shared or sold. A Mac email only gets Claude Meter updates; the Windows waitlist gets one email when Windows ships, nothing else.
 - No other tracking: no analytics or cookies. The page reads the public star count from api.github.com.
 
 ## FAQ

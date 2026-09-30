@@ -4,13 +4,12 @@ const w = window;
 export const gsap = w.gsap;
 export const ScrollTrigger = w.ScrollTrigger;
 export const SplitText = w.SplitText;
-export const ScrambleTextPlugin = w.ScrambleTextPlugin;
 export const DrawSVGPlugin = w.DrawSVGPlugin;
 export const CustomEase = w.CustomEase;
 
 if (!gsap) throw new Error("GSAP failed to load (vendor/gsap.min.js)");
 
-gsap.registerPlugin(ScrollTrigger, SplitText, ScrambleTextPlugin, DrawSVGPlugin, CustomEase);
+gsap.registerPlugin(ScrollTrigger, SplitText, DrawSVGPlugin, CustomEase);
 gsap.defaults({ ease: "power3.out", duration: 0.6 });
 gsap.ticker.lagSmoothing(0);
 
@@ -33,17 +32,19 @@ export function untracked(fn) {
   return out;
 }
 
-let drag = null;
+const loaded = {};
+/** loadPlugin(name) → Promise<plugin>: a GSAP plugin the page doesn't ship up front (/vendor/<name>.min.js), registered once. */
+export function loadPlugin(name) {
+  return (loaded[name] ||= (w[name] ? Promise.resolve(w[name]) : new Promise((ok, fail) => {
+    const s = document.createElement("script");
+    s.src = `/vendor/${name}.min.js`;
+    s.onload = () => ok(w[name]);
+    s.onerror = () => { delete loaded[name]; fail(new Error(`vendor/${name}.min.js failed to load`)); };
+    document.head.append(s);
+  })).then((p) => { gsap.registerPlugin(p); return p; }));
+}
+
 /** loadDrag() → Promise<{ Draggable, InertiaPlugin }>. 43 KB that only the #yours lever and flickable banners use. */
 export function loadDrag() {
-  return (drag ||= Promise.all(["Draggable", "InertiaPlugin"].map((n) => w[n] || new Promise((ok, fail) => {
-    const s = document.createElement("script");
-    s.src = `/vendor/${n}.min.js`;
-    s.onload = () => ok(w[n]);
-    s.onerror = () => fail(new Error(`vendor/${n}.min.js failed to load`));
-    document.head.append(s);
-  }))).then(([Draggable, InertiaPlugin]) => {
-    gsap.registerPlugin(Draggable, InertiaPlugin);
-    return { Draggable, InertiaPlugin };
-  }));
+  return Promise.all([loadPlugin("Draggable"), loadPlugin("InertiaPlugin")]).then(([Draggable, InertiaPlugin]) => ({ Draggable, InertiaPlugin }));
 }

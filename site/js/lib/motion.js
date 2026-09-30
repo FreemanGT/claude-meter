@@ -6,6 +6,8 @@ const mqFine = matchMedia("(hover: hover) and (pointer: fine)");
 export const reduced = () => mqReduced.matches;
 export const mobile = () => mqMobile.matches;
 export const finePointer = () => mqFine.matches;
+/** CSS/WAAPI linear() easing support (Safari < 17.2, Chrome < 113 and Firefox < 112 throw on it in WAAPI). */
+export const HAS_LINEAR = typeof CSS !== "undefined" && !!CSS.supports?.("animation-timing-function", "linear(0, 1)");
 
 /**
  * The stage island's px/pt at rest (main.js hands it to the intro; stage.js builds the hero at it).

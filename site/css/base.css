@@ -3,7 +3,8 @@
 
 /* ---------- reset ---------- */
 *,*::before,*::after{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%;text-size-adjust:100%;interpolate-size:allow-keywords;scroll-behavior:auto}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%;interpolate-size:allow-keywords;scroll-behavior:auto;
+  scrollbar-gutter:stable}   /* classic (Windows) scrollbars: locking scroll for a dialog, or Lenis stopping, shifts nothing sideways */
 body,h1,h2,h3,h4,p,figure,blockquote,dl,dd,ul,ol{margin:0}
 ul[role="list"],ol[role="list"],.list-reset{list-style:none;padding:0}
 img,svg,video,canvas{display:block;max-width:100%}
@@ -77,6 +78,9 @@ html[data-night] body::after{opacity:.08;mix-blend-mode:screen}
    reveal is one-shot, so it is left alone (dropping it would replay the reveal). */
 .s.is-off:not(.s--stage) *,.s.is-off:not(.s--stage) *::before,.s.is-off:not(.s--stage) *::after{animation-name:none!important}
 .s .pin{position:relative}
+/* lib/pin.js's own pin-spacer: ScrollTrigger copies the pin's display onto it, and a flex spacer would
+   shrink-wrap the pin (it measures the pin live, already inside). Blocks are what sections stack. */
+.pin-own{display:block!important}
 /* running head: <div class="wrap"><p class="rh"><span>§02 — THE WALL</span><span class="rh__datum">…</span></p></div> */
 .rh{display:flex;justify-content:space-between;gap:16px;align-items:baseline;padding-top:12px;border-top:1px solid var(--rule-c);
   font:500 var(--t-label)/1.2 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;font-variant-numeric:tabular-nums;color:var(--fg-text-2)}
@@ -120,10 +124,11 @@ html[data-night] body::after{opacity:.08;mix-blend-mode:screen}
 .band__gh{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:4px;color:#fff;text-decoration:none;white-space:nowrap}
 .band__gh svg{width:15px;height:15px}
 .band__gh:hover,.band__gh:focus-visible{background:rgb(255 255 255/.12)}
-.band__gh-n{margin-left:1px;padding-left:7px;border-left:1px solid rgb(255 255 255/.22);font:500 12px/1 var(--f-mono);color:var(--fg-2);font-variant-numeric:tabular-nums}
+.band__gh-n{min-width:calc(1ch + 7px);margin-left:1px;padding-left:7px;border-left:1px solid rgb(255 255 255/.22);font:500 12px/1 var(--f-mono);color:var(--fg-2);font-variant-numeric:tabular-nums}
 /* Windows visitors: the band's pill becomes the waitlist (html[data-os] is set before first paint) */
 .band__win{display:none}
-.band__win-dot{width:7px;height:7px;border-radius:50%;background:var(--teal-ink);box-shadow:0 0 0 3px rgb(92 201 166/.35)}
+.band__win-dot{width:12px;height:12px;flex:none;overflow:visible;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}   /* the waitlist's dashed clock ring (dashed = forecast), not a green "live" dot */
+.band__win-dot circle{stroke-dasharray:5.5 7}
 html[data-os="windows"] .band__win{display:inline-flex;padding-left:11px}
 html[data-os="windows"] .band__mac{display:none}
 .band__caption{position:fixed;top:calc(var(--band-h) + 10px);left:50%;transform:translateX(-50%);z-index:var(--z-band);
@@ -145,6 +150,7 @@ html[data-os="windows"] .band__mac{display:none}
   /* phones: the caption rides at the bottom, clear of the running heads under the band */
   .band__caption{top:auto;bottom:calc(16px + env(safe-area-inset-bottom))}
 }
+@media (max-width:359px){.band__caption{padding:7px 10px;letter-spacing:.05em}.band__caption .c-lav{display:none}}   /* fits the 16px gutters at 320 */
 /* phone TOC (lib/nav.js): the island is display-only there; this button opens the sheet under the band */
 .nav-toc-btn{position:absolute;inset:0 -8px -6px;z-index:calc(var(--z-nav) + 1);border-radius:0 0 16px 16px;-webkit-tap-highlight-color:transparent}
 .nav-toc{position:fixed;z-index:var(--z-nav);top:calc(var(--band-h) - 1px);
@@ -186,7 +192,11 @@ html[data-os="windows"] .band__mac{display:none}
 .cta-hang--night,[data-night] .cta-hang,.s--stage .cta-hang{border-top-color:var(--rule-night)}
 .cta{position:relative;display:block;width:var(--cta-w,272px);height:var(--cta-h0,56px);color:#fff;text-decoration:none;flex:none;
   -webkit-tap-highlight-color:transparent;border-radius:0 0 22px 22px}
-.cta:focus-visible{outline:2px solid var(--ink);outline-offset:3px;box-shadow:0 0 0 4px var(--teal);border-radius:0 0 22px 22px}
+/* focus rides the notch itself (cta.js draws .cta__foc): teal, then ink outside it, like the global ring */
+.cta:focus-visible,.cta-ghost:focus-visible{outline:none;box-shadow:none}
+.cta__foc{fill:none;stroke:var(--teal);stroke-width:3;opacity:0;pointer-events:none}
+.cta__foc--ink{stroke:var(--ink);stroke-width:2}
+:is(.cta,.cta-ghost):focus-visible .cta__foc{opacity:1}
 .cta__shape{position:absolute;left:-2px;top:0;overflow:visible;pointer-events:none}
 .cta__shape path:first-of-type{fill:var(--black)}
 .cta__shape .rim-hot{fill:none;stroke-width:1;opacity:0}
@@ -218,6 +228,49 @@ html[data-os="windows"] .band__mac{display:none}
 /* requirements line under every CTA */
 .req{margin-top:14px;font:400 13px/1.55 var(--f-mono);color:var(--fg-text-2);font-variant-numeric:tabular-nums}
 .cta-hang--night + .req,[data-night] .req{color:var(--fg-2)}
+
+/* ---------- CTA ghost: Windows. The same notch, dashed: on this site dashed means forecast ("coming").
+   One label everywhere: "Windows · join the waitlist" (the " · join the" drops where the tab is narrow).
+   Hover, keyboard focus or a Windows visitor (html[data-os]) make the forecast real: solid. ---------- */
+.cta-ghost{position:relative;display:inline-flex;align-items:center;justify-content:center;height:48px;padding:0 24px 3px;flex:none;
+  color:var(--fg-text);border-radius:0 0 20px 20px;-webkit-tap-highlight-color:transparent}
+.cta-ghost__shape{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.cta-ghost__shape path:first-of-type{fill:rgb(0 0 0/0);stroke:var(--fg-text-2);stroke-width:1.25;stroke-dasharray:3 4;vector-effect:non-scaling-stroke;
+  transition:fill .3s var(--ease-settle),stroke .3s var(--ease-settle),stroke-dasharray .3s var(--ease-settle)}
+.cta-ghost__row{position:relative;display:flex;align-items:center;gap:9px;transition:color .3s var(--ease-settle),scale var(--d-micro) var(--ease-settle)}
+.cta-ghost__label{font:700 15px/1 var(--f-display);font-stretch:92%;white-space:nowrap}
+.cta-ghost__ring{width:18px;height:18px;flex:none}
+.cta-ghost__ring svg{width:100%;height:100%;overflow:visible;transition:rotate .6s var(--ease-settle)}
+.cta-ghost__ring circle{fill:none;stroke:currentColor;stroke-width:1.8;stroke-dasharray:5.5 7}
+.cta-ghost__ring path{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+:is(.cta-ghost:hover,.cta-ghost:focus-visible,html[data-os="windows"] .cta-ghost) .cta-ghost__shape path:first-of-type{fill:var(--fg-text);stroke:var(--fg-text);stroke-dasharray:7 0}
+:is(.cta-ghost:hover,.cta-ghost:focus-visible,html[data-os="windows"] .cta-ghost) .cta-ghost__row{color:var(--bg)}
+.cta-ghost:is(:hover,:focus-visible) .cta-ghost__ring svg{rotate:90deg}
+html[data-os="windows"] .cta-ghost__ring circle{stroke:var(--teal);stroke-dasharray:none}
+.cta-ghost:active .cta-ghost__row{scale:.97}
+html:not([data-motion]) .cta-ghost{display:none}   /* it opens a form: needs JS */
+/* Under a primary tab in the same .cta-hang: it hangs from the tab's flat bottom and rides its peek
+   (cta.js writes --cta-w/-h/-rt/-rb on the hang). Anywhere else it hangs from its own hairline. */
+.cta-hang:has(> .cta ~ .cta-ghost){position:relative;isolation:isolate;padding-bottom:calc(var(--cta-open,30px) + 56px)}
+.cta-hang > .cta{z-index:1}
+.cta-hang > .cta ~ .cta-ghost{position:absolute;z-index:0;top:calc(var(--cta-h,56px) - 4px);left:calc(var(--cta-w,272px) / 2);translate:-50% 0;
+  width:calc(var(--cta-w,272px) - 2 * var(--cta-rt,10px) - 2 * var(--cta-rb,22px) + 24px);height:52px;padding:4px 16px 3px;container-type:inline-size}
+.cta-hang:not(:has(> .cta)){padding-bottom:0}
+@container (max-width:250px){.cta-ghost__x{display:none}}
+
+/* ---------- GitHub chip: octocat + label + the live star count (cta.js; hidden until known, never "0").
+   Paper by default; it follows the contextual tokens into night sections; .gh-chip--night outside them. ---------- */
+.gh-chip{--c:var(--fg-text);--rc:var(--rule-c);display:inline-flex;align-items:center;gap:9px;height:44px;padding:0 18px 0 15px;flex:none;
+  border:1px solid var(--rc);border-radius:var(--r-pill);color:var(--c);text-decoration:none;white-space:nowrap;
+  font:650 16px/1 var(--f-display);font-stretch:92%;letter-spacing:-.005em;-webkit-tap-highlight-color:transparent;
+  transition:border-color var(--d-ui) var(--ease-settle),background var(--d-ui) var(--ease-settle),scale var(--d-micro) var(--ease-settle)}
+.gh-chip__mark{width:17px;height:17px;flex:none;transition:rotate var(--spring-play-dur) var(--spring-play)}
+.gh-chip__n{align-self:stretch;display:flex;align-items:center;justify-content:center;min-width:calc(2ch + 21px);margin:8px -8px 8px 3px;padding:0 10px;
+  border-left:1px solid var(--rc);font:500 13px/1 var(--f-mono);font-variant-numeric:tabular-nums}
+.gh-chip:is(:hover,:focus-visible){border-color:var(--c);background:color-mix(in srgb,var(--c) 7%,transparent)}
+.gh-chip:is(:hover,:focus-visible) .gh-chip__mark{rotate:-14deg}
+.gh-chip:active{scale:.97}
+.gh-chip--night{--c:var(--fg);--rc:rgb(236 237 232/.2)}
 .req .seal{display:inline-grid;place-items:center;width:14px;height:14px;border-radius:50%;background:var(--teal);color:var(--ink);font-size:9px;margin-right:4px;vertical-align:-1px}
 
 /* ---------- context menu (macOS replica) ---------- */
@@ -271,6 +324,16 @@ html.is-intro{overflow:hidden}
   box-shadow:inset 0 0 0 1px rgb(255 255 255/.06);overflow:hidden}
 #intro .intro__lens::after{content:"";position:absolute;inset:2px;border-radius:50%;background:radial-gradient(circle at 35% 30%,rgb(90 110 255/.55),transparent 55%)}
 #intro .intro__glint{position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgb(255 255 255/.7) 50%,transparent 70%);translate:-120% 0}
+
+/* ---------- page-wide pause (lib/loop.js, WCAG 2.2.2): html[data-paused] stops every CSS loop; JS loops stop in
+   whileVisible. The hero's one-shot entrance still plays (it reveals content), and retires on #stage.is-entered. ---------- */
+html[data-paused] *,html[data-paused] *::before,html[data-paused] *::after{animation-play-state:paused!important}
+html[data-paused] #stage:not(.is-entered) *,html[data-paused] .yr-mi.is-blink{animation-play-state:running!important}   /* one-shots: the entrance, a menu row's pick blink */
+/* the footer's twin of §03's Pause: a footer link that is a button */
+.fin-foot__pause{position:relative;padding:4px 0;color:var(--fg);font:inherit;white-space:nowrap}
+.fin-foot__pause::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:var(--teal);transform:scaleX(0);transform-origin:0 50%;transition:transform .5s var(--ease-edit)}
+.fin-foot__pause:is(:hover,:focus-visible)::after{transform:scaleX(1)}
+html:not([data-motion="full"]) li:has(> .fin-foot__pause){display:none}
 
 /* ---------- reduced motion: nothing moves on its own ---------- */
 @media (prefers-reduced-motion:reduce){

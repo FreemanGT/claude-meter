@@ -35,5 +35,5 @@ export function initBand() {
   if (!clock) return () => {};
   const tick = () => { clock.textContent = fmtClock(new Date()); clock.dateTime = new Date().toISOString(); };
   tick();
-  return visibleInterval(clock, tick, 15000);
+  return visibleInterval(clock, tick, 15000, { ambient: false });   // a clock, not motion: pausing the page doesn't stop time
 }

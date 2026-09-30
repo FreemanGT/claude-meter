@@ -1,6 +1,10 @@
 /* §04 yours — the playground. Scoped under .s--yours. */
 
 .s--yours .yr-datum { color: var(--fg-text); }
+/* the running head says what the pick does (the menu keeps the app's own labels) */
+.s--yours .rh__datum { text-align: right; }
+.s--yours .yr-cap__t { display: inline-block; }
+.s--yours .yr-cap__os { text-transform: none; letter-spacing: .02em; white-space: nowrap; color: var(--fg-text); }
 
 /* ---------------------------------------------------------------- layout */
 .s--yours .yr-grid {
@@ -18,6 +22,7 @@
   font: 420 var(--t-lede)/var(--lh-lede) var(--f-display); font-stretch: 96%; color: var(--fg-text-2); text-wrap: pretty;
 }
 .s--yours .yr-fine { margin-top: 14px; max-width: 40ch; font: 400 15px/1.5 var(--f-display); font-stretch: 96%; color: var(--fg-text-2); text-wrap: pretty; }
+.s--yours .yr-say { font: 500 .8em/1 var(--f-mono); letter-spacing: .1em; color: var(--fg-text); }
 .s--yours .yr-facts { list-style: none; margin: clamp(28px, 5vh, 48px) 0 0; padding: 0; max-width: 360px; }
 .s--yours .yr-facts li {
   display: flex; align-items: center; gap: 14px; padding: 13px 0; border-top: 1px solid var(--rule-c);
@@ -203,14 +208,18 @@
 .s--yours .yr-mi-sep { height: 1px; margin: .385em .6em; background: rgb(255 255 255 / .1); }
 .s--yours .yr-mi-group { display: contents; }
 
-/* on the desk: hangs from the island's left wing, where the right-click landed */
+/* on the desk: opened where the right-click landed, on the peeking island. JS drops it (--menu-top) just
+   far enough that a peek never covers the Appearance submenu, so materials compare back to back while the
+   island blooms over the menu's first rows: Solid hides them, Frosted blurs them, Liquid Glass bends them. */
 .s--yours .yr-desk .yr-menu {
-  position: absolute; top: calc(32px * var(--k) + 2px);
+  position: absolute; top: var(--menu-top, calc(32px * var(--k) + 2px));
   font-size: clamp(11px, calc(9.3px * var(--k)), 13px);
-  /* never under the lever: 24px inset + lever + 12px air + menu and submenu */
-  left: min(calc(50% - 112px * var(--k)), calc(100% - 60px - 31.4px * var(--k) - 33.55em));
+  left: var(--menu-left, calc(50% - 112px * var(--k))); /* JS keeps it off the lever */
   transition: opacity .25s var(--ease-settle), visibility 0s;
 }
+/* a menu floats over everything while it opens (the tour's right-click on the peek), then drops back under
+   the island once it has folded, so every later bloom shows its material over the menu */
+.s--yours .yr-desk.is-ctx .yr-menu { z-index: 6; }
 .s--yours .yr-desk.is-full .yr-menu, .s--yours .yr-desk.is-quit .yr-menu { opacity: 0; visibility: hidden; transition: opacity .2s var(--ease-settle), visibility 0s .2s; }
 
 /* ---------------------------------------------------------------- PACE lever (desktop, full motion); scales with the desk */
@@ -326,6 +335,9 @@ html[data-night] .s--yours .yr-range[data-tone="red"] { --tone: var(--red); }
 
 /* ---------------------------------------------------------------- tablet + mobile */
 @media (max-width: 1023px) {
+  /* the caption outgrows one line: it drops under the section label and reads as a subtitle */
+  .s--yours .rh { flex-wrap: wrap; row-gap: 8px; }
+  .s--yours .rh__datum { flex: 1 0 100%; text-align: left; }
   .s--yours .yr-copy, .s--yours .yr-play { grid-column: 1 / -1; }
   .s--yours .yr-sticky { position: static; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 var(--col-gap); align-items: end; }
   .s--yours .yr-sticky h2 { grid-column: 1 / -1; }

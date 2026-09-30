@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-gh-stars="1" data-gh-stars-at="1790787553144">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Claude Meter — Claude usage limits in your MacBook notch</title>
-<meta name="description" content="Free Mac app that puts your Claude Pro or Max limits in the MacBook notch: 5-hour session, weekly and per-model limits. Needs Claude Code, macOS 14.4+.">
+<meta name="description" content="Free, open-source Mac app that puts your Claude Pro or Max limits in the MacBook notch: 5-hour session, weekly and per-model limits. Needs Claude Code, macOS 14.4+.">
 <!-- Signups (Mac download emails + Windows waitlist) POST here: paste the Apps Script web-app URL (web/signup-sheet.gs). Empty = Mac still downloads; the waitlist says it opens shortly. -->
-<meta name="cm-signup" content="">
+<meta name="cm-signup" content="https://script.google.com/macros/s/AKfycbyYJTV8Mm_N77moH5FPesW6b_7Khdt2XHBn9IvVHSbHGw43RxAkXjgibvvWu-QkzNuMRA/exec">
 <link rel="canonical" href="https://claudemeter.vercel.app/">
 <meta name="theme-color" content="#000000">
 <meta name="color-scheme" content="light">
@@ -23,13 +23,13 @@
 <meta property="og:image:alt" content="Claude Meter: See the wall before you hit it.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Claude Meter — Claude usage limits in your MacBook notch">
-<meta name="twitter:description" content="Free Mac app that puts your Claude Pro or Max limits in the MacBook notch: 5-hour session, weekly and per-model limits. Needs Claude Code, macOS 14.4+.">
+<meta name="twitter:description" content="Free, open-source Mac app that puts your Claude Pro or Max limits in the MacBook notch: 5-hour session, weekly and per-model limits. Needs Claude Code, macOS 14.4+.">
 <meta name="twitter:image" content="https://claudemeter.vercel.app/assets/og.png">
 
 <script type="application/ld+json">
 {"@context":"https://schema.org","@graph":[{"@type":"SoftwareApplication","@id":"https://claudemeter.vercel.app/#app","name":"Claude Meter","operatingSystem":"macOS 14.4 or later","applicationCategory":"UtilitiesApplication","softwareVersion":"1.2","softwareRequirements":"Claude Code signed in with a Claude Pro or Max plan; macOS 14.4 or later","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"isAccessibleForFree":true,"license":"https://opensource.org/licenses/MIT","downloadUrl":"https://claudemeter.vercel.app/ClaudeMeter.dmg","author":{"@type":"Person","name":"Yiftach Freeman"},"image":"https://claudemeter.vercel.app/assets/icon-512.png","url":"https://claudemeter.vercel.app/","sameAs":["https://github.com/FreemanGT/claude-meter"],"description":"Free, open-source (MIT) macOS app that puts your Claude Pro or Max limits in the MacBook notch: the 5-hour session, the weekly limit and per-model limits. Needs Claude Code signed in with a Claude Pro or Max plan. A Windows version is on a waitlist."},{"@type":"SoftwareSourceCode","@id":"https://claudemeter.vercel.app/#source","name":"Claude Meter","codeRepository":"https://github.com/FreemanGT/claude-meter","programmingLanguage":"Swift","runtimePlatform":"macOS 14.4 or later","license":"https://opensource.org/licenses/MIT","author":{"@type":"Person","name":"Yiftach Freeman"},"targetProduct":{"@id":"https://claudemeter.vercel.app/#app"}}]}
 </script>
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Is it actually free?","acceptedAnswer":{"@type":"Answer","text":"Yes. No trial, no account, nothing to upgrade to. You do need Claude Pro or Max, since that’s what it measures. The download asks for your email, which is used only for Claude Meter updates. It’s signed with an Apple Developer ID and notarized by Apple, so macOS opens it without a fight."}},{"@type":"Question","name":"Is it open source?","acceptedAnswer":{"@type":"Answer","text":"Yes. The whole app is MIT-licensed and on GitHub, so you can read exactly what it does with your sign-in, build it yourself, or send a fix. If it earns its spot under your notch, a star helps other people find it. Star it on GitHub"}},{"@type":"Question","name":"What do I need?","acceptedAnswer":{"@type":"Answer","text":"A Mac on macOS 14.4 or later (Apple Silicon or Intel) and Claude Code signed in with a Claude Pro or Max plan, even if you mostly use claude.ai: install Claude Code, then run claude and type /login with your Pro or Max account. API-key (Console) logins and a custom CLAUDE_CONFIG_DIR aren’t supported."}},{"@type":"Question","name":"Is there a Windows version?","acceptedAnswer":{"@type":"Answer","text":"Not yet. It’s Mac-only for now. Join the waitlist and we’ll email you when the Windows version ships. Your name and email are used for Claude Meter news and nothing else. Join the Windows waitlist"}},{"@type":"Question","name":"Will macOS ask for my keychain password?","acceptedAnswer":{"@type":"Answer","text":"Usually not. Claude Meter reads the sign-in Claude Code already saved (the macOS Keychain first, then ~/.claude/.credentials.json) and never writes to it; a refreshed token lives in memory only. If a prompt asks to let “security” use “Claude Code-credentials”, that’s Apple’s own keychain tool fetching it for Claude Meter. Enter your Mac password and choose Always Allow."}},{"@type":"Question","name":"Who does it talk to?","acceptedAnswer":{"@type":"Answer","text":"Three places: api.anthropic.com for your usage, every 5 minutes and when you hover, but never more than once every 3 minutes; platform.claude.com to refresh a token; and claudemeter.vercel.app/version.json once a day. If there’s a newer version, the right-click menu shows “Update available”, which brings you back here to download it. The app has no analytics, no account, no server of ours."}},{"@type":"Question","name":"Will it nag me?","acceptedAnswer":{"@type":"Answer","text":"Only if you ask it to. Notifications are off until you turn them on. Then you get a heads-up at 50, 80 and 95% of a session, at 80 and 95% of weekly and per-model limits, and a “back to full” when a tight window resets."}},{"@type":"Question","name":"What if my Mac has no notch?","acceptedAnswer":{"@type":"Answer","text":"You get a compact pill at the top centre instead. That covers Macs without a notch and a MacBook running lid-closed on an external display. With the lid open, the island stays on the built-in screen, so switch on Menu bar item to keep your numbers in the menu bar. It steps aside in full-screen apps."}},{"@type":"Question","name":"How do I quit it, or change settings?","acceptedAnswer":{"@type":"Answer","text":"There’s no Dock icon, so right-click the island, or click the menu bar item if you’ve turned it on. Appearance, percentages, burn-rate estimates, notifications, the menu bar item, launch at login and Quit all live there. To uninstall, quit it and drag it from Applications to the Trash."}},{"@type":"Question","name":"Is this made by Anthropic?","acceptedAnswer":{"@type":"Answer","text":"No. It’s an independent project by Yiftach Freeman, not affiliated with or endorsed by Anthropic."}}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Is it actually free?","acceptedAnswer":{"@type":"Answer","text":"Yes, and open source (MIT). No trial, no account, no paid tier. The download asks for your email, used only for Claude Meter updates. You do need Claude Pro or Max, since that’s what it measures."}},{"@type":"Question","name":"Is it open source?","acceptedAnswer":{"@type":"Answer","text":"Yes. The whole app is MIT-licensed and on GitHub, so you can read exactly what it does with your sign-in, build it yourself, or send a fix. If it earns its spot in your notch, a star helps other people find it."}},{"@type":"Question","name":"What do I need?","acceptedAnswer":{"@type":"Answer","text":"A Mac on macOS 14.4 or later (Apple Silicon or Intel) and Claude Code signed in with a Claude Pro or Max plan, even if you mostly use claude.ai: install Claude Code, then run claude and type /login with your Pro or Max account. API-key (Console) logins and a custom CLAUDE_CONFIG_DIR aren’t supported. It’s signed with an Apple Developer ID and notarized by Apple, so macOS opens it without a fight."}},{"@type":"Question","name":"Is there a Windows version?","acceptedAnswer":{"@type":"Answer","text":"Not yet. Join the waitlist for one email when Windows ships. Nothing else."}},{"@type":"Question","name":"Will macOS ask for my keychain password?","acceptedAnswer":{"@type":"Answer","text":"Usually not. Claude Meter reads the sign-in Claude Code already saved (the macOS Keychain first, then ~/.claude/.credentials.json) and never writes to it; a refreshed token lives in memory only. If a prompt asks to let “security” use “Claude Code-credentials”, that’s Apple’s own keychain tool fetching it for Claude Meter. Enter your Mac password and choose Always Allow."}},{"@type":"Question","name":"Who does it talk to?","acceptedAnswer":{"@type":"Answer","text":"Three places: api.anthropic.com for your usage, every 5 minutes and when you hover, but never more than once every 3 minutes; platform.claude.com to refresh a token; and claudemeter.vercel.app/version.json once a day. If there’s a newer version, the right-click menu shows “Update available”, which brings you back here to download it. The app has no analytics, no account, no server of ours."}},{"@type":"Question","name":"Will it nag me?","acceptedAnswer":{"@type":"Answer","text":"Only if you ask it to. Notifications are off until you turn them on. Then you get a heads-up at 50, 80 and 95% of a session, at 80 and 95% of weekly and per-model limits, and a “back to full” when a tight window resets."}},{"@type":"Question","name":"What if my Mac has no notch?","acceptedAnswer":{"@type":"Answer","text":"You get a compact pill at the top centre instead. That covers Macs without a notch and a MacBook running lid-closed on an external display. With the lid open, the island stays on the built-in screen, so switch on Menu bar item to keep your numbers in the menu bar. It steps aside in full-screen apps."}},{"@type":"Question","name":"How do I quit it, or change settings?","acceptedAnswer":{"@type":"Answer","text":"There’s no Dock icon, so right-click the island, or click the menu bar item if you’ve turned it on. Appearance, percentages, burn-rate estimates, notifications, the menu bar item, launch at login and Quit all live there. To uninstall, quit it and drag it from Applications to the Trash."}},{"@type":"Question","name":"Is this made by Anthropic?","acceptedAnswer":{"@type":"Answer","text":"No. It’s an independent project by Yiftach Freeman, not affiliated with or endorsed by Anthropic."}}]}</script>
 
 <link rel="preload" href="/fonts/anybody.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/geist-mono.woff2" as="font" type="font/woff2" crossorigin>
@@ -61,7 +61,6 @@
 <script defer fetchpriority="high" src="/vendor/gsap.min.js"></script>
 <script defer fetchpriority="high" src="/vendor/ScrollTrigger.min.js"></script>
 <script defer fetchpriority="high" src="/vendor/SplitText.min.js"></script>
-<script defer fetchpriority="high" src="/vendor/ScrambleTextPlugin.min.js"></script>
 <script defer fetchpriority="high" src="/vendor/DrawSVGPlugin.min.js"></script>
 <script defer fetchpriority="high" src="/vendor/CustomEase.min.js"></script>
 <script defer fetchpriority="high" src="/vendor/lenis.min.js"></script>
@@ -84,12 +83,12 @@
 <link rel="modulepreload" href="/js/lib/banner.js">
 <link rel="modulepreload" href="/js/lib/band.js">
 <link rel="modulepreload" href="/js/lib/cta.js">
+<link rel="prefetch" href="/js/lib/signup.js">
 <link rel="modulepreload" href="/js/lib/squash.js">
 <link rel="modulepreload" href="/js/lib/scribble.js">
 <link rel="modulepreload" href="/js/lib/demo.js">
 <link rel="modulepreload" href="/js/lib/intro.js">
 <link rel="modulepreload" href="/js/lib/nav.js">
-<link rel="modulepreload" href="/js/lib/signup.js">
 <link rel="modulepreload" href="/js/lib/island.js">
 <link rel="modulepreload" href="/js/stage.js">
 <link rel="modulepreload" href="/js/wall.js">
@@ -114,11 +113,11 @@
   <div class="band__right">
     <span class="band__status" hidden></span>
     <time class="band__clock"></time>
-    <a class="band__gh" href="https://github.com/FreemanGT/claude-meter" target="_blank" rel="noopener" data-cta="github" aria-label="Star Claude Meter on GitHub">
+    <a class="band__gh" href="https://github.com/FreemanGT/claude-meter" target="_blank" rel="noopener" data-cta="github" aria-label="Star Claude Meter on GitHub (opens in a new tab)">
       <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
       <span class="band__gh-lbl">Star</span><span class="band__gh-n" data-stars hidden></span>
     </a>
-    <button class="band__dl band__win" type="button" data-cta="windows"><span class="band__win-dot" aria-hidden="true"></span><span class="band__dl-label">Windows waitlist</span></button>
+    <button class="band__dl band__win" type="button" data-cta="windows"><svg class="band__win-dot" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" pathLength="100"/><path d="M12 7.5V12l3 2.2"/></svg><span class="band__dl-label">Windows waitlist</span></button>
     <a class="band__dl band__mac" href="/ClaudeMeter.dmg" download data-cta="mac" aria-label="Download Claude Meter for Mac">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-opacity=".25" stroke-width="2.5"/><circle class="ring-val" cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" pathLength="100" transform="rotate(-90 12 12)"/><path d="M12 7.5v8m-3.5-3.5L12 15.5l3.5-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span class="band__dl-label">Download</span>
@@ -174,7 +173,7 @@
     </div>
   </div>
 
-  <div class="pin">
+  <div class="pin-own"><div class="pin">
     <div class="display">
       <div class="flush" aria-hidden="true"></div>
 
@@ -186,21 +185,19 @@
         </h1>
         <p class="lede">Claude Meter turns your MacBook’s notch into <span class="k">a live gauge for your Claude plan</span><span class="lede__chips">: the 5‑hour session <span class="chip"><i class="dot dot--teal"></i><span class="chip__n" data-k="session">46%</span></span>, the weekly limit <span class="chip"><i class="dot dot--lav"></i><span class="chip__n" data-k="weekly">38%</span></span>, and any model limit your account reports <span class="chip"><i class="dot dot--amber"></i>Opus <span class="chip__n" data-k="opus">62%</span></span></span>. <span class="k verbs"><span class="v-hover">Hover to peek. Click to pin.</span><span class="v-tap">Tap the island above to try it.</span></span> Stop finding out mid‑task.</p>
         <div class="act">
-          <!-- Two tabs hang from one hairline: the island-shaped Mac download and the Windows waitlist.
-               data-cta: the shared script opens the email / waitlist modals (the .dmg href is the no-JS fallback). -->
-          <div class="cta-hang cta-hang--full"><a class="cta" id="hero-cta" href="/ClaudeMeter.dmg" download data-cta="mac" data-cursor="free · .dmg · v1.2">
+          <!-- The Mac tab hangs from the hairline; Windows, its forecast, hangs dashed from the tab (lib/cta.js).
+               data-cta: the shared script opens the email / waitlist dialogs (the .dmg href is the no-JS fallback). -->
+          <div class="cta-hang cta-hang--full"><a class="cta" id="hero-cta" href="/ClaudeMeter.dmg" download data-cta="mac">
             <svg class="cta__shape" aria-hidden="true" width="276" height="88" viewBox="-2 0 276 88"><path d="M0 0Q10 0 10 10L10 34Q10 56 32 56L240 56Q262 56 262 34L262 10Q262 0 272 0Z"/><path class="rim-hot"/></svg>
             <span class="cta__row"><span class="cta__ring" aria-hidden="true"><svg viewBox="0 0 24 24"><circle class="trk" cx="12" cy="12" r="10"/><circle class="val" cx="12" cy="12" r="10" pathLength="100"/><path class="arrow" d="M12 7.5v8m-3.5-3.5L12 15.5l3.5-3.5"/></svg></span><span class="cta__label">Download for Mac</span></span>
             <span class="cta__meta">Free · v1.2 · macOS 14.4+</span>
-          </a><button class="win" type="button" data-cta="windows" data-cursor="we’ll email you at launch">
-            <span class="win__row"><span class="win__l"><span class="win__pre">Download for </span>Windows</span><span class="win__tag"><span class="sr-only"> — </span>waitlist</span></span>
-            <span class="win__meta" aria-hidden="true">Coming soon</span>
+          </a><button class="cta-ghost" type="button" data-cta="windows" data-cursor="soon · we’ll email you">
+            <svg class="cta-ghost__shape" viewBox="0 0 240 52" preserveAspectRatio="none" aria-hidden="true"><path d="M0 0Q8 0 8 8L8 32Q8 52 28 52L212 52Q232 52 232 32L232 8Q232 0 240 0"/></svg>
+            <span class="cta-ghost__row"><span class="cta-ghost__ring" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" pathLength="100"/><path d="M12 7.5V12l3 2.2"/></svg></span><span class="cta-ghost__label">Windows<span class="cta-ghost__x"> · join the</span> waitlist</span></span>
           </button></div>
-          <p class="req">Needs Claude Code signed in with Claude Pro or Max<br><span class="nw">Apple Silicon &amp; Intel</span><span class="req__sep"> · </span><span class="req__trust nw"><span class="seal" aria-hidden="true">✓</span> Developer ID signed · notarized by Apple</span></p>
-          <p class="act__more">
-            <a class="gh" href="https://github.com/FreemanGT/claude-meter" target="_blank" rel="noopener" data-cta="github" data-cursor="MIT · read every line"><svg class="gh__star" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 1.6l1.95 4.02 4.43.6-3.23 3.1.8 4.4L8 11.6l-3.95 2.12.8-4.4-3.23-3.1 4.43-.6z"/></svg><span class="gh__t">Open source <span class="gh__dim">· Star on GitHub</span></span><span class="gh__n" data-stars></span></a>
-            <button class="send" type="button" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 12.5V2.8m-3.6 3.4L10 2.6l3.6 3.6M5.5 9H4.2v8.4h11.6V9h-1.3"/></svg>Send the link to my Mac</button>
-          </p>
+        </div>
+        <div class="act-side">
+          <p class="req">Needs Claude Code signed in with Claude Pro or Max<br><span class="nw">Apple Silicon &amp; Intel</span><span class="req__sep"> · </span><span class="req__trust nw"><span class="seal" aria-hidden="true">✓</span> Developer ID signed · notarized by Apple</span><a class="req__gh" data-cta="github" href="https://github.com/FreemanGT/claude-meter" target="_blank" rel="noopener" aria-label="MIT, open source on GitHub (opens in a new tab)" data-cursor="read every line">MIT · open source on GitHub <span aria-hidden="true">↗</span></a></p>
         </div>
         <div class="note" aria-hidden="true"><div class="note__in">
           <svg class="note__ink ink" viewBox="0 0 72 52"><path d="M66 44C48 47 22 40 12 12"/><path d="M5 19l7-9 8 7"/></svg>
@@ -211,7 +208,7 @@
       <!-- The session bar: docked under the hero as the scroll cue, it is the session the tour burns
            (46 → 71 → 80), magnified under the pinned island at beat 04, and it resets to empty at the end. -->
       <div class="fc" aria-hidden="true">
-        <p class="fc__top"><span class="fc__k"><span class="fc__cue">Scroll to burn the session <i class="fc__arw">↓</i></span><span class="fc__lbl">Session · 5‑hour window</span></span><span class="fc__rs"><b class="fc__pct">46%</b><span class="fc__sep"> · </span><span class="fc__rt">resets in 2h 13m</span></span></p>
+        <p class="fc__top"><span class="fc__k"><span class="fc__cue">Scroll to burn the session <i class="fc__arw">↓</i></span><span class="fc__lbl">Session<span class="fc__lx"> · 5‑hour window</span></span></span><span class="fc__rs"><b class="fc__pct">46%</b><span class="fc__sep"> · </span><span class="fc__rt">resets in 2h 13m</span></span></p>
         <div class="fc__bar"><i class="fc__prj"></i><i class="fc__fill"></i><i class="fc__cap"></i><i class="fc__tick"></i></div>
         <p class="fc__read"><span class="fc__txt">on track — resets first</span></p>
       </div>
@@ -225,7 +222,7 @@
         <li class="cap cap--big"><p class="cap__idx">06 / 06</p><h2 class="cap__t">Or it taps you <span class="cap__lt">on the shoulder.</span></h2><p class="cap__b">Opt‑in alerts at 50, 80 and 95% of a session, at 80 and 95% of weekly and model limits, and once more when a tight window is back to full.</p><div class="cap__isl"></div></li>
       </ol>
     </div>
-  </div>
+  </div></div>
 </section>
 <section id="wall" class="s s--wall" data-section="wall" aria-labelledby="wall-title">
   <div class="pin">
@@ -307,7 +304,7 @@
     </defs>
   </svg>
   <div class="wrap">
-    <p class="rh"><span class="loop__rhl">§03 — LOOP<button class="loop__pp" type="button"><i aria-hidden="true"></i><span class="loop__pp-t">Pause</span><span class="sr-only"> the moving strips</span></button></span><span class="rh__datum"><i class="loop__live" aria-hidden="true"></i>UPDATES EVERY 5 MIN · AND WHEN YOU HOVER</span></p>
+    <p class="rh"><span class="loop__rhl">§03 — LOOP<button class="loop__pp" type="button" data-pause-toggle><i aria-hidden="true"></i><span class="loop__pp-t" data-pause-label>Pause</span><span class="sr-only"> all motion on this page</span></button></span><span class="rh__datum"><i class="loop__live" aria-hidden="true"></i>EVERY 5 MIN · SOONER WHEN YOU HOVER</span></p>
   </div>
 
   <div class="loop__strips">
@@ -363,7 +360,7 @@
   <div class="wrap">
     <div class="grid loop__cta">
       <div class="loop__copy">
-        <h2 id="loop-title">Free. No account.<br>No Dock icon. <em>Just the notch.</em></h2>
+        <h2 id="loop-title">Free. Open&nbsp;source.<br>No Dock icon. <em>Just the notch.</em></h2>
         <p class="loop__lede" data-reveal="up">The notch holds a camera and nothing else. Claude Meter uses the black band around it, so your limits sit where your eyes already go. No usage tab to reload, no window to dig out.</p>
         <div class="loop__go" data-reveal="up" data-reveal-delay=".12">
           <div class="cta-hang cta-hang--full"><a class="cta cta--l" id="mid-cta" href="/ClaudeMeter.dmg" download data-cta="mac" data-cursor="macOS 14.4+ · free" style="--cta-w:320px;--cta-h0:68px;--cta-h1:98px">
@@ -371,7 +368,7 @@
             <span class="cta__row"><span class="cta__ring" aria-hidden="true"><svg viewBox="0 0 24 24"><circle class="trk" cx="12" cy="12" r="10"/><circle class="val" cx="12" cy="12" r="10" pathLength="100"/><path class="arrow" d="M12 7.5v8m-3.5-3.5L12 15.5l3.5-3.5"/></svg></span><span class="cta__label">Download for Mac</span></span>
             <span class="cta__meta">Free · v1.2 · macOS 14.4+</span>
           </a></div>
-          <button class="loop__win" type="button" data-cta="windows" data-cursor="soon · one email at launch"><span class="loop__win-os">Windows?</span> Join the waitlist<i aria-hidden="true">→</i></button>
+          <button class="loop__win" type="button" data-cta="windows" data-cursor="soon · we’ll email you"><span class="loop__win-os">Windows</span> · join the waitlist<i aria-hidden="true">→</i></button>
           <p class="req">Needs Claude Code signed in with Claude Pro or Max · Apple Silicon &amp; Intel<br><span class="seal" aria-hidden="true">✓</span> Developer ID signed · notarized by Apple</p>
         </div>
       </div>
@@ -398,17 +395,17 @@
 </section>
 <section id="yours" class="s s--yours" data-section="yours" aria-labelledby="yours-title">
   <div class="wrap">
-    <p class="rh"><span>§04 — ONE RIGHT&#8209;CLICK</span><span class="rh__datum">APPEARANCE ▸ <span class="yr-datum">SOLID</span></span></p>
+    <p class="rh"><span>§04 — ONE RIGHT&#8209;CLICK</span><span class="rh__datum">APPEARANCE ▸ <span class="yr-datum">SOLID</span><span class="yr-cap"><span class="yr-cap__c">: </span><span class="yr-cap__t">pure black, fused to the notch</span></span></span></p>
 
     <div class="yr-grid">
       <div class="yr-copy">
         <div class="yr-sticky">
           <h2 id="yours-title">One right&#8209;click. <em>Every setting.</em></h2>
           <p class="yr-lede">No settings window. Right&#8209;click the island and this is what opens: the app’s own menu, same items, same order.</p>
-          <p class="yr-fine">The menu changes this desk exactly as it changes the app. The lid switch and the Pace lever only simulate things the app decides by itself.</p>
+          <p class="yr-fine">The menu works here exactly as it does in the app. <span class="yr-say">PACE</span> and the <span class="yr-say">SIMULATE</span> buttons fake what the app works out on its own.</p>
           <ul class="yr-facts" role="list">
             <li><i class="yr-tick" aria-hidden="true"><b></b></i>NO DOCK ICON</li>
-            <li><i class="yr-tick" aria-hidden="true"><b></b></i>HIDES IN FULL&#8209;SCREEN APPS</li>
+            <li><i class="yr-tick" aria-hidden="true"><b></b></i>SHRINKS INTO THE CAMERA IN FULL&#8209;SCREEN</li>
             <li><i class="yr-tick" aria-hidden="true"><b></b></i>LAUNCH AT LOGIN</li>
             <li><i class="yr-tick" aria-hidden="true"><b></b></i>LID CLOSED? IT BECOMES A PILL</li>
           </ul>
@@ -540,7 +537,7 @@
 </section>
 <section id="privacy" class="s s--privacy" data-section="privacy" data-night aria-labelledby="privacy-title">
   <div class="wrap">
-    <p class="rh"><span>§05 — PRIVACY</span><span class="rh__datum">3 HOSTS · 0 ANALYTICS</span></p>
+    <p class="rh"><span>§05 — PRIVACY</span><span class="rh__datum">THE APP: 3 HOSTS · 0 ANALYTICS</span></p>
 
     <div class="pv-head">
       <h2 id="privacy-title" class="pv-title">
@@ -575,7 +572,7 @@
           <g class="pv-x" transform="translate(420 322)"><circle r="17"/><path d="M-6.5,-6.5 L6.5,6.5 M6.5,-6.5 L-6.5,6.5"/></g>
         </svg>
 
-        <p class="pv-lbl" style="--x:100;--y:8"><span class="pv-lbl__n">01</span>Reads</p>
+        <p class="pv-lbl" style="--x:100;--y:8"><span class="pv-lbl__n">01</span>The app reads</p>
         <div class="pv-src pv-pin" style="--x:100;--y:64"><span class="pv-chip"><i class="pv-dot"></i>macOS Keychain</span><span class="pv-desc">or <code>~/.claude/<wbr>.credentials.json</code></span></div>
         <p class="pv-rw" style="--x:116;--y:124"><span class="pv-rw__r">reads</span><span class="pv-rw__w"><span class="sr-only">never </span><span class="pv-rw__wt">writes</span><svg class="ink" viewBox="0 0 60 12" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path d="M1,8 C12,5 22,7 33,5 C43,3 52,6 59,3"/></svg></span></p>
         <div class="pv-node" style="--x:100;--y:250">
@@ -584,7 +581,7 @@
           <span class="pv-node__label">YOUR MAC</span>
         </div>
 
-        <p class="pv-lbl" style="--x:700;--y:8"><span class="pv-lbl__n">02</span>Talks to</p>
+        <p class="pv-lbl" style="--x:700;--y:8"><span class="pv-lbl__n">02</span>The app talks to</p>
         <ul class="pv-hosts" role="list">
           <li class="pv-host pv-pin pv-host--usage" style="--x:700;--y:64"><span class="pv-chip"><i class="pv-dot"></i>api.anthropic.com</span><span class="pv-desc">your usage numbers</span></li>
           <li class="pv-host pv-pin pv-host--token" style="--x:700;--y:152"><span class="pv-chip"><i class="pv-dot"></i>platform.claude.com</span><span class="pv-desc">token refresh, kept in memory</span></li>
@@ -614,7 +611,7 @@
           <g class="pv-x" transform="translate(24 500)"><circle r="13"/><path d="M-5,-5 L5,5 M5,-5 L-5,5"/></g>
         </svg>
 
-        <p class="pv-lbl" style="--x:42;--y:4"><span class="pv-lbl__n">01</span>Reads</p>
+        <p class="pv-lbl" style="--x:42;--y:4"><span class="pv-lbl__n">01</span>The app reads</p>
         <div class="pv-src pv-pin" style="--x:42;--y:58"><span class="pv-chip"><i class="pv-dot"></i>macOS Keychain</span><span class="pv-desc">or <code>~/.claude/<wbr>.credentials.json</code></span></div>
         <p class="pv-rw" style="--x:58;--y:122"><span class="pv-rw__r">reads</span><span class="pv-rw__w"><span class="sr-only">never </span><span class="pv-rw__wt">writes</span><svg class="ink" viewBox="0 0 60 12" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path d="M1,8 C12,5 22,7 33,5 C43,3 52,6 59,3"/></svg></span></p>
         <div class="pv-node" style="--x:42;--y:220">
@@ -623,7 +620,7 @@
           <span class="pv-node__label">YOUR MAC</span>
         </div>
 
-        <p class="pv-lbl" style="--x:84;--y:282"><span class="pv-lbl__n">02</span>Talks to</p>
+        <p class="pv-lbl" style="--x:84;--y:282"><span class="pv-lbl__n">02</span>The app talks to</p>
         <ul class="pv-hosts" role="list">
           <li class="pv-host pv-pin pv-host--usage" style="--x:84;--y:350"><span class="pv-chip"><i class="pv-dot"></i>api.anthropic.com</span><span class="pv-desc">your usage numbers</span></li>
           <li class="pv-host pv-pin pv-host--token" style="--x:84;--y:460"><span class="pv-chip"><i class="pv-dot"></i>platform.claude.com</span><span class="pv-desc">token refresh, kept in memory</span></li>
@@ -633,11 +630,11 @@
       </div>
 
       <div class="pv-legend">
-        <p class="pv-lbl pv-lbl--never"><span class="pv-lbl__n">03</span><svg class="pv-lbl__x" viewBox="-10 -10 20 20" aria-hidden="true" focusable="false"><circle r="9"/><path d="M-3.5,-3.5 L3.5,3.5 M3.5,-3.5 L-3.5,3.5"/></svg>Never</p>
+        <p class="pv-lbl pv-lbl--never"><span class="pv-lbl__n">03</span><svg class="pv-lbl__x" viewBox="-10 -10 20 20" aria-hidden="true" focusable="false"><circle r="9"/><path d="M-3.5,-3.5 L3.5,3.5 M3.5,-3.5 L-3.5,3.5"/></svg>The app never</p>
         <ul class="pv-zeros" role="list">
-          <li class="pv-zero"><span class="pv-zero__n" data-n="0">0</span><span class="pv-zero__txt"><span class="pv-zero__cap">analytics</span><span class="pv-zero__sub">your readings (up to 24h, for the sparklines) stay on this Mac</span></span></li>
+          <li class="pv-zero"><span class="pv-zero__n" data-n="0">0</span><span class="pv-zero__txt"><span class="pv-zero__cap">analytics</span><span class="pv-zero__sub">the last 24h of readings, for sparklines and the forecast, stay on this Mac</span></span></li>
           <li class="pv-zero"><span class="pv-zero__n" data-n="0">0</span><span class="pv-zero__txt"><span class="pv-zero__cap">new accounts</span><span class="pv-zero__sub">no Claude Meter login, ever</span></span></li>
-          <li class="pv-zero"><span class="pv-zero__n" data-n="0">0</span><span class="pv-zero__txt"><span class="pv-zero__cap">backends</span><span class="pv-zero__sub">the update check is one static file</span></span></li>
+          <li class="pv-zero"><span class="pv-zero__n" data-n="0">0</span><span class="pv-zero__txt"><span class="pv-zero__cap">servers of ours</span><span class="pv-zero__sub">the app talks only to Anthropic, plus one static file</span></span></li>
           <li class="pv-zero"><span class="pv-zero__n" data-n="0">0</span><span class="pv-zero__txt"><span class="pv-zero__cap">writes to your sign&#8209;in</span></span></li>
         </ul>
       </div>
@@ -649,17 +646,48 @@
       <p class="pv-lbl"><span class="pv-lbl__n">04</span>Open source</p>
       <h3 class="pv-os__h"><span class="pv-os__in">Every claim here <em class="pv-os__em">compiles.</em><svg class="pv-os__ok" viewBox="-18 -18 36 36" aria-hidden="true" focusable="false"><circle r="16"/><path d="M-7,0.5 L-2,5.5 L7.5,-5"/></svg></span></h3>
       <div class="pv-os__go">
-        <a class="pv-gh" data-cta="github" href="https://github.com/FreemanGT/claude-meter" target="_blank" rel="noopener" data-cursor="MIT · read every line">
-          <span class="pv-gh__star" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path class="pv-gh__o" d="M12 2.8l2.84 5.76 6.36.92-4.6 4.48 1.08 6.33L12 17.3l-5.68 2.99 1.08-6.33-4.6-4.48 6.36-.92z"/><path class="pv-gh__f" d="M12 2.8l2.84 5.76 6.36.92-4.6 4.48 1.08 6.33L12 17.3l-5.68 2.99 1.08-6.33-4.6-4.48 6.36-.92z"/></svg></span>
-          <span class="pv-gh__k">Star on GitHub</span><span class="pv-gh__n" data-stars></span>
-        </a>
+        <a class="gh-chip gh-chip--night" data-cta="github" href="https://github.com/FreemanGT/claude-meter" target="_blank" rel="noopener" aria-label="Star on GitHub: Claude Meter (opens in a new tab)" data-cursor="MIT · read every line"><svg class="gh-chip__mark" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg><span class="gh-chip__t">Star on GitHub</span><span class="gh-chip__n" data-stars hidden></span></a>
         <p class="pv-os__meta">MIT licensed. Read the Swift, build it with <code>./build.sh</code>, count the hosts yourself.<span class="pv-os__url">github.com/FreemanGT/claude-meter</span></p>
       </div>
     </div>
 
     <div class="pv-site">
       <p class="pv-lbl"><span class="pv-lbl__n">05</span>This website</p>
-      <p class="pv-site__txt" data-reveal="lines">The site asks for your email before the Mac download, and for your name too if you join the Windows waitlist. That goes to the maker’s Google Sheet, with your OS and the page that sent you here. It’s used only for Claude Meter updates and Windows launch news. Nothing else is tracked.</p>
+      <!-- The page's own traffic, drawn in the diagram's language. viewBox 480×336; pins in viewBox units. -->
+      <div class="pv-stage pv-stage--site" style="--vw:480;--vh:336">
+        <svg class="pv-svg" viewBox="0 0 480 336" aria-hidden="true" focusable="false">
+          <defs>
+            <pattern id="pv-dots-s" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1"/></pattern>
+            <radialGradient id="pv-fade-s" cx="18%" cy="50%" r="60%"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+            <mask id="pv-grid-s"><rect width="480" height="336" fill="url(#pv-fade-s)"/></mask>
+          </defs>
+          <rect class="pv-grid" width="480" height="336" fill="url(#pv-dots-s)" mask="url(#pv-grid-s)"/>
+
+          <path class="pv-route pv-r--sheet" data-route="sheet" d="M60,162 C130,162 146,56 216,56"/>
+          <path class="pv-route pv-r--gh" data-route="gh" d="M60,168 L216,168"/>
+          <path class="pv-ghost" d="M160,248 C180,266 196,280 216,280"/>
+          <path class="pv-else" d="M60,174 C120,174 140,222 160,248"/>
+          <g class="pv-x" transform="translate(160 248)"><circle r="13"/><path d="M-5,-5 L5,5 M5,-5 L-5,5"/></g>
+        </svg>
+
+        <div class="pv-node pv-node--page" style="--x:36;--y:168">
+          <svg class="pv-page" viewBox="0 0 76 57" aria-hidden="true" focusable="false">
+            <rect class="pv-page__win" x=".75" y=".75" width="74.5" height="55.5" rx="9"/>
+            <path class="pv-page__ln" d="M1,15.5 H75 M10.5,46.5 H34"/>
+            <circle cx="10" cy="8.25" r="2"/><circle cx="17" cy="8.25" r="2"/><circle cx="24" cy="8.25" r="2"/>
+            <rect class="pv-page__field" x="10.5" y="26.5" width="38" height="11" rx="5.5"/>
+            <rect class="pv-page__btn" x="52" y="26" width="14" height="12" rx="6"/>
+          </svg>
+          <span class="pv-node__label">THIS PAGE</span>
+        </div>
+
+        <ul class="pv-hosts" role="list">
+          <li class="pv-host pv-pin pv-host--sheet" style="--x:216;--y:56"><span class="pv-chip"><i class="pv-dot"></i>script.google.com</span><span class="pv-desc">your email, only when you send a form</span></li>
+          <li class="pv-host pv-pin pv-host--gh" style="--x:216;--y:168"><span class="pv-chip"><i class="pv-dot"></i>api.github.com</span><span class="pv-desc">the star count, asked by your browser</span></li>
+          <li class="pv-host pv-pin pv-host--else" style="--x:216;--y:280"><span class="pv-chip"><i class="pv-dot"></i>anything&nbsp;else</span><span class="pv-desc">no analytics. no cookies.</span></li>
+        </ul>
+      </div>
+      <p class="pv-site__txt" data-reveal="lines">The Mac download asks for your email; the Windows waitlist asks for your name too. Both go to the maker’s Google Sheet with your OS and the page that sent you here, never shared or sold. A Mac email only ever gets Claude Meter updates; the waitlist gets one email when Windows ships, nothing else. Your browser remembers the email so you don’t retype it, and asks GitHub for the star count every few hours at most.</p>
     </div>
 
     <p class="pv-fine">Works with Claude Pro and Max sign&#8209;ins from Claude Code. API&#8209;key (Console) logins and a custom <code>CLAUDE_CONFIG_DIR</code> aren’t supported.</p>
@@ -681,21 +709,25 @@
       <div class="faq__list">
       <details class="faq__item" data-key="$0">
         <summary><span class="faq__pct" aria-hidden="true">0%</span><span class="faq__q">Is it actually free?</span><span class="faq__bar" aria-hidden="true"><span class="faq__ghost"></span><span class="faq__fill"></span></span></summary>
-        <div class="faq__a"><p>Yes. No trial, no account, nothing to upgrade to. You do need Claude Pro or Max, since that’s what it measures. The download asks for your email, which is used only for Claude Meter updates. It’s signed with an Apple Developer ID and notarized by Apple, so macOS opens it without a fight.</p></div>
+        <div class="faq__a"><p>Yes, and open source (MIT). No trial, no account, no paid tier. The download asks for your email, used only for Claude Meter updates. You do need Claude Pro or Max, since that’s what it measures.</p></div>
       </details>
       <details class="faq__item" data-key="MIT">
         <summary><span class="faq__pct" aria-hidden="true">10%</span><span class="faq__q">Is it open source?</span><span class="faq__bar" aria-hidden="true"><span class="faq__ghost"></span><span class="faq__fill"></span></span></summary>
-        <div class="faq__a"><p>Yes. The whole app is MIT‑licensed and on GitHub, so you can read exactly what it does with your sign‑in, build it yourself, or send a fix. If it earns its spot under your notch, a star helps other people find it.</p>
-          <p class="faq__acts"><a class="faq__act" href="https://github.com/FreemanGT/claude-meter" target="_blank" rel="noopener" data-cta="github" data-cursor="MIT · open source"><svg class="faq__act-ico" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 1.6l1.95 4.02 4.43.6-3.23 3.1.8 4.4L8 11.6l-3.95 2.12.8-4.4-3.23-3.1 4.43-.6z"/></svg><span class="faq__act-t">Star it on GitHub</span><span class="faq__stars" data-stars></span></a></p></div>
+        <div class="faq__a"><p>Yes. The whole app is MIT‑licensed and on GitHub, so you can read exactly what it does with your sign‑in, build it yourself, or send a fix. If it earns its spot in your notch, a star helps other people find it.</p>
+          <p class="faq__acts"><a class="gh-chip" data-cta="github" href="https://github.com/FreemanGT/claude-meter" target="_blank" rel="noopener" aria-label="Star it on GitHub: Claude Meter (opens in a new tab)" data-cursor="MIT · open source"><svg class="gh-chip__mark" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg><span class="gh-chip__t">Star it on GitHub</span><span class="gh-chip__n" data-stars hidden></span></a></p></div>
       </details>
       <details class="faq__item" data-key="14.4+">
         <summary><span class="faq__pct" aria-hidden="true">20%</span><span class="faq__q">What do I need?</span><span class="faq__bar" aria-hidden="true"><span class="faq__ghost"></span><span class="faq__fill"></span></span></summary>
-        <div class="faq__a"><p>A Mac on macOS 14.4 or later (Apple Silicon or Intel) and Claude Code signed in with a Claude Pro or Max plan, even if you mostly use claude.ai: install Claude Code, then run <code>claude</code> and type <code>/login</code> with your Pro or Max account. API‑key (Console) logins and a custom CLAUDE_CONFIG_DIR aren’t supported.</p></div>
+        <div class="faq__a"><p>A Mac on macOS 14.4 or later (Apple Silicon or Intel) and Claude Code signed in with a Claude Pro or Max plan, even if you mostly use claude.ai: install Claude Code, then run <code>claude</code> and type <code>/login</code> with your Pro or Max account. API‑key (Console) logins and a custom CLAUDE_CONFIG_DIR aren’t supported.</p>
+          <p>It’s signed with an Apple Developer ID and notarized by Apple, so macOS opens it without a fight.</p></div>
       </details>
-      <details class="faq__item" data-key="Not yet">
+      <details class="faq__item" id="waitlist" data-key="Not yet">
         <summary><span class="faq__pct" aria-hidden="true">30%</span><span class="faq__q">Is there a Windows version?</span><span class="faq__bar" aria-hidden="true"><span class="faq__ghost"></span><span class="faq__fill"></span></span></summary>
-        <div class="faq__a"><p>Not yet. It’s Mac‑only for now. Join the waitlist and we’ll email you when the Windows version ships. Your name and email are used for Claude Meter news and nothing else.</p>
-          <p class="faq__acts"><button class="faq__act" type="button" data-cta="windows" data-cursor="we’ll email you at launch"><svg class="faq__act-ico" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></svg><span class="faq__act-t">Join the Windows waitlist</span></button></p></div>
+        <div class="faq__a"><p>Not yet. Join the waitlist for one email when Windows ships. Nothing else.</p>
+          <div class="faq__acts cta-hang"><button class="cta-ghost" type="button" data-cta="windows" data-cursor="soon · we’ll email you">
+            <svg class="cta-ghost__shape" viewBox="0 0 300 48" preserveAspectRatio="none" aria-hidden="true"><path d="M0 0Q8 0 8 8L8 28Q8 48 28 48L272 48Q292 48 292 28L292 8Q292 0 300 0"/></svg>
+            <span class="cta-ghost__row"><span class="cta-ghost__ring" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" pathLength="100"/><path d="M12 7.5V12l3 2.2"/></svg></span><span class="cta-ghost__label">Windows<span class="cta-ghost__x"> · join the</span> waitlist</span></span>
+          </button></div></div>
       </details>
       <details class="faq__item" data-key="Read-only">
         <summary><span class="faq__pct" aria-hidden="true">40%</span><span class="faq__q">Will macOS ask for my keychain password?</span><span class="faq__bar" aria-hidden="true"><span class="faq__ghost"></span><span class="faq__fill"></span></span></summary>
@@ -714,7 +746,7 @@
         <div class="faq__a"><p>You get a compact pill at the top centre instead. That covers Macs without a notch and a MacBook running lid‑closed on an external display. With the lid open, the island stays on the built‑in screen, so switch on Menu bar item to keep your numbers in the menu bar. It steps aside in full‑screen apps.</p></div>
       </details>
       <details class="faq__item" data-key="1 menu">
-        <summary><span class="faq__pct" aria-hidden="true">80%</span><span class="faq__q">How do I quit it, or change settings?</span><span class="faq__bar" aria-hidden="true"><span class="faq__ghost"></span><span class="faq__fill"></span></span></summary>
+        <summary><span class="faq__pct" aria-hidden="true">80%</span><span class="faq__q">How do I quit it, or&nbsp;change settings?</span><span class="faq__bar" aria-hidden="true"><span class="faq__ghost"></span><span class="faq__fill"></span></span></summary>
         <div class="faq__a"><p>There’s no Dock icon, so right‑click the island, or click the menu bar item if you’ve turned it on. Appearance, percentages, burn‑rate estimates, notifications, the menu bar item, launch at login and Quit all live there. To uninstall, quit it and drag it from Applications to the Trash.</p></div>
       </details>
       <details class="faq__item" data-key="Indie">
@@ -756,22 +788,19 @@
             <span class="cta__meta" aria-hidden="true">ClaudeMeter.dmg · v1.2</span>
           </a></div>
           <!-- Windows is the Mac tab's forecast: its ghost, dashed, hanging from it. Hover (or a Windows visitor) makes it real. -->
-          <div class="fin-win-hang"><button class="fin-win" type="button" data-cta="windows" data-cursor="coming soon · waitlist">
-            <svg class="fin-win__shape" viewBox="0 0 300 52" preserveAspectRatio="none" aria-hidden="true"><path d="M0 0Q8 0 8 8L8 32Q8 52 28 52L272 52Q292 52 292 32L292 8Q292 0 300 0"/></svg>
-            <span class="fin-win__row"><span class="fin-win__ring" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" pathLength="100"/><path d="M12 7.5V12l3 2.2"/></svg></span><span class="fin-win__label">Windows <span class="fin-win__x"><span aria-hidden="true">·</span> join the</span> waitlist</span></span>
+          <div class="fin-win-hang"><button class="cta-ghost" type="button" data-cta="windows" data-cursor="soon · we’ll email you">
+            <svg class="cta-ghost__shape" viewBox="0 0 300 52" preserveAspectRatio="none" aria-hidden="true"><path d="M0 0Q8 0 8 8L8 32Q8 52 28 52L272 52Q292 52 292 32L292 8Q292 0 300 0"/></svg>
+            <span class="cta-ghost__row"><span class="cta-ghost__ring" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" pathLength="100"/><path d="M12 7.5V12l3 2.2"/></svg></span><span class="cta-ghost__label">Windows<span class="cta-ghost__x"> · join the</span> waitlist</span></span>
           </button></div>
-        </div>
-        <div class="fin-oss">
-          <a class="fin-gh" data-cta="github" href="https://github.com/FreemanGT/claude-meter" target="_blank" rel="noopener" aria-label="Star Claude Meter on GitHub" data-cursor="open source · MIT">
-            <span class="fin-gh__star" aria-hidden="true"><svg viewBox="0 0 24 24"><path class="f" d="M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.4L12 17.4l-5.8 3 1.1-6.4-4.7-4.6 6.5-.9z"/><path class="o" d="M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.4L12 17.4l-5.8 3 1.1-6.4-4.7-4.6 6.5-.9z"/></svg></span>
-            <span class="fin-gh__label">Star it on GitHub</span>
-            <span class="fin-gh__n" data-stars hidden></span>
-          </a>
-          <p class="fin-oss__note" aria-hidden="true"><svg class="fin-oss__ink ink" viewBox="0 0 64 34"><path d="M60 30C50 10 28 4 7 12"/><path d="M15 4.5L7 12l9.5 4.5"/></svg><span>psst — it’s open source.</span></p>
+          <!-- the repo hangs under the stack; the margin note (the hero's "psst" answered) points at it -->
+          <div class="fin-oss">
+            <a class="gh-chip" data-cta="github" href="https://github.com/FreemanGT/claude-meter" target="_blank" rel="noopener" aria-label="Star it on GitHub: Claude Meter (opens in a new tab)" data-cursor="open source · MIT"><svg class="gh-chip__mark" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg><span class="gh-chip__t">Star it on GitHub</span><span class="gh-chip__n" data-stars hidden></span></a>
+            <p class="fin-oss__note" aria-hidden="true"><svg class="fin-oss__ink ink" viewBox="0 0 64 34"><path d="M60 30C50 10 28 4 7 12"/><path d="M15 4.5L7 12l9.5 4.5"/></svg><span>psst — it’s open source.</span></p>
+          </div>
         </div>
         <div class="fin-notes">
-          <p class="req"><strong>Needs Claude Code signed in with Claude Pro or Max.</strong><br>Free · MIT licensed · macOS 14.4+ · Apple Silicon &amp; Intel<br><span class="seal" aria-hidden="true">✓</span> Developer ID signed · notarized by Apple</p>
-          <p class="fin-howto">Sign in to Claude Code (run <code>claude</code>, then <code>/login</code>). Download, drag to Applications, open. It opens pinned the first time; click it to tuck it into the notch, then hover to peek and right-click for settings.</p>
+          <p class="req">Free · MIT licensed · macOS 14.4+ · Apple Silicon &amp; Intel<br><span class="seal" aria-hidden="true">✓</span> Developer ID signed · notarized by Apple</p>
+          <p class="fin-howto"><strong>Needs Claude Code signed in with Pro or Max</strong> (run <code>claude</code>, then <code>/login</code>). Download, drag to Applications, open. It opens pinned the first time; click to tuck it into the notch, hover to peek, right-click for settings.</p>
         </div>
       </div>
     </div>
@@ -791,6 +820,7 @@
         <li><a href="https://github.com/FreemanGT/claude-meter" data-cta="github">GitHub</a></li>
         <li><a href="#waitlist" data-cta="windows">Windows waitlist</a></li>
         <li><a href="/llms.txt">llms.txt</a></li>
+        <li><button class="fin-foot__pause" type="button" data-pause-toggle><span data-pause-label>Pause motion</span></button></li>
         <li><a href="#top" class="fin-foot__top">Back to top <span aria-hidden="true">↑</span></a></li>
       </ul>
     </nav>

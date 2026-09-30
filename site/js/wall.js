@@ -164,6 +164,11 @@ export default function init(root, ctx) {
   const note = q(".note"), chip = q(".term__chip"), scan = q(".term__scan"), close = q(".wall__b .wall__close");
   const flash = q(".wall__flash"), slab = q(".wall__slab"), slam = qa(".wall__slab i"), wrap = q(".wall__wrap"), slamBox = q(".wall__slam"), sign = q(".wall__sign"), ok = q(".wall__sign--ok");
   const arrowLine = qa(".wall__arrow-line"), arrowHead = qa(".wall__arrow-head");   // [halo, ink] pairs
+  // On phones the gauge-word stands on end, set sideways (wall.css) rather than rotated: its slide along the
+  // word runs down the screen and its give-way across it runs right, exactly as the rotated word moved.
+  const sideways = getComputedStyle(word).writingMode === "sideways-lr";
+  const along = (v) => (sideways ? { yPercent: -v } : { xPercent: v });
+  const across = (v) => (sideways ? { xPercent: v } : { yPercent: v });
   const lineEls = qa(".term--a .l"), linesBox = q(".term--a .term__lines"), body = q(".term--a .term__body");
   const tEls = lineEls.map((l) => l.querySelector(".l__t"));
   const nums = lineEls.map((l) => l.querySelector(".l__n"));
@@ -341,7 +346,7 @@ export default function init(root, ctx) {
   gsap.set(slab, { "--up": 0 });
   gsap.set(ok, { autoAlpha: 0, scale: 1.25, rotation: -7 });
   const halt = gsap.timeline({ paused: true })
-    .to(ink, { yPercent: 40, autoAlpha: 0, duration: 0.3, ease: "power2.in" }, 0)       // the gauge-word gives way, as in Act One
+    .to(ink, { ...across(40), autoAlpha: 0, duration: 0.3, ease: "power2.in" }, 0)       // the gauge-word gives way, as in Act One
     .to(slab, { "--up": 1, duration: LUNGE.duration, ease: LUNGE.ease }, 0.1)           // one piece this time
     .to(ok, { autoAlpha: 1, scale: 1, rotation: -2, ...lib.SPR.open }, 0.5);
 
@@ -421,7 +426,7 @@ export default function init(root, ctx) {
       // FILL — Act A types in; the WALL squeezes and greys; the terminal edge warms.
       A_AT.forEach((at, i) => type(tl, i, at, A_DUR, i + 1));
       tl.to(word, { "--sq": 1, duration: IMPACT - 0.05 }, 0.05);
-      tl.to(ink, { xPercent: -8, color: tok("--paper-3"), duration: IMPACT - 0.05 }, 0.05);
+      tl.to(ink, { ...along(-8), color: tok("--paper-3"), duration: IMPACT - 0.05 }, 0.05);
       tl.to(term, { "--hot": 0.35, duration: HIT - 0.05 }, 0.05);
 
       // HIT — the red line prints; the impact (time-based) takes it from IMPACT.
@@ -443,7 +448,7 @@ export default function init(root, ctx) {
       tl.set(lineEls.slice(6, 10), { visibility: "hidden" }, RWU1 + 0.002);        // Act B reuses rows 7–9
       tl.set(lineEls.slice(10), { visibility: "visible" }, RWU1 + 0.002);
       tl.to(word, { "--sq": 0.1, duration: 0.07, ease: "island" }, 0.46);         // springs back past wdth 140: the overshoot shows
-      tl.to(ink, { xPercent: 0, duration: 0.07, ease: "island" }, 0.46);
+      tl.to(ink, { ...along(0), duration: 0.07, ease: "island" }, 0.46);
       tl.to(ink, { color: tok("--paper-2"), duration: 0.03 }, 0.46);
       tl.to(chip, { autoAlpha: 0, scale: 0.9, duration: 0.008 }, RWU1 + 0.002);
 
@@ -452,7 +457,7 @@ export default function init(root, ctx) {
       B_AT.forEach((at, i) => type(tl, i, at, 0.0105, i + 1));
       // The gauge-word measures again, and this time stops short of the slam width (84% of the squeeze).
       tl.to(word, { "--sq": 0.84, duration: PINNED - B_AT[0], ease: "none" }, B_AT[0]);
-      tl.to(ink, { xPercent: -7, color: tok("--paper-3"), duration: PINNED - B_AT[0], ease: "none" }, B_AT[0]);
+      tl.to(ink, { ...along(-7), color: tok("--paper-3"), duration: PINNED - B_AT[0], ease: "none" }, B_AT[0]);
 
       // FORECAST — arrow from the island's forecast to the margin note.
       tl.to(arrowLine, { drawSVG: "100%", duration: 0.028, ease: "power1.inOut" }, 0.664);

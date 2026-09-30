@@ -14,7 +14,6 @@ const mix = (a, b, t) => a + (b - a) * t;
 
 const BEATS = [0.10, 0.24, 0.40, 0.54, 0.70, 0.84];   // beat 01…06 starts (b0 = 0, the dolly-in)
 const RS = 4.5;                                        // island render scale (px/pt); the camera only scales down
-const SITE = "https://claudemeter.vercel.app/";
 // Pinned-pane geometry in pt from the island's top centre (island.css: 39pt insets, 84/44/flex/38/96 columns,
 // 12pt gaps, 32pt header, 14pt rows 8pt apart, 16pt note gap, 16pt bottom). Pure numbers: no DOM reads.
 const PIN_H = 147, PEEK_H = 166, RING_DX = 422 / 3, BAR = { x: -89, w: 172 };
@@ -24,7 +23,13 @@ const MARKS = [
   { kind: "rect", x: 139, y: 40, w: 106, h: 44, lx: 192 },    // the reset column
 ];
 
+// A failed init falls back to the static composition (stage.css keeps the captions unlaid until .is-live/.is-static).
 export default function init(root, ctx) {
+  try { return live(root, ctx); }
+  catch (e) { root.classList.add("is-static"); throw e; }
+}
+
+function live(root, ctx) {
   const { gsap, ScrollTrigger, reduced, mobile, Island, lib, intro } = ctx;
   const $ = (s) => root.querySelector(s), $$ = (s) => [...root.querySelectorAll(s)];
   const display = $(".display"), rig = $(".stage-rig"), cam = $(".stage-cam"), host = $(".island-host"), bezel = $(".bezel");
@@ -33,13 +38,14 @@ export default function init(root, ctx) {
   const annos = $$(".anno"), specG = $(".spec__g"), specLabels = $$(".spec-labels p");
   const nums = $(".nums"), numEls = $$(".num").map((el) => ({ el, o: el.querySelector(".num__o"), f: el.querySelector(".num__f"), v: null }));
   const ghost = $(".ghost"), arrow = $(".ghost__arrow"), ring = $(".ghost__ring"), ripple = $(".ghost__ripple");
-  const send = $(".send"), caps = $$(".cap"), cap5 = $$(".cap__t")[4];
+  const caps = $$(".cap"), cap5 = $$(".cap__t")[4];
   const chips = Object.fromEntries($$(".chip__n").map((el) => [el.dataset.k, el]));
   const bandBits = mobile ? [...document.querySelectorAll(".band__brand, .band__dl")] : [];
   const disposers = [], statics = [], banners = [null, null];
   let dead = false, locked = false, touched = false, menuBar = false, attract = null, s0 = null, lastKey = "", barKey = "";
   let W = innerWidth, H = innerHeight, heroS = 2, bandH = 40, barW = 1000, marks = [], l1R = 0;
   let dockY = 0, raiseY = 0, nf = 100, bannerTop = 80;
+  let bandRoom = Infinity;   // px either side of the notch an open hero island may reach before it covers a band item
   let onRefreshInit = null, onRefresh = null, scene = null, settle = 0;
   let tilt = () => {}, bob = () => {}, lean = 0;   // the liquid's springs (fine pointers + scroll), set once live
   let heroVisible = false, heroInFrame = true;   // the hero's ambient loops run only while both hold
@@ -65,6 +71,10 @@ export default function init(root, ctx) {
     heroS = lib.heroScale();                                  // shared with main.js → the intro builds the notch at this size
     root.style.setProperty("--hs", heroS);
     l1R = l1 && l1.offsetWidth ? l1.offsetLeft + l1.offsetWidth + 20 : 0;   // the hero peek may grow up to "See the", never over it
+    // …nor over the band's links and status items (the attract peek used to hide "Privacy" and "FAQ")
+    const vis = (sel) => [...document.querySelectorAll(sel)].filter((e) => e.getClientRects().length);
+    const bl = vis(".band__left > *").pop(), br = vis(".band__right > *")[0];
+    bandRoom = mobile ? Infinity : Math.min(bl ? W / 2 - bl.getBoundingClientRect().right : Infinity, br ? br.getBoundingClientRect().left - W / 2 : Infinity) - 24;
     // Dolly-in: the panel is the art. Desktop never shows it below 1:1 and leaves room under it for the
     // beat's caption; phones fit it edge to edge (only the flared corners leave the frame).
     if (mobile) {
@@ -98,18 +108,23 @@ export default function init(root, ctx) {
       PIN_H * S.pin + (mobile ? 0 : 52) + gap,
       raiseY + (fc.offsetHeight || 120) + gap - (mobile ? 6 : 12),
       PIN_H * S.pin + gap + 6,
-      bannerTop + bnr + gap,
+      // phones: 06 rests on the docked session bar (banners up top, caption + bar at the foot), so scrolling
+      // out of the pin carries text all the way into §02 instead of half a screen of blank paper
+      mobile ? Math.max(bannerTop + bnr + gap, dockY - (caps[5].offsetHeight || 0) - 26) : bannerTop + bnr + gap,
     ];
     caps.forEach((c, i) => c.style.setProperty("--ct", `${Math.round(tops[i])}px`));
   }
   const heroTarget = (state) => {
     if (mobile) return state === "peek" ? (W - 24) / 500 : state === "pinned" ? (W - 24) / 560 : heroS;
     const room = l1R ? W - 2 * l1R : 0.56 * W;
-    return state === "peek" ? clamp(room / 500, 1, Math.min(heroS, 1.6))
-      : state === "pinned" ? clamp(room / 560, 1, Math.min(heroS, 1.45)) : heroS;
+    const band = (st, pt) => (2 * bandRoom) / (isl ? isl.size(st).w / RS : pt);   // the open width in pt
+    return state === "peek" ? clamp(Math.min(room / 500, band("peek", 500)), 1, Math.min(heroS, 1.6))
+      : state === "pinned" ? clamp(Math.min(room / 560, band("pinned", 560)), 1, Math.min(heroS, 1.45)) : heroS;
   };
   measure();
   hcam.s = heroS;
+
+  // (Phones and tablets: lib/cta.js relabels every Mac CTA "Get it on your Mac", this tab included.)
 
   // ---------------------------------------------------------------- the island + chips
   const live = !reduced;
@@ -145,15 +160,6 @@ export default function init(root, ctx) {
     else gsap.to(wall, { "--lvl": pct / 100, duration: dur, ease: "power2.inOut", overwrite: "auto" });
   };
 
-  // No Mac in hand: hand the link to one (share sheet, or the clipboard). No server, no tracking.
-  const onSend = async () => {
-    try {
-      if (navigator.share) return await navigator.share({ title: "Claude Meter", text: "Claude usage limits in your MacBook notch. Free for macOS.", url: SITE });
-    } catch (e) { if (e?.name === "AbortError") return; }
-    try { await navigator.clipboard.writeText(SITE); lib.toast("Link copied. Open it on your Mac to download."); }
-    catch { lib.toast("Open claudemeter.vercel.app on your Mac to download."); }
-  };
-  if (!lib.finePointer()) { send.hidden = false; send.addEventListener("click", onSend); }
 
   // First touch of the island: the attract loop stops and the note leaves, for good.
   const onTouch = () => {
@@ -248,8 +254,9 @@ export default function init(root, ctx) {
 
   // The liquid is a body of water: its surface leans toward the pointer, sloshes against fast moves and
   // against the scroll (frame()), and springs back level. Transforms on one element; nothing re-lays out.
-  tilt = gsap.quickTo(liq, "rotation", { duration: 1.3, ease: "elastic.out(1,0.32)" });
-  bob = gsap.quickTo(liq, "y", { duration: 1.1, ease: "elastic.out(1,0.3)" });
+  // CSS variables, not rotation/y: a GSAP transform would fold the level's CSS translate into its own y (stage.css).
+  tilt = gsap.quickTo(liq, "--tilt", { duration: 1.3, ease: "elastic.out(1,0.32)" });
+  bob = gsap.quickTo(liq, "--bob", { duration: 1.1, ease: "elastic.out(1,0.3)" });
   if (lib.finePointer()) {
     let lx = 0, lt = 0, wr = null;
     const onMove = (e) => {
@@ -632,8 +639,6 @@ export default function init(root, ctx) {
     disposers.forEach((fn) => { try { fn(); } catch {} });
     ScrollTrigger.removeEventListener("refreshInit", onRefreshInit);
     if (onRefresh) ScrollTrigger.removeEventListener("refresh", onRefresh);
-    send.removeEventListener("click", onSend);
-    send.hidden = true;
     detachMenu();
     if (menuBar) lib.statusItem(false);
     if (bandBits.length) { gsap.killTweensOf(bandBits); gsap.set(bandBits, { clearProps: "opacity,visibility" }); }

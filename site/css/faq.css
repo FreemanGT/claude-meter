@@ -87,14 +87,14 @@
   transition:stroke-dasharray .6s var(--ease-edit) var(--d,0s),stroke .4s var(--ease-settle) var(--d,0s)}
 .faq__glyph .g-key{font:600 14px/1 var(--f-ui);letter-spacing:-.01em;fill:#fff;font-variant-numeric:tabular-nums;-webkit-font-smoothing:auto}
 
-/* hover / focus: wdth 90 → 100, label to teal-ink, the hairline previews its cost */
+/* hover / focus: wdth 90 → 100 (never a re-wrap: faq.js pre-wraps a question that would need an extra line at 100%,
+   so the rows below never move; touch screens keep 90), label to teal-ink, the hairline previews its cost */
 @media (hover:hover){
-  .faq__item summary:hover .faq__q{font-stretch:100%}
+  .faq__item summary:hover .faq__q,.faq__item summary:focus-visible .faq__q{font-stretch:100%}
   .faq__item summary:hover .faq__pct{color:var(--teal-ink)}
   .faq__item:has(summary:hover)::before{background:rgb(17 19 17/.42)}
   .faq__item:not(.is-used) summary:hover .faq__ghost{transform:scaleX(1)}
 }
-.faq__item summary:focus-visible .faq__q{font-stretch:100%}
 .faq__item summary:focus-visible .faq__pct,.faq__item[open] .faq__pct{color:var(--teal-ink)}
 .faq__item:not(.is-used) summary:focus-visible .faq__ghost{transform:scaleX(1)}
 .faq__item summary:focus-visible{outline-offset:8px}
@@ -107,26 +107,12 @@
 .faq__item[open]::details-content{block-size:auto}
 .faq__a{padding:clamp(18px,1.6vw,24px) 0 4px calc(var(--pc) + var(--col-gap));color:var(--ink-2)}
 .faq__a p{font:400 var(--t-body)/var(--lh-body) var(--f-display);font-stretch:100%;max-width:60ch;text-wrap:pretty}
+.faq__a p + p{margin-top:.7em}
 .faq__a code{font:500 .86em/1 var(--f-mono);color:var(--ink);padding:.12em .36em;border-radius:5px;background:rgb(17 19 17/.06);white-space:nowrap}
 
-/* an answer's one action: a small black capsule, the island's material on paper */
+/* an answer's one action: the shared GitHub chip or Windows ghost (base.css), hanging from its own hairline */
 .faq__a .faq__acts{margin-top:clamp(16px,1.4vw,22px)}
-.faq__act{display:inline-flex;align-items:center;gap:10px;min-height:44px;padding:0 20px 0 16px;border-radius:var(--r-pill);
-  background:var(--black);color:var(--fg);font:500 13px/1 var(--f-mono);letter-spacing:.01em;text-decoration:none;
-  transition:background-color .3s var(--ease-settle),transform .5s var(--spring-play)}
-.faq__act-ico{flex:none;width:16px;height:16px;overflow:visible;transition:transform .6s var(--spring-play)}
-.faq__act-ico path{fill:none;stroke:var(--teal);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;transition:fill .3s var(--ease-settle)}
-.faq__stars{margin-left:2px;padding:4px 8px;border-radius:var(--r-pill);background:rgb(255 255 255/.12);color:var(--fg);font-variant-numeric:tabular-nums}
-.faq__stars:empty,.faq__stars[hidden]{display:none}
-@media (hover:hover){
-  .faq__act:hover{background:#1C1D1F}
-  .faq__act:hover .faq__act-ico{transform:rotate(-12deg) scale(1.12)}
-  .faq__act:hover .faq__act-ico path{fill:var(--teal)}
-  button.faq__act:hover .faq__act-ico{transform:translateX(3px)}
-  button.faq__act:hover .faq__act-ico path{fill:none}
-}
-.faq__act:active{transform:scale(.97)}
-.faq__act:focus-visible{outline-offset:4px}
+.faq__a .cta-hang{max-width:60ch}
 
 /* ---------- after the list ---------- */
 .faq__foot{position:relative;padding-top:28px}

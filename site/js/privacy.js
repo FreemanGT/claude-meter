@@ -143,27 +143,46 @@ export default function init(root, ctx) {
   const hosts = qa(".pv-host", stage);
   const cap = q(".pv-net__cap");
 
-  // packets: a viewBox-sized layer scaled to the stage, so path points are the SVG's own
-  const layer = Object.assign(document.createElement("div"), { className: "pv-pk" });
-  layer.setAttribute("aria-hidden", "true");
-  stage.append(layer);
-  const ro = new ResizeObserver(([e]) => layer.style.setProperty("--k", e.contentRect.width / vw));
-  ro.observe(stage);
-
-  const anims = [];
-  const run = (el, kf, dur, delay = 0) => {
-    const a = el.animate(kf, { duration: dur, delay, iterations: Infinity, easing: "linear" });
-    a.cancel(); // idle until the entrance has drawn the wires
-    anims.push(a);
+  // packets: per diagram, a viewBox-sized layer scaled to the stage, so path points are the SVG's own.
+  // Its clocks idle until the entrance has drawn the wires (arm) and while the stage is off screen.
+  const wires = (st, vbw) => {
+    const layer = Object.assign(document.createElement("div"), { className: "pv-pk" });
+    layer.setAttribute("aria-hidden", "true");
+    st.append(layer);
+    const ro = new ResizeObserver(([e]) => layer.style.setProperty("--k", e.contentRect.width / vbw));
+    ro.observe(st);
+    const anims = [];
+    let armed = false, visible = false, live = false;
+    const sync = () => {
+      const want = armed && visible;
+      if (want === live) return;
+      live = want;
+      anims.forEach((a) => (live ? a.play() : a.cancel()));
+    };
+    const run = (el, kf, dur, delay = 0) => {
+      const a = el.animate(kf, { duration: dur, delay, iterations: Infinity, easing: "linear" });
+      a.cancel();
+      anims.push(a);
+    };
+    disposers.push(lib.whileVisible(st, () => { visible = true; sync(); }, () => { visible = false; sync(); }));
+    disposers.push(() => {
+      anims.forEach((a) => a.cancel());
+      ro.disconnect();
+      layer.remove();
+      qa(".pv-ping", st).forEach((el) => el.remove());
+    });
+    return {
+      run,
+      arm: (on) => { armed = on; sync(); },
+      packet: (kind, list, dur, delay) =>
+        run(layer.appendChild(Object.assign(document.createElement("i"), { className: `pv-pkt pv-pkt--${kind}` })), legs(list, dur), dur, delay),
+      ping: (dot, at, dur, delay) =>
+        run(dot.appendChild(Object.assign(document.createElement("i"), { className: "pv-ping" })),
+          blip(at, dur, 900, { opacity: 0, transform: "scale(1)" }, { opacity: 1, transform: "scale(1)" }, { opacity: 0, transform: "scale(3.4)" }), dur, delay),
+    };
   };
-  const packet = (kind, list, dur, delay) => {
-    const p = layer.appendChild(Object.assign(document.createElement("i"), { className: `pv-pkt pv-pkt--${kind}` }));
-    run(p, legs(list, dur), dur, delay);
-  };
-  const ping = (dot, at, dur, delay) => {
-    const r = dot.appendChild(Object.assign(document.createElement("i"), { className: "pv-ping" }));
-    run(r, blip(at, dur, 900, { opacity: 0, transform: "scale(1)" }, { opacity: 1, transform: "scale(1)" }, { opacity: 0, transform: "scale(3.4)" }), dur, delay);
-  };
+  const net = wires(stage, vw);
+  const { packet, ping, run } = net;
 
   const U = CLOCK.usage;
   packet("read", [[READ[0], READ[1], track(read, 16)]], U.dur, U.delay);
@@ -175,21 +194,6 @@ export default function init(root, ctx) {
     ping(q(`.pv-host--${k} .pv-dot`, stage), c.out[1], c.dur, c.delay);
   });
   run(q(".pv-node__ring", node), [{ transform: "rotate(0deg)" }, { transform: "rotate(360deg)" }], 60000);
-
-  disposers.push(() => {
-    anims.forEach((a) => a.cancel());
-    ro.disconnect();
-    layer.remove();
-    qa(".pv-ping", stage).forEach((el) => el.remove());
-  });
-
-  let armed = false, visible = false, live = false;
-  const sync = () => {
-    const want = armed && visible;
-    if (want === live) return;
-    live = want;
-    anims.forEach((a) => (live ? a.play() : a.cancel()));
-  };
 
   // entrance, scrubbed: the wires grow while the reader is looking at them, and each host lands the moment
   // its wire reaches it. The refusal strike draws before the word it refuses.
@@ -204,7 +208,7 @@ export default function init(root, ctx) {
     scrollTrigger: mobile
       ? { trigger: stage, start: "top 80%", end: "bottom 80%", scrub: 0.5 }
       : { trigger: stage, start: "top 80%", end: "bottom 70%", scrub: 0.5 },
-    onUpdate: () => { const a = tl.time() >= wired - 1e-3; if (a !== armed) { armed = a; sync(); } },
+    onUpdate: () => net.arm(tl.time() >= wired - 1e-3),
   });
   let wired = 0; // timeline time at which all three wires are drawn: packets may fly
   const pin = { autoAlpha: 1, x: 0, ease: "edit" };
@@ -255,8 +259,6 @@ export default function init(root, ctx) {
       .to(cap, { autoAlpha: 1, duration: 0.8, ease: "none" }, 2.1);
   }
 
-  disposers.push(lib.whileVisible(stage, () => { visible = true; sync(); }, () => { visible = false; sync(); }));
-
   // ---- legend: every zero starts blank ("–", no reading yet) and rolls to 0 once. A zero never passes
   // through another digit, not even for a frame; hover re-rolls 0 over 0 (throttled so rolls never stack).
   const roll = gsap.timeline({ paused: true });
@@ -295,6 +297,35 @@ export default function init(root, ctx) {
     .to(ok, { scale: 1, opacity: 1, ...lib.SPR.play }, 0.62)
     .to(q("path", ok), { drawSVG: "100%", duration: 0.32, ease: "power2.out" }, 0.74)
     .to(go, { autoAlpha: 1, y: 0, duration: 0.7, ease: "edit" }, 0.5);
+
+  // ---- 05 this website: the page's own traffic, in the same grammar. The GitHub wire carries a packet (sped
+  // up, like the diagram above); the Sheet wire stays quiet, because it only carries what you choose to send.
+  const site = q(".pv-stage--site");
+  const sw = wires(site, 480);
+  const [sheet, gh] = qa(".pv-route", site);
+  const sHosts = qa(".pv-host", site);
+  const sElse = qa(".pv-else, .pv-ghost", site);
+  const sX = q(".pv-x", site);
+  const sNode = q(".pv-node", site);
+  const G = { dur: 8000, delay: 600, out: [0.06, 0.2], back: [0.26, 0.4] };
+  const gp = track(gh, 20);
+  sw.packet("gh", [[G.out[0], G.out[1], gp], [G.back[0], G.back[1], flip(gp)]], G.dur, G.delay);
+  sw.ping(q(".pv-host--gh .pv-dot", site), G.out[1], G.dur, G.delay);
+
+  gsap.set([sheet, gh], { drawSVG: "0%" });
+  gsap.set(sElse, { opacity: 0 });
+  gsap.set(sX, { scale: 1.4, opacity: 0, transformOrigin: "50% 50%" });
+  gsap.set(sNode, { scale: 0.7, opacity: 0 });
+  gsap.set(sHosts, { autoAlpha: 0, x: -14 });
+  gsap.timeline({ scrollTrigger: { trigger: site, start: "top 80%", once: true } })
+    .to(sNode, { scale: 1, opacity: 1, ...lib.SPR.open }, 0)
+    .to([sheet, gh], { drawSVG: "100%", duration: 0.8, ease: "edit", stagger: 0.18 }, 0.15)
+    .to(sHosts[0], { ...pin, duration: 0.6 }, 0.6)
+    .to(sHosts[1], { ...pin, duration: 0.6 }, 0.78)
+    .to(sElse, { opacity: 1, duration: 0.5, ease: "none", stagger: 0.15 }, 0.7)
+    .to(sHosts[2], { ...pin, duration: 0.6 }, 0.95)
+    .to(sX, { scale: 1, opacity: 1, ...lib.SPR.play }, 1.05)
+    .call(() => sw.arm(true), null, 1.13); // the GitHub wire is drawn: its packet may fly
 
   return () => disposers.reverse().forEach((fn) => fn());
 }

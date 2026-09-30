@@ -254,6 +254,27 @@ export default function init(root, ctx) {
     }, reduced ? 50 : 560);
   };
 
+  // ---------- hover width: wdth 90 → 100 must never re-wrap a question ----------
+  // A question that fits one line fewer at rest than on hover is narrowed until it rests on as many lines as it
+  // hovers on (text-wrap: balance keeps them even), so hovering never moves the rows below. Re-fit on width change.
+  const qs = items.map((it) => $(".faq__q", it));
+  const canHover = matchMedia("(hover: hover)");  // the wdth change is hover-only (faq.css)
+  const fitWrap = () => qs.forEach((q) => {
+    if (q.childElementCount) return;              // mid line-reveal (SplitText): keep the last fit
+    q.style.maxWidth = "";
+    if (!canHover.matches) return;
+    q.style.transition = "none";
+    const h = (s) => { q.style.fontStretch = `${s}%`; return q.offsetHeight; };
+    for (let w = q.offsetWidth; h(100) > h(90) && w > 160; w -= 8) q.style.maxWidth = `${w - 8}px`;
+    q.style.fontStretch = "";
+    void q.offsetHeight;                          // flush at rest before the transition comes back
+    q.style.transition = "";
+  });
+  let listW = 0;
+  const roFit = new ResizeObserver(([e]) => { const w = Math.round(e.contentRect.width); if (w !== listW) { listW = w; fitWrap(); } });
+  roFit.observe($(".faq__list"));
+  offs.push(() => { roFit.disconnect(); qs.forEach((q) => { q.style.maxWidth = ""; }); });
+
   // ---------- rows: hover, toggle ----------
   let hovered = -1;
   items.forEach((it, i) => {

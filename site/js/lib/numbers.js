@@ -1,5 +1,5 @@
 // Live numbers: Roller (Alcove-style rolling digits), countTo, scramble.
-import { gsap, untracked } from "./gsap.js";
+import { gsap, untracked, loadPlugin } from "./gsap.js";
 import { reduced, spring } from "./motion.js";
 
 const ROLL = spring({ duration: 0.32, bounce: 0.12 });
@@ -75,10 +75,14 @@ export function countTo(el, to, { from = 0, duration = 0.8, suffix = "%", ease =
 
 /**
  * ScrambleText to `text`, time-based, 400ms. Mono labels only — never product UI (the app never
- * scrambles) and never scrubbed. Returns the tween (or null when reduced).
+ * scrambles) and never scrubbed. The plugin loads on the first call (two labels on the page use it).
+ * Returns a Promise of the tween (null when reduced; the text still lands if the plugin can't load).
  */
 export function scramble(el, text, { chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", delay = 0 } = {}) {
   if (reduced()) { el.textContent = text; return null; }
   gsap.killTweensOf(el);
-  return untracked(() => gsap.to(el, { duration: 0.4, delay, ease: "none", scrambleText: { text, chars, speed: 1, revealDelay: 0.1 } }));
+  el._scr = text;
+  return loadPlugin("ScrambleTextPlugin").then(
+    () => el._scr === text && untracked(() => gsap.to(el, { duration: 0.4, delay, ease: "none", scrambleText: { text, chars, speed: 1, revealDelay: 0.1 } })),
+    () => { el.textContent = text; });
 }

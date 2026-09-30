@@ -12,8 +12,35 @@ export function initSmooth() {
   // Anything that can start a Lenis animation wakes its frame callback first.
   for (const k of ["scrollTo", "start"]) { const f = lenis[k].bind(lenis); lenis[k] = (...a) => { wake(); return f(...a); }; }
   WAKE.forEach((t) => addEventListener(t, wake, { capture: true, passive: true }));
+  addEventListener("keydown", onKey);
   wake();
   return lenis;
+}
+
+// Scroll keys go through Lenis too. A native key scroll moves the page on the compositor and the transform
+// pins (lib/pin.js, pinType "transform" under Lenis) follow a frame late: the stage, wall and finale would shake.
+// Widgets that own their keys (fields, sliders, menus, the dialog) and handlers that preventDefault keep them.
+const OWN_KEYS = 'input,textarea,select,[contenteditable]:not([contenteditable="false"]),dialog,[role="slider"],[role^="menu"],[role="listbox"],[role="option"],[role="radiogroup"],[role="radio"],[role="tablist"],[role="tab"],[role="grid"],[role="spinbutton"]';
+const OWN_SPACE = 'button,summary,[role="button"],[role="switch"],[role="checkbox"]';   // Space activates these (a link scrolls)
+function onKey(e) {
+  if (!lenis || lenis.isStopped || e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
+  const t = e.target instanceof Element ? e.target : null;
+  if (t?.closest(OWN_KEYS)) return;
+  const page = Math.max(40, innerHeight - BAND - 60);
+  let d;
+  switch (e.key) {
+    case "ArrowDown": d = 60; break;
+    case "ArrowUp": d = -60; break;
+    case "PageDown": d = page; break;
+    case "PageUp": d = -page; break;
+    case " ": if (t?.closest(OWN_SPACE)) return; d = e.shiftKey ? -page : page; break;
+    case "Home": d = -Infinity; break;
+    case "End": d = Infinity; break;
+    default: return;
+  }
+  if (e.shiftKey && e.key !== " ") return;   // shift+arrows extend a text selection
+  e.preventDefault();
+  lenis.scrollTo(Math.max(0, Math.min(lenis.limit, lenis.targetScroll + d)));
 }
 
 // A parked page runs nothing: once Lenis has settled for ~20 frames its callback leaves the GSAP ticker,
@@ -38,6 +65,7 @@ export function destroySmooth() {
   if (!lenis) return;
   gsap.ticker.remove(raf); awake = false;
   WAKE.forEach((t) => removeEventListener(t, wake, { capture: true }));
+  removeEventListener("keydown", onKey);
   lenis.destroy();
   lenis = null;
 }

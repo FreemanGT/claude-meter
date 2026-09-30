@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1080">
+<meta name="robots" content="noindex, nofollow">
+<title>Notch Poster</title>
+<link rel="stylesheet" href="/css/tokens.css">
+<link rel="stylesheet" href="/css/island.css">
+<style>
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{margin:0;width:1080px;height:1350px;overflow:hidden}
+  body{background:var(--paper);color:var(--ink);font-family:var(--f-display);
+    -webkit-font-smoothing:antialiased;position:relative}
+  /* static grain, same as the site */
+  body::after{content:"";position:absolute;inset:0;z-index:50;pointer-events:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    background-size:180px 180px;opacity:.07;mix-blend-mode:multiply}
+
+  .top{position:absolute;left:64px;right:64px;top:52px;display:flex;align-items:center;justify-content:space-between}
+  .brand{display:flex;align-items:center;gap:12px;font:800 30px/1 var(--f-display);font-stretch:92%;letter-spacing:-.02em}
+  .brand img{width:58px;height:58px;margin:-6px}
+  .label{font:500 20px/1 var(--f-mono);letter-spacing:0;color:var(--ink-2)}
+
+  h1{position:absolute;left:58px;right:40px;top:160px;margin:0;
+    font:900 188px/.84 var(--f-display);font-stretch:74%;letter-spacing:-.04em}
+  h1 em{position:relative;z-index:0;font:400 italic 214px/.8 var(--f-serif);letter-spacing:-.035em;font-stretch:100%}
+  h1 em::before{content:"";position:absolute;z-index:-1;left:-.03em;right:.02em;top:.5em;height:.3em;
+    background:var(--hl-teal);border-radius:.06em;transform:rotate(-1.6deg)}
+
+  .chips{position:absolute;left:64px;right:64px;top:734px;display:flex;align-items:center;gap:12px;
+    list-style:none;margin:0;padding:0}
+  .chips li{display:flex;align-items:center;gap:11px;background:var(--ink);color:var(--fg);
+    font:500 22px/1 var(--f-mono);padding:13px 20px 13px 17px;border-radius:999px}
+  .chips i{width:12px;height:12px;border-radius:50%;background:var(--c)}
+  .chips .free{margin-left:auto;background:none;color:var(--ink-2);padding:0;font-size:21px;letter-spacing:0}
+
+  /* the MacBook: aluminium lid → black bezel → display; bleeds off the bottom */
+  .lid{position:absolute;left:14px;right:14px;top:836px;bottom:-60px;border-radius:60px 60px 0 0;
+    background:linear-gradient(#c9ccc6,#9ea29b 40%,#b8bbb4);padding:5px 5px 0;
+    box-shadow:0 -1px 0 rgb(255 255 255 / .6) inset, var(--sh-float)}
+  .bezel{height:100%;background:#050505;border-radius:55px 55px 0 0;padding:17px 17px 0}
+  .display{position:relative;height:100%}
+  .wall{position:absolute;inset:0;border-radius:36px 36px 0 0;overflow:hidden;
+    background:
+      radial-gradient(30% 40% at 74% 30%, rgb(250 199 117 / .55), transparent 70%),
+      radial-gradient(45% 55% at 100% 0%, rgb(176 168 237 / .7), transparent 70%),
+      radial-gradient(40% 50% at 0% 20%, rgb(176 168 237 / .35), transparent 70%),
+      radial-gradient(90% 80% at 50% 0%, #181a22, #08090b 75%)}
+  .wall svg{position:absolute;inset:0;width:100%;height:100%}
+  .legal{position:absolute;left:0;right:0;bottom:34px;margin:0;text-align:center;z-index:5;
+    font:400 15px/1 var(--f-mono);letter-spacing:.04em;color:rgb(236 237 232 / .72)}
+</style>
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><img src="/assets/icon-512.png" alt="">Claude Meter</div>
+    <div class="label">claudemeter.vercel.app</div>
+  </header>
+
+  <h1>Your notch<br><em>finally</em> does<br>something.</h1>
+
+  <ul class="chips">
+    <li style="--c:var(--teal)"><i></i>Session</li>
+    <li style="--c:var(--lav)"><i></i>Weekly</li>
+    <li style="--c:var(--amber)"><i></i>Per-model</li>
+    <li class="free">Free · open source · macOS</li>
+  </ul>
+
+  <div class="lid"><div class="bezel"><div class="display" id="host">
+    <div class="wall">
+      <svg viewBox="0 0 1000 600" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <filter id="b" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="3"/></filter>
+          <linearGradient id="gl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B0A8ED" stop-opacity=".9"/><stop offset=".6" stop-color="#B0A8ED" stop-opacity="0"/></linearGradient>
+          <linearGradient id="gt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5CC9A6"/><stop offset=".7" stop-color="#1f5a49"/></linearGradient>
+        </defs>
+        <path d="M0 170 C 220 90 380 260 600 150 S 880 10 1000 40 L1000 600 L0 600Z" fill="url(#gl)" filter="url(#b)"/>
+        <path d="M0 300 C 200 220 380 380 580 260 S 870 110 1000 150 L1000 600 L0 600Z" fill="url(#gt)" filter="url(#b)"/>
+        <path d="M0 430 C 240 360 440 500 660 400 S 910 300 1000 330 L1000 600 L0 600Z" fill="#0c1411" filter="url(#b)"/>
+      </svg>
+    </div>
+  </div></div></div>
+  <p class="legal">Independent project · not affiliated with Anthropic</p>
+
+<script type="module">
+import { Island } from "/js/lib/island.js";
+import { spark } from "/js/lib/demo.js";
+
+const data = {
+  plan: "Max 20x", updated: "just now",
+  session: { pct: 71, resetIn: 2 * 3600 + 13 * 60, projected: 100, forecast: { exhaustsIn: 72 * 60 }, spark: spark("s", 71, { drop: true }) },
+  weekly: { pct: 38, reset: "Sat 1:05 PM", spark: spark("w", 38) },
+  models: [{ name: "Opus", pct: 62, reset: "Sat 1:05 PM", spark: spark("o", 62) }],
+};
+new Island(document.getElementById("host"), {
+  scale: 1.62, maxScale: 2, state: "pinned", material: "glass", notchWidth: 185,
+  bezel: true, interactive: false, live: false, data,
+});
+</script>
+</body>
+</html>

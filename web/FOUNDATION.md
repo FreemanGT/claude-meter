@@ -45,11 +45,11 @@ export default function init(root, ctx) {
 | Name | Signature | Notes |
 |---|---|---|
 | **Motion** | `reduced()`, `mobile()`, `finePointer()`, `spring({duration, bounce})` → `{ease, duration}`, `SPR.open / close / value / play` | Spread a spring into a tween: `gsap.to(el, { y: 0, ...SPR.open })`. Eases `"edit"`, `"settle"` and `"island"` are registered |
-| **Pin** | `pinScene(root, {length:"280%", mobileLength:"220%", scrub:.8, build(tl, {mobile})})` → `{tl, st}` or `null` | Pins `root.querySelector(".pin")`. **Author the timeline in progress units:** the position is the progress and the total is 1 (it is padded to 1). `anticipatePin` is 0 under Lenis (it would pin early and jump), 1 on native touch scroll. Reduced motion → returns `null` and adds `.is-static` to root, so render your static composition with `.s--x.is-static …` |
+| **Pin** | `pinScene(root, {length:"280%", mobileLength:"220%", scrub:.8, build(tl, {mobile})})` → `{tl, st}` or `null` | Pins `root.querySelector(".pin")`. **Author the timeline in progress units:** the position is the progress and the total is 1 (it is padded to 1). `anticipatePin` is 0 under Lenis (it would pin early and jump), 1 on native touch scroll. Reduced motion → returns `null` and adds `.is-static` to root, so render your static composition with `.s--x.is-static …`. The pin gets its own spacer (`.pin-own`, ScrollTrigger's `pinSpacer`), so a refresh never moves `.pin` in the DOM (a DOM move restarts CSS animations inside it). Ship `<div class="pin-own"><div class="pin">` in markup to avoid even the first wrap |
 | **Smooth** | `scrollTo(target, {progress, immediate})`, `stop()`, `start()`, `readingPosition()`, `restorePosition(pos)` | `target` = px, `"#id"` or an element. `progress` lands inside a pinned section. Every `a[href^="#"]` (with optional `data-progress`) is already routed through it. main keeps the reading position (pin progress / section ratio) across resizes and breakpoint rebuilds |
 | **Text** | `revealLines(el, {delay, stagger:.08, trigger:el, start:"top 85%"})` → `{kill}` | Masked lines, `edit` .9s, once. Splits at the first reveal (not at boot) and reverts when done; `aria:"auto"` only on headings (aria-label is prohibited on `<p>`). No-op under reduced motion |
 | **Declarative reveals** | `data-reveal="up\|fade\|lines\|draw\|mark"`, `data-reveal-delay=".2"` | Auto-bound by main after every init. `mark` animates the `.mark` highlighter (`<span class="mark" data-reveal="mark">writes.</span>`; add `.mark--amber` for amber) |
-| **Numbers** | `new Roller(el, {value, format})` with `.set(n)` / `.bump()`; `countTo(el, to, {from, duration, suffix})`; `scramble(el, text, {chars, delay})` | Roller = rolling digits, used for every live number. It keeps an sr-only text twin. `scramble` is 400ms, time-based, for **mono labels only** (two on the page: #yours datum, loop icon caption). Never product UI, never scrubbed: cross-fade labels, roll numbers |
+| **Numbers** | `new Roller(el, {value, format})` with `.set(n)` / `.bump()`; `countTo(el, to, {from, duration, suffix})`; `scramble(el, text, {chars, delay})` | Roller = rolling digits, used for every live number (and the CTA label roll). It keeps an sr-only text twin. `scramble` is 400ms, time-based, for **mono labels only** (two on the page: #yours datum, loop icon caption); it loads ScrambleTextPlugin on its first call and returns a Promise. Never product UI, never scrubbed: cross-fade labels, roll numbers |
 | **Format** | `fmtPct`, `fmtDur`, `fmtReset`, `fmtForecast`, `CLEARS`, `fmtAgo`, `fmtClock` | Mirrors `Format` in Theme.swift |
 | **Loops** | `whileVisible(el, start, stop, margin)` → dispose; `visibleInterval(el, fn, ms)` | Wrap **every** ambient loop in one of these. They never start under reduced motion |
 | **Marquee** | `marquee(track, {speed:60, dir:1, velocity:true, hoverSlow:.2})` → `{pause, play, setSpeedFactor(f), kill}` | Clones children (`aria-hidden`, inert). Scroll velocity changes speed and skew |
@@ -58,11 +58,11 @@ export default function init(root, ctx) {
 | **Ink** | `scribble(svg, {duration:.9, delay, trigger:true})` | Draws the paths in DOM order. Styles come from `.ink` (added for you) |
 | **Page meter** | `meter` has `.scrolled`, `.display`, `.sections[]`, `.velocity`, `.override(pct\|null)`, `.setFaq(opened, total)`, `.subscribe(fn)` | The finale drives `override`; FAQ calls `setFaq` |
 | **Band** | `statusItem(on, data, {display})`, `renderStatus(slot, data, {display})`, `setBandNight(bool)` | The menu-bar item text is `46%  38%` |
-| **GSAP hygiene** | `untracked(fn)`, `loadDrag()` → `Promise<{Draggable, InertiaPlugin}>` | A tween created inside a scrub/ScrollTrigger/tween callback is recorded in your section's context forever: wrap transient ones in `untracked`. Draggable/Inertia are not in the page's scripts; load them on demand |
+| **GSAP hygiene** | `untracked(fn)`, `loadDrag()` → `Promise<{Draggable, InertiaPlugin}>`, `loadPlugin(name)` | A tween created inside a scrub/ScrollTrigger/tween callback is recorded in your section's context forever: wrap transient ones in `untracked`. Draggable, Inertia and ScrambleText are not in the page's scripts; load them on demand |
 | **Banners** | `showBanner(host, {title, body, flick, timeout, static, announce})` | `announce:true` (role=status) only for banners the user caused; scroll-driven ones stay out of the accessibility tree |
 | **Menu** | `attachMenu(island, hooks)` → detach; `openMenu(island, {x, y, items})`; `defaultItems(island, hooks)`; `closeMenu()` | hooks: `onMaterial, onDisplay, onBurnRate, onNotifications, onMenuBar, onLaunchAtLogin, onQuit, onRefresh, state, persist`. With no hook, it calls `island.setOption` for material, display and burnRate. Refresh-twice throttle egg, About card and Quit are built in |
 | **Banner** | `showBanner(host, {title, body, flick, timeout:6000, static})` → el (`el.dismiss()`); `toast(text, {host, duration})` | `host` must be `position:relative`, or `document.body` (fixed under the band). Real Notifier.swift copy only |
-| **CTA** | `initCtas(scope)` | Main binds every `.cta` after init. Use the markup below |
+| **CTA** | `initCtas(scope)`, `paintStars(scope)`, `REPO`, `DMG` | Main binds every `.cta` and `.cta-ghost` after init. The contract is delegated, page-wide: `data-cta="mac"` → the Mac email dialog, `data-cta="windows"` → the waitlist dialog, `data-cta="github"` → the repo, with the live count in a `[data-stars]` inside (baked in by `build.mjs`, hidden while 0). `html[data-os="windows"]` is set before paint for Windows visitors. Use the markup below |
 | **Data** | `DEMO`, `demo()` (a deep clone), `spark(seed, endPct, {drop})`, `notchPath(w, h, rt, rb)` | `island-derive.js` re-exports island.js's `derive` (tested by `web/island-derive.test.mjs`). A static import of it makes island.js a hard dependency |
 
 **CTA markup** (M by default; add `cta--l` for the loop and finale; add `cta--night` + `cta-hang--night` on night backgrounds; add `cta-hang--full` to go full width on mobile):
@@ -74,6 +74,23 @@ export default function init(root, ctx) {
   <span class="cta__meta">Free · v1.2 · macOS 14.4+</span>
 </a></div>
 <p class="req">Free · v1.2 · macOS 14.4+ · Apple Silicon &amp; Intel<br><span class="seal" aria-hidden="true">✓</span> Signed &amp; notarized by Apple</p>
+```
+
+Mac CTAs also carry `data-cta="mac"` (keep the `href` as the no-JS fallback). **Windows** is the shared ghost: put it inside the Mac tab's `.cta-hang`, right after the `<a class="cta">`, and it hangs dashed from the tab and rides its peek; anywhere else give it its own `<div class="cta-hang">`. One label everywhere (the ` · join the` drops by itself when the tab is under 250px):
+
+```html
+<button class="cta-ghost" type="button" data-cta="windows" data-cursor="soon · we’ll email you">
+  <svg class="cta-ghost__shape" viewBox="0 0 300 52" preserveAspectRatio="none" aria-hidden="true"><path d="M0 0Q8 0 8 8L8 32Q8 52 28 52L272 52Q292 52 292 32L292 8Q292 0 300 0"/></svg>
+  <span class="cta-ghost__row"><span class="cta-ghost__ring" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" pathLength="100"/><path d="M12 7.5V12l3 2.2"/></svg></span><span class="cta-ghost__label">Windows<span class="cta-ghost__x"> · join the</span> waitlist</span></span>
+</button>
+```
+
+**GitHub** is the shared chip (paper by default; it follows the night tokens; add `gh-chip--night` outside sections). Its `aria-label` starts with the exact visible label (WCAG 2.5.3); `lib/cta.js` appends the star count once it reaches `MIN_STARS`:
+
+```html
+<a class="gh-chip" data-cta="github" href="https://github.com/FreemanGT/claude-meter" target="_blank" rel="noopener" aria-label="Star on GitHub: Claude Meter (opens in a new tab)" data-cursor="MIT · read every line">
+  <svg class="gh-chip__mark" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="…octocat…"/></svg><span class="gh-chip__t">Star on GitHub</span><span class="gh-chip__n" data-stars hidden></span>
+</a>
 ```
 
 **Running head:** `<div class="wrap"><p class="rh"><span>§02 — THE WALL</span><span class="rh__datum">SESSION CLOCK 10:04</span></p></div>`
@@ -132,4 +149,5 @@ node qa.mjs --run ovf --overflow --only-frames     # scrollWidth at 320…1920
 
 - Screens go to `…/scratchpad/qa/<run>/`. **Open them with Read.** "It ran" is not "it's right."
 - `qa.mjs` exits 1 on console or page errors, failed requests or overflow. It also lists long tasks (>50ms after load).
-- **Budgets now:** JS is 115 KB gz of the 200 KB budget (vendor 78 KB). Fonts are 102 KB of 200 KB. Leave headroom for island.js and the sections.
+- **Budgets now:** eager JS is ~184 KB gz of the 200 KB budget (vendor ~61 KB). `lib/signup.js` (~9 KB) is prefetched and imported on the first CTA intent; ScrambleText, Draggable and Inertia load on demand. Fonts are 102 KB of 200 KB.
+- `qa.mjs` ignores `api.github.com` failures (a per-IP rate limit must not fail the gate).

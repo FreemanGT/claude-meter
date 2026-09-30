@@ -50,7 +50,8 @@
 .s--privacy .pv-r--usage,.s--privacy .pv-host--usage,.s--privacy .pv-pkt--usage{--c:var(--teal)}
 .s--privacy .pv-r--token,.s--privacy .pv-host--token,.s--privacy .pv-pkt--token{--c:var(--lav)}
 .s--privacy .pv-r--version,.s--privacy .pv-host--version,.s--privacy .pv-pkt--version{--c:var(--amber)}
-.s--privacy .pv-src,.s--privacy .pv-pkt--read{--c:var(--fg)}
+.s--privacy .pv-r--sheet,.s--privacy .pv-host--sheet{--c:var(--teal)}
+.s--privacy .pv-src,.s--privacy .pv-pkt--read,.s--privacy .pv-r--gh,.s--privacy .pv-host--gh,.s--privacy .pv-pkt--gh{--c:var(--fg)}
 .s--privacy .pv-host--else{--c:var(--red)}
 
 .s--privacy .pv-route{fill:none;stroke:var(--c);stroke-width:1.6;stroke-linecap:round;opacity:.9;
@@ -122,7 +123,9 @@ html[data-motion="full"] .s--privacy .pv-route{opacity:.5}
   .s--privacy .pv-stage:has(.pv-pin:hover) .pv-pin:not(:hover){opacity:.32}
   .s--privacy .pv-stage:has(.pv-host--usage:hover) .pv-r--usage,
   .s--privacy .pv-stage:has(.pv-host--token:hover) .pv-r--token,
-  .s--privacy .pv-stage:has(.pv-host--version:hover) .pv-r--version{opacity:1;stroke-width:2.2}
+  .s--privacy .pv-stage:has(.pv-host--version:hover) .pv-r--version,
+  .s--privacy .pv-stage:has(.pv-host--sheet:hover) .pv-r--sheet,
+  .s--privacy .pv-stage:has(.pv-host--gh:hover) .pv-r--gh{opacity:1;stroke-width:2.2}
   .s--privacy .pv-stage:has(.pv-src:hover) :is(.pv-read,.pv-read__tip){opacity:1}
   .s--privacy .pv-pin:hover .pv-chip{border-color:var(--c)}
 }
@@ -176,28 +179,23 @@ html[data-motion="full"] .s--privacy .pv-route{opacity:.5}
 .s--privacy .pv-os__meta code{font-size:1em;color:var(--fg)}
 .s--privacy .pv-os__url{display:block;margin-top:4px;color:var(--fg);white-space:nowrap}
 
-/* the star button: the diagram's chip grammar at CTA size; hover FILLS the star like a meter */
-.s--privacy .pv-gh{--c:var(--amber);display:inline-flex;align-items:center;gap:12px;height:48px;padding:0 8px 0 18px;
-  border:1px solid var(--rule-night);border-radius:var(--r-pill);background:rgb(7 7 8 / .86);color:var(--fg);text-decoration:none;
-  font:650 16px/1 var(--f-display);font-stretch:92%;letter-spacing:-.005em;
-  transition:border-color var(--d-ui) var(--ease-settle),scale var(--d-micro) var(--ease-settle)}
-.s--privacy .pv-gh:not(:has([data-stars]:not(:empty,[hidden]))){padding-right:20px}
-.s--privacy .pv-gh__star{flex:none;width:20px;height:20px;display:block}
-.s--privacy .pv-gh__star svg{display:block;width:100%;height:100%;overflow:visible}
-.s--privacy .pv-gh__o{fill:none;stroke:var(--c);stroke-width:1.6;stroke-linejoin:round}
-.s--privacy .pv-gh__f{fill:var(--c);clip-path:inset(100% 0 0 0);transition:clip-path var(--d-reveal) var(--ease-edit)}
-.s--privacy .pv-gh__n{align-self:stretch;display:flex;align-items:center;margin:7px 0;padding:0 12px;border-left:1px solid var(--rule-night);
-  font:500 14px/1 var(--f-mono);font-variant-numeric:tabular-nums;color:var(--fg)}
-.s--privacy .pv-gh__n:is(:empty,[hidden]){display:none}
-.s--privacy .pv-gh:active{scale:.97}
-@media (hover:hover){
-  .s--privacy .pv-gh:hover{border-color:var(--c)}
-  .s--privacy .pv-gh:hover .pv-gh__f{clip-path:inset(0 0 0 0)}
-}
-.s--privacy .pv-gh:focus-visible .pv-gh__f{clip-path:inset(0 0 0 0)}
+/* the star button is the shared GitHub chip (base.css .gh-chip--night) */
 
-.s--privacy .pv-site{margin-top:clamp(40px,6vh,64px)}
-.s--privacy .pv-site__txt{grid-column:3 / 10;margin:0;max-width:62ch;font:420 var(--t-lede)/var(--lh-lede) var(--f-display);font-stretch:96%;color:var(--fg-2);text-wrap:pretty}
+.s--privacy .pv-site{margin-top:clamp(40px,6vh,64px);align-items:center}
+.s--privacy .pv-site > .pv-lbl{align-self:start}
+/* the page's own traffic: the diagram's grammar at a smaller scale (1px pins at a 560px stage) */
+.s--privacy .pv-stage--site{grid-column:3 / 9;max-width:560px;container-type:inline-size;--u:clamp(.8px, calc(100cqw / 560), 1px)}
+.s--privacy .pv-node--page{--s:calc(76 * var(--u))}
+.s--privacy .pv-page{position:absolute;left:calc(var(--s) / -2);top:calc(var(--s) * -.375);width:var(--s);height:calc(var(--s) * .75);max-width:none;overflow:visible}
+.s--privacy .pv-page :is(rect,path){vector-effect:non-scaling-stroke}
+.s--privacy .pv-page__win{fill:rgb(7 7 8 / .92);stroke:rgb(236 237 232 / .3);stroke-width:1}
+.s--privacy .pv-page__ln{fill:none;stroke:rgb(236 237 232 / .22);stroke-width:1.5;stroke-linecap:round}
+.s--privacy .pv-page circle{fill:rgb(236 237 232 / .3)}
+.s--privacy .pv-page__field{fill:none;stroke:rgb(236 237 232 / .3);stroke-width:1}
+.s--privacy .pv-page__btn{fill:var(--teal)}   /* the form's button, the same teal as the one wire it can use */
+.s--privacy .pv-node--page .pv-node__label{left:calc(var(--s) / -2);top:calc(var(--s) * .375 + 12px);translate:none}
+
+.s--privacy .pv-site__txt{grid-column:9 / -1;margin:0;max-width:44ch;font:400 var(--t-body)/var(--lh-body) var(--f-display);font-stretch:96%;color:var(--fg-2);text-wrap:pretty}
 
 /* ---------- small print ---------- */
 .s--privacy .pv-fine{margin-top:clamp(16px,2.5vh,24px);max-width:66ch;font:400 15px/1.5 var(--f-display);color:var(--fg-2);text-wrap:pretty}
@@ -211,7 +209,8 @@ html[data-motion="full"] .s--privacy .pv-route{opacity:.5}
   .s--privacy :is(.pv-os,.pv-site) > .pv-lbl{grid-column:1 / -1;padding-top:0}
   .s--privacy .pv-os__h{grid-column:1 / -1}
   .s--privacy .pv-os__go{grid-column:1 / -1;padding-bottom:0}
-  .s--privacy .pv-site__txt{grid-column:1 / -1}
+  .s--privacy .pv-stage--site,.s--privacy .pv-site__txt{grid-column:1 / -1}
+  .s--privacy .pv-site__txt{max-width:60ch}
 }
 
 /* ---------- mobile ---------- */
@@ -236,4 +235,7 @@ html[data-motion="full"] .s--privacy .pv-route{opacity:.5}
   .s--privacy .pv-zero{flex-direction:column;gap:10px}
   .s--privacy .pv-zero__n{font-size:clamp(48px,14vw,64px)}
   .s--privacy .pv-os__h{font-size:clamp(40px,12.4vw,64px)}
+  .s--privacy .pv-stage--site{--u:clamp(.8px, calc(100cqw / 360), 1px)}
+  .s--privacy .pv-node--page{--s:calc(56 * var(--u))}
+  .s--privacy .pv-node--page .pv-node__label{left:calc(var(--s) / -2);top:calc(var(--s) * .375 + 10px)}
 }

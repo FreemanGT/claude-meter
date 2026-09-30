@@ -55,13 +55,16 @@ async function openPage(vpName) {
   if (vp.isMobile) await page.setUserAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1");
   await page.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: reduced ? "reduce" : "no-preference" }]);
   const tag = `[${vpName}${reduced ? "/reduced" : ""}]`;
+  // api.github.com (the star count) is best-effort and rate-limited per IP: a 403 there must not fail the gate.
+  const ignored = (u = "") => u.endsWith(".dmg") || u.startsWith("https://api.github.com/");
   page.on("console", (m) => {
-    if (m.type() === "error") report.errors.push(`${tag} console: ${m.text()}`);
+    if (m.type() === "error" && ignored(m.location()?.url)) report.warnings.push(`${tag} ignored: ${m.text()} ${m.location()?.url}`);
+    else if (m.type() === "error") report.errors.push(`${tag} console: ${m.text()}`);
     else if (m.type() === "warn") report.warnings.push(`${tag} warn: ${m.text()}`);
   });
   page.on("pageerror", (e) => report.errors.push(`${tag} pageerror: ${e.message}`));
-  page.on("requestfailed", (r) => { if (!r.url().endsWith(".dmg")) report.errors.push(`${tag} requestfailed: ${r.url()} ${r.failure()?.errorText}`); });
-  page.on("response", (r) => { if (r.status() >= 400 && !r.url().endsWith(".dmg")) report.errors.push(`${tag} HTTP ${r.status()}: ${r.url()}`); });
+  page.on("requestfailed", (r) => { if (!ignored(r.url())) report.errors.push(`${tag} requestfailed: ${r.url()} ${r.failure()?.errorText}`); });
+  page.on("response", (r) => { if (r.status() >= 400 && !ignored(r.url())) report.errors.push(`${tag} HTTP ${r.status()}: ${r.url()}`); });
   await page.evaluateOnNewDocument((skipIntro) => {
     if (skipIntro) try { sessionStorage.setItem("cm-intro", "1"); } catch {}
     window.__longTasks = [];

@@ -14,21 +14,25 @@
       <div class="faq__list">
       <details class="faq__item" data-key="$0">
         <summary><span class="faq__pct" aria-hidden="true">0%</span><span class="faq__q">Is it actually free?</span><span class="faq__bar" aria-hidden="true"><span class="faq__ghost"></span><span class="faq__fill"></span></span></summary>
-        <div class="faq__a"><p>Yes. No trial, no account, nothing to upgrade to. You do need Claude Pro or Max, since that’s what it measures. The download asks for your email, which is used only for Claude Meter updates. It’s signed with an Apple Developer ID and notarized by Apple, so macOS opens it without a fight.</p></div>
+        <div class="faq__a"><p>Yes, and open source (MIT). No trial, no account, no paid tier. The download asks for your email, used only for Claude Meter updates. You do need Claude Pro or Max, since that’s what it measures.</p></div>
       </details>
       <details class="faq__item" data-key="MIT">
         <summary><span class="faq__pct" aria-hidden="true">10%</span><span class="faq__q">Is it open source?</span><span class="faq__bar" aria-hidden="true"><span class="faq__ghost"></span><span class="faq__fill"></span></span></summary>
-        <div class="faq__a"><p>Yes. The whole app is MIT‑licensed and on GitHub, so you can read exactly what it does with your sign‑in, build it yourself, or send a fix. If it earns its spot under your notch, a star helps other people find it.</p>
-          <p class="faq__acts"><a class="faq__act" href="https://github.com/FreemanGT/claude-meter" target="_blank" rel="noopener" data-cta="github" data-cursor="MIT · open source"><svg class="faq__act-ico" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 1.6l1.95 4.02 4.43.6-3.23 3.1.8 4.4L8 11.6l-3.95 2.12.8-4.4-3.23-3.1 4.43-.6z"/></svg><span class="faq__act-t">Star it on GitHub</span><span class="faq__stars" data-stars></span></a></p></div>
+        <div class="faq__a"><p>Yes. The whole app is MIT‑licensed and on GitHub, so you can read exactly what it does with your sign‑in, build it yourself, or send a fix. If it earns its spot in your notch, a star helps other people find it.</p>
+          <p class="faq__acts"><a class="gh-chip" data-cta="github" href="https://github.com/FreemanGT/claude-meter" target="_blank" rel="noopener" aria-label="Star it on GitHub: Claude Meter (opens in a new tab)" data-cursor="MIT · open source"><svg class="gh-chip__mark" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg><span class="gh-chip__t">Star it on GitHub</span><span class="gh-chip__n" data-stars hidden></span></a></p></div>
       </details>
       <details class="faq__item" data-key="14.4+">
         <summary><span class="faq__pct" aria-hidden="true">20%</span><span class="faq__q">What do I need?</span><span class="faq__bar" aria-hidden="true"><span class="faq__ghost"></span><span class="faq__fill"></span></span></summary>
-        <div class="faq__a"><p>A Mac on macOS 14.4 or later (Apple Silicon or Intel) and Claude Code signed in with a Claude Pro or Max plan, even if you mostly use claude.ai: install Claude Code, then run <code>claude</code> and type <code>/login</code> with your Pro or Max account. API‑key (Console) logins and a custom CLAUDE_CONFIG_DIR aren’t supported.</p></div>
+        <div class="faq__a"><p>A Mac on macOS 14.4 or later (Apple Silicon or Intel) and Claude Code signed in with a Claude Pro or Max plan, even if you mostly use claude.ai: install Claude Code, then run <code>claude</code> and type <code>/login</code> with your Pro or Max account. API‑key (Console) logins and a custom CLAUDE_CONFIG_DIR aren’t supported.</p>
+          <p>It’s signed with an Apple Developer ID and notarized by Apple, so macOS opens it without a fight.</p></div>
       </details>
-      <details class="faq__item" data-key="Not yet">
+      <details class="faq__item" id="waitlist" data-key="Not yet">
         <summary><span class="faq__pct" aria-hidden="true">30%</span><span class="faq__q">Is there a Windows version?</span><span class="faq__bar" aria-hidden="true"><span class="faq__ghost"></span><span class="faq__fill"></span></span></summary>
-        <div class="faq__a"><p>Not yet. It’s Mac‑only for now. Join the waitlist and we’ll email you when the Windows version ships. Your name and email are used for Claude Meter news and nothing else.</p>
-          <p class="faq__acts"><button class="faq__act" type="button" data-cta="windows" data-cursor="we’ll email you at launch"><svg class="faq__act-ico" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></svg><span class="faq__act-t">Join the Windows waitlist</span></button></p></div>
+        <div class="faq__a"><p>Not yet. Join the waitlist for one email when Windows ships. Nothing else.</p>
+          <div class="faq__acts cta-hang"><button class="cta-ghost" type="button" data-cta="windows" data-cursor="soon · we’ll email you">
+            <svg class="cta-ghost__shape" viewBox="0 0 300 48" preserveAspectRatio="none" aria-hidden="true"><path d="M0 0Q8 0 8 8L8 28Q8 48 28 48L272 48Q292 48 292 28L292 8Q292 0 300 0"/></svg>
+            <span class="cta-ghost__row"><span class="cta-ghost__ring" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" pathLength="100"/><path d="M12 7.5V12l3 2.2"/></svg></span><span class="cta-ghost__label">Windows<span class="cta-ghost__x"> · join the</span> waitlist</span></span>
+          </button></div></div>
       </details>
       <details class="faq__item" data-key="Read-only">
         <summary><span class="faq__pct" aria-hidden="true">40%</span><span class="faq__q">Will macOS ask for my keychain password?</span><span class="faq__bar" aria-hidden="true"><span class="faq__ghost"></span><span class="faq__fill"></span></span></summary>
@@ -47,7 +51,7 @@
         <div class="faq__a"><p>You get a compact pill at the top centre instead. That covers Macs without a notch and a MacBook running lid‑closed on an external display. With the lid open, the island stays on the built‑in screen, so switch on Menu bar item to keep your numbers in the menu bar. It steps aside in full‑screen apps.</p></div>
       </details>
       <details class="faq__item" data-key="1 menu">
-        <summary><span class="faq__pct" aria-hidden="true">80%</span><span class="faq__q">How do I quit it, or change settings?</span><span class="faq__bar" aria-hidden="true"><span class="faq__ghost"></span><span class="faq__fill"></span></span></summary>
+        <summary><span class="faq__pct" aria-hidden="true">80%</span><span class="faq__q">How do I quit it, or&nbsp;change settings?</span><span class="faq__bar" aria-hidden="true"><span class="faq__ghost"></span><span class="faq__fill"></span></span></summary>
         <div class="faq__a"><p>There’s no Dock icon, so right‑click the island, or click the menu bar item if you’ve turned it on. Appearance, percentages, burn‑rate estimates, notifications, the menu bar item, launch at login and Quit all live there. To uninstall, quit it and drag it from Applications to the Trash.</p></div>
       </details>
       <details class="faq__item" data-key="Indie">

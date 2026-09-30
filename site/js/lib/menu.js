@@ -5,6 +5,8 @@ import { fmtPct, fmtReset } from "./format.js";
 import { toast } from "./banner.js";
 
 let open = null; // the one open menu
+/** document gets `cm:menu` (detail: true on open, false on close): HUD chrome (lib/nav.js's caption) steps aside. */
+const tell = (on) => document.dispatchEvent(new CustomEvent("cm:menu", { detail: on }));
 
 const el = (tag, cls, attrs = {}) => { const n = document.createElement(tag); if (cls) n.className = cls; for (const k in attrs) n.setAttribute(k, attrs[k]); return n; };
 
@@ -24,6 +26,7 @@ export function openMenu(island, { x, y, items, trigger } = {}) {
   document.body.append(root);
   place(root, x, y);
   open = { root, returnTo, island };
+  tell(true);
   const first = root.querySelector('[role^="menuitem"]:not([aria-disabled="true"])');
   first && focusItem(root, first);
   if (!reduced()) gsap.fromTo(root, { scale: 0.96, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.14, ease: "settle" });
@@ -45,6 +48,7 @@ export function closeMenu({ restoreFocus = false } = {}) {
   window.removeEventListener("wheel", closeMenu);
   root.remove();
   document.querySelectorAll(".cm-menu").forEach((m) => m.remove());
+  tell(false);
   if (restoreFocus && returnTo && returnTo.focus) returnTo.focus({ preventScroll: true });
 }
 const onOutside = (e) => { if (!e.target.closest(".cm-menu")) closeMenu(); };

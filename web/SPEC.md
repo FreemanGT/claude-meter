@@ -4,6 +4,13 @@ Owner: executive creative director. Architects, section builders and the integra
 Product truth: `Sources/ClaudeMeter/*.swift`. If this file and the Swift disagree, the Swift wins. Flag the conflict in your hand-off note and never invent a feature.
 Exact copy in this file is final. Use it verbatim with curly quotes, `—`, `·`, `…` and non-breaking hyphens where shown.
 
+**Product facts, current (they supersede anything older below):**
+- Claude Meter is **open source (MIT)** on GitHub: `https://github.com/FreemanGT/claude-meter`. The site invites a star (§5.4 `.gh-chip`); the live count is baked in at build time and hidden below `MIN_STARS` (25) or while unknown (never "0" or "1 star").
+- **Windows is not available.** Every Windows CTA opens the waitlist dialog (name + email). One label everywhere: `Windows · join the waitlist` (compact form where a tab is narrow: `Windows waitlist`). One promise everywhere: "One email when Windows ships. Nothing else."
+- **Mac download:** a dialog offers an optional email field (`Email · optional`; blank still downloads), and `/ClaudeMeter.dmg` downloads at once on submit; the download never waits on the network. Phones and tablets: every Mac CTA reads "Get it on your Mac" (arrow up); its dialog has one button, "Send the link to my Mac" (share sheet, else copy), which also saves the email if one was given.
+- **The site** stores the email (and the name, for Windows) in the maker’s Google Sheet (`web/signup-sheet.gs`), a Mac email only for Claude Meter updates, a waitlist entry for one email when Windows ships. Nothing else is tracked. **The app** still collects nothing: it reads Claude Code’s saved sign-in read-only and talks to `api.anthropic.com`, `platform.claude.com` and this site’s `/version.json` (once a day).
+- About panel: `Version 1.2 (3)` and `© 2026 Yiftach Freeman. Not affiliated with Anthropic.`
+
 ---
 
 ## A. Decision record: scores and rationale
@@ -200,9 +207,10 @@ CustomEase.create("island", "M0,0 C0.14,0.56 0.22,1.1 0.46,1.07 0.64,1.04 0.78,0
 **Grain.** Static, never animated. `body::after` is fixed at `inset:0`, z 90, `pointer-events:none`. Its background is an SVG data-URI tile at 180px (`feTurbulence type=fractalNoise baseFrequency=.85 numOctaves=2 stitchTiles=stitch` plus a greyscale `feColorMatrix`). Paper: `opacity:.06; mix-blend-mode:multiply`. `html[data-night]`: `opacity:.08; mix-blend-mode:screen`.
 
 **Island materials** (the app's `Appearance`). The island is never lighter than about rgb 38; the scrim is always there.
-- **Solid:** `#000`.
-- **Frosted:** the shape fill is transparent. A backdrop layer clipped by `clip-path:path(d)` gets `background:rgb(0 0 0/.84); backdrop-filter:blur(24px) saturate(1.4)` (plus the `-webkit-` form).
-- **Liquid Glass:** Frosted, plus a specular `radial-gradient(140px circle at var(--mx) var(--my), rgb(255 255 255/.16), transparent 60%)` masked to the rim. In Chromium, `@supports (backdrop-filter:url(#a))` adds `backdrop-filter:url(#cm-liquid) blur(10px) saturate(1.6)`. `#cm-liquid` is an inline SVG filter (once, in `index.html`): `feTurbulence baseFrequency=.008 numOctaves=1` → `feDisplacementMap scale=18`, where `scale` is JS-adjustable for the shimmer egg.
+- **Solid:** pure black, fused to the notch. A faint rim (white 4% → 20%, top → bottom) only when expanded.
+- **Frosted:** a heavy blur (the app’s NSVisualEffect `hudWindow`) under a black scrim gradient .80 (top) → .56 (bottom), and a uniform white 16% 1px rim, collapsed too.
+- **Liquid Glass:** a thin lensing sheet (macOS 26 `glassEffect`, black tint .2) under a scrim .70 → .52, with a 1.25pt specular rim lit by a radial gradient (white .8 → .22 → .06) centred on the pointer (top-left when it is away). In Chromium the lensing is `backdrop-filter:url(#cm-liquid)`; `#cm-liquid` is an inline SVG filter (once, in `index.html`): `feTurbulence baseFrequency=.008 numOctaves=1` → `feDisplacementMap scale=18`, where `scale` is JS-adjustable for the shimmer egg.
+- **Frosted and Glass lift the text** like the app: secondary white .84, tertiary white .74, track white .22, and a 1.5px black 50% text shadow.
 - **The camera housing** (185×32pt black, 10pt bottom radius) is always pure black on top of the material, so it reads as hardware.
 
 **Rim (every mode, expanded states).** A 1px SVG stroke on the shape path, `linearGradient` from `--rim-top` to `--rim-bot`.
@@ -419,7 +427,7 @@ The collapsed wings read **46% teal · 62% amber** (Opus is tighter than weekly)
 10. **Menu bar item** (checkbox, off) → hook `onMenuBar(bool)`.
 11. **Launch at login** (checkbox, off) → checkmark only, plus a 2.4s toast: `Saved — for real once it’s installed on your Mac.`
 12. separator
-13. **About Claude Meter:** a small card with the icon (64px, `/assets/icon-256.png`), `Claude Meter`, `Version 1.2` and `Made by Yiftach Freeman`. Esc or click closes it.
+13. **About Claude Meter:** a small card with the icon (64px, `/assets/icon-256.png`), `Claude Meter`, `Version 1.2 (3)` and `© 2026 Yiftach Freeman. Not affiliated with Anthropic.` Esc or click closes it.
 14. **Quit Claude Meter:** `isl.quit()`. The panes squeeze into the housing (`SPR.close`), the width tweens to the housing (185), and the wings disappear. After 900ms an ink pill appears under the notch: `Quit. (It’s that easy.) Relaunch ↺`, a button that calls `relaunch()`, which springs the island back with `SPR.open`.
 
 Each section passes hooks. Toggles persist to `localStorage` inside try/catch, as a per-viewer convenience only.
@@ -469,7 +477,8 @@ Each section passes hooks. Toggles persist to `localStorage` inside try/catch, a
 - **Right:**
   - **Status item slot** (hidden by default): `lib/band.js` exports `statusItem(on, data)`. It shows the app's real menu-bar item as `46%  38%`: session in teal, two spaces, weekly (all models) in lavender, SF 11 medium tabular, red and bold above 85, or `▮` blocks in ticks mode. The stage menu's "Menu bar item" toggle uses it.
   - A live local clock in macOS format (`Tue 2:47 PM`, via `toLocaleString` weekday short plus time; updates each minute), mono 13px `--fg-2`, hidden under 1024px.
-  - The **band Download pill**: `--fg` background, `--ink` text, 13px wght 650, 28px tall, radius 999, with a 14px ring glyph that fills on hover. It links to `/ClaudeMeter.dmg`, has the `download` attribute, and reads `Download`.
+  - The **GitHub star** (menu-title style): octocat + `Star` + the live count after a hairline (`data-cta="github"`, hidden on phones).
+  - The **band Download pill**: `--fg` background, `--ink` text, 13px wght 650, 28px tall, radius 999, with a 14px ring glyph that fills on hover. It links to `/ClaudeMeter.dmg`, has the `download` attribute and `data-cta="mac"`, and reads `Download`. On Windows (`html[data-os="windows"]`) it is replaced by `Windows waitlist` (`data-cta="windows"`).
 - **Mobile (<768px):**
   - Left is the icon only. Right is the ↓ icon button (`aria-label="Download Claude Meter for Mac"`).
   - The menu links live in the nav island's pinned table, and the island's `aria-describedby` says "Menu: open the island".
@@ -542,6 +551,9 @@ Any key, click or wheel jumps to the end (`tl.progress(1)`). Lenis is stopped du
   - `#mid-cta` (L, in `loop`)
   - `#finale-cta` (L)
   - The band has its own pill (§5.1).
+- **The contract** (`lib/cta.js`; sections write markup only): `data-cta="mac"` opens the Mac dialog, `data-cta="windows"` the waitlist dialog, `data-cta="github"` links to the repo (a `[data-stars]` inside shows the count). Mac links keep `href="/ClaudeMeter.dmg"` as the no-JS fallback. The dialogs (`lib/signup.js`) load on the first intent. They are the island opened into a form: whatever island hangs in the notch tucks into its camera housing, the black panel grows out of that housing (`.bouncy(.4)`), the band stays crisp above the dim, the camera lens sits in the header, the submit is this CTA on night (`.cta--night`, same click choreography, label rolling to `Downloading…`), done views FILL a ring into a teal check, and on close the panel folds back into the housing and the island grows out again.
+- **`.cta-ghost` (Windows):** the same NotchShape, dashed (dashed = forecast). It hangs under the primary tab inside its `.cta-hang` and rides the peek, or hangs from its own hairline elsewhere. Hover, keyboard focus or a Windows visitor fill it solid. The loop’s inline text link is the one small variant.
+- **`.gh-chip` (GitHub):** octocat + label + a mono count capsule after a hairline; paper by default, it follows the contextual tokens into night sections, `.gh-chip--night` outside them. Hover rules the border in and tilts the octocat.
 
 ### 5.5 Cursor tag and grain
 
@@ -647,7 +659,7 @@ See the `finale` brief.
 - **Keyboard:** Tab reaches the skip link, the band links, every island (Enter pins, Shift+F10 opens the menu), menus, switches, the lever, banner close buttons, FAQ summaries and every Download link. Focus is always visible.
 - **Performance:** 60fps on an M1 Air during the stage pin. The beam pauses offscreen. JS ≤ 200 KB gz, fonts ≤ 200 KB.
 
-**Truth check before sign-off.** Grep the built `site/index.html` for `open source|GitHub|stars|testimonial|Windows|iPhone app|official|Anthropic’s|API key support`. There must be no hits except the legal line, the "not supported" lines and the "Is this made by Anthropic?" FAQ. Every string on an island, menu or banner must exist in the Swift sources, or be a clearly site-only line (the page meter, toasts).
+**Truth check before sign-off.** Grep the built `site/index.html` for `closed source|official|testimonial|iPhone app|Anthropic’s|API key support`. There must be no hits except the legal line, the "not supported" lines and the "Is this made by Anthropic?" FAQ. `open source`, `MIT`, `GitHub` and `Star` are allowed (the repo is public, MIT); so are `Windows` hits that are the waitlist (label `Windows · join the waitlist`, promise "One email when Windows ships. Nothing else.") or the "not yet" FAQ. Every string on an island, menu or banner must exist in the Swift sources, or be a clearly site-only line (the page meter, toasts, the signup dialogs).
 
 **Build order:**
 1. **Architect:**
@@ -865,7 +877,7 @@ REDUCED (`.is-static`): no pin and no rewind. Two panels, side by side on deskto
 
 FILES: web/sections/loop.html, site/css/loop.css, site/js/loop.js. Uses: Island (static instances), marquee.js, numbers.js (Roller), split.js, cta.js, loop.js, magnetic.js.
 
-MARKUP: `<section id="loop" class="s s--loop" aria-labelledby="loop-title">`. Running head: `§03 — LOOP` on the left, `UPDATES EVERY 5 MIN · NEVER FASTER THAN 3` on the right. Use `overflow-x:clip` on the section (never on body). About 140vh, not pinned.
+MARKUP: `<section id="loop" class="s s--loop" aria-labelledby="loop-title">`. Running head: `§03 — LOOP` on the left, `EVERY 5 MIN · SOONER WHEN YOU HOVER` on the right. Use `overflow-x:clip` on the section (never on body). About 140vh, not pinned.
 
 STRIP A (live states):
 - **Band:** a 100vw+ band rotated −3°, 250px tall (mobile 180px), background `--night`, padding `22px 0`.
@@ -899,7 +911,7 @@ STRIP B (display marquee):
 
 CTA BLOCK (12-col, after the strips):
 - **Left** (cols 1–7):
-  - H2 `#loop-title` (revealLines): "Free. No account." / "No Dock icon. *Just the notch.*"
+  - H2 `#loop-title` (revealLines): "Free. Open source." / "No Dock icon. *Just the notch.*"
   - Body `--t-lede` `--ink-2`, max 40ch: "The notch is already there, doing nothing but holding a camera. Claude Meter moves into the space around it. No window to lose, nothing to sign up for."
   - `#mid-cta` (L, `data-cursor="v1.2 · one click"`) hanging from a hairline, then `.req`.
 - **Right** (cols 9–12):

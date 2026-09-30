@@ -4,7 +4,6 @@ const HOLD = 1600;                                   // ms a frame stays in its 
 const RANGES = { teal: [30, 70], lav: [20, 60], hot: [76, 98] };
 const ICON = [60, 38, 82];                           // the icon's own meters: teal, lavender, amber
 const REFRESH = [[34, 74], [18, 56], [52, 84]];      // where a hover refresh may land (never over 85: HIT is reserved)
-const PKEY = "cm-loop-paused";
 
 /**
  * The eight frames: true app states only. `to` is the one change a frame plays (its caption's .lf__to names it):
@@ -260,9 +259,7 @@ export default function init(root, ctx) {
   if (reduced) return () => cleanups.reverse().forEach((fn) => { try { fn(); } catch (e) { console.error(e); } });
 
   // ------------------------------------------------------------ The pause toggle (WCAG 2.2.2), remembered per viewer
-  const pp = root.querySelector(".loop__pp"), ppT = pp.querySelector(".loop__pp-t");
-  let paused = false;
-  try { paused = localStorage.getItem(PKEY) === "1"; } catch {}
+  let paused = lib.isPaused();   // page-wide (lib/loop.js): this toggle pauses every loop on the page
   const onPause = new Set();
 
   // ------------------------------------------------------------ Strip A: tape + play on hover / focus / centre
@@ -440,7 +437,7 @@ export default function init(root, ctx) {
 
   // The bob, its contact shadow and the touch glint are CSS keyframes (compositor only; see loop.css).
 
-  // Hover = the app's "and when you hover": the meters drain and spring to fresh readings, then settle back.
+  // Hover = the app's "sooner when you hover": the meters drain and spring to fresh readings, then settle back.
   const fillSpring = lib.spring({ duration: 0.7, bounce: 0.34 });
   let back = 0;
   const refresh = () => {
@@ -486,20 +483,16 @@ export default function init(root, ctx) {
     cleanups.push(() => tilt.style.removeProperty("--sx"));
   }
 
-  // ------------------------------------------------------------ Pause wiring
+  // ------------------------------------------------------------ Pause wiring (the button is a [data-pause-toggle]:
+  // lib/loop.js flips html[data-paused] and fires cm:pause, here and from the footer's twin)
   const applyPause = (instant = false) => {
     root.classList.toggle("is-paused", paused);
-    ppT.textContent = paused ? "Play" : "Pause";
     onPause.forEach((fn) => fn(paused, instant));
   };
-  const onPP = () => {
-    paused = !paused;
-    try { localStorage.setItem(PKEY, paused ? "1" : "0"); } catch {}
-    applyPause();
-  };
-  pp.addEventListener("click", onPP);
+  const onPause_ = (e) => { paused = e.detail; applyPause(); };
+  document.addEventListener("cm:pause", onPause_);
   applyPause(true);
-  cleanups.push(() => { pp.removeEventListener("click", onPP); root.classList.remove("is-paused"); ppT.textContent = "Pause"; });
+  cleanups.push(() => { document.removeEventListener("cm:pause", onPause_); root.classList.remove("is-paused"); });
 
   return () => cleanups.reverse().forEach((fn) => { try { fn(); } catch (e) { console.error(e); } });
 }

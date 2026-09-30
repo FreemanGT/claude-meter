@@ -40,7 +40,8 @@
 .isl-rim, .isl-hot { fill: none; stroke-width: 1; }
 .isl-rim { opacity: 0; transition: opacity .3s; }
 .isl-hot { opacity: 0; stroke-width: 1.25; transition: opacity .3s; }
-.isl-focus { fill: none; stroke: var(--i-teal); stroke-width: 2; vector-effect: non-scaling-stroke; opacity: 0; }
+.isl-focus { fill: none; stroke: var(--i-teal); stroke-width: 3; vector-effect: non-scaling-stroke; opacity: 0; }
+.isl-focus--ink { stroke: var(--ink, #111311); stroke-width: 2; }
 .island:has(.island__hit:focus-visible) .isl-focus { opacity: 1; }
 .island[data-state="peek"] .isl-rim, .island[data-state="pinned"] .isl-rim { opacity: 1; }
 

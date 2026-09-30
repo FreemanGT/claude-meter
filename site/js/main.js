@@ -24,7 +24,6 @@ import * as scribbleM from "./lib/scribble.js";
 import * as demoM from "./lib/demo.js";
 import { runIntro } from "./lib/intro.js";
 import { initNav } from "./lib/nav.js";
-import { initSignup } from "./lib/signup.js";
 
 const { gsap, ScrollTrigger, SplitText } = G;
 export const SECTIONS = ["stage", "wall", "loop", "yours", "privacy", "faq", "finale"];
@@ -42,7 +41,8 @@ export const lib = Object.freeze({
 const html = document.documentElement;
 // The CTA contract (data-cta="mac" | "windows" | "github"), bound at once: a Download click must never
 // wait for fonts or sections. Before this runs, the Mac links still download (their href is the fallback).
-initSignup();
+// The dialogs themselves (lib/signup.js) load on the first intent (hover, focus or tap on a [data-cta]).
+cta.initContract();
 const idle = (fn) => ("requestIdleCallback" in window ? requestIdleCallback(fn, { timeout: 400 }) : setTimeout(() => fn({ didTimeout: true, timeRemaining: () => 0 }), 60));
 const cancelIdle = (id) => ("cancelIdleCallback" in window ? cancelIdleCallback(id) : clearTimeout(id));
 
@@ -64,6 +64,26 @@ async function loadSections() {
   })));
 }
 
+/**
+ * Once the hero's CSS entrance (stage.css stage-* keyframes) has played, retire it (#stage.is-entered →
+ * animation:none), so nothing can replay it: any DOM move of .pin restarts CSS animations. (Pins no longer
+ * move on refresh: lib/pin.js gives ScrollTrigger its own spacer. This is the belt to that brace.)
+ */
+function heroEntered() {
+  const stage = document.getElementById("stage");
+  if (!stage?.getAnimations) return Promise.resolve();
+  const t0 = performance.now();
+  return new Promise((done) => {
+    const check = () => {
+      const busy = stage.getAnimations({ subtree: true }).some((a) => /^stage-/.test(a.animationName || "") && a.playState === "running" && a.effect?.getTiming?.().iterations !== Infinity);
+      if (busy && performance.now() - t0 < 4000) return setTimeout(check, 120);
+      stage.classList.add("is-entered");
+      done();
+    };
+    check();
+  });
+}
+
 async function boot() {
   const [Island, inits] = await Promise.all([loadIsland(), loadSections()]);
   await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 2500))]);
@@ -73,6 +93,7 @@ async function boot() {
   band.initBand();
   smooth.bindAnchors();
   smooth.keepPosition();
+  loop.initPauseToggles();
   // Offscreen sections pause their CSS loops (base.css .is-off): a parked page runs nothing.
   const offIO = new IntersectionObserver((es) => es.forEach((e) => e.target.classList.toggle("is-off", !e.isIntersecting)), { rootMargin: "10% 0px" });
   SECTIONS.forEach((id) => { const el = document.getElementById(id); el && offIO.observe(el); });
@@ -87,7 +108,7 @@ async function boot() {
     const { reduced, mobile } = mmCtx.conditions;
     html.dataset.motion = reduced ? "reduced" : "full";
     const cleanups = [];
-    let dead = false, idleId = 0, next = 1;
+    let dead = false, idleId = 0, next = 1, finished = false;
 
     const lenis = reduced ? null : smooth.initSmooth();
     cleanups.push(() => smooth.destroySmooth());
@@ -113,7 +134,10 @@ async function boot() {
     };
 
     // Everything below the hero, once every section has its pins (their spacing moves what follows).
+    // (A refresh no longer moves any .pin in the DOM, so it can't restart the hero's entrance: lib/pin.js.)
     const finish = () => {
+      if (finished) return;
+      finished = true;
       cleanups.push(meterM.initMeter(SECTIONS, { reduced, lenis }));
       cleanups.push(reveal.initReveals(document));
       cleanups.push(cursor.initCursorTag());
@@ -121,23 +145,26 @@ async function boot() {
       ScrollTrigger.refresh();
     };
     const flush = () => {
-      if (dead || next >= SECTIONS.length) return;
+      if (dead || finished) return;
       cancelIdle(idleId);
       mmCtx.add(() => { while (next < SECTIONS.length) initSection(next++); finish(); });
     };
 
-    // The hero first, so it is live at once; the rest in idle slices (no single long boot task), before
-    // anyone can scroll that far. A hash, an in-page link or a rebuild needs the final layout now.
+    // The hero first, so it is live at once; the rest in idle slices, before anyone can scroll that far: one
+    // section per slice, and the refresh (finish) in a slice of its own, so the main thread comes up for air
+    // between them (a phone gets taps and frames in between). A hash, an in-page link or a rebuild needs the
+    // final layout now.
     initSection(0);
+    if (firstRun) intro.done.then(heroEntered);
     cleanups.push(cta.initCtas(document));
     window.__cm = { lenis, ScrollTrigger, gsap, meter: meterM.meter, navIsland, lib }; // QA + console debugging
     if (!firstRun || location.hash || scrollY > innerHeight) flush();
     else {
       const pump = (deadline) => {
-        if (dead || next >= SECTIONS.length) return;
-        mmCtx.add(() => { do initSection(next++); while (next < SECTIONS.length && deadline.timeRemaining() > 12); });
-        if (next < SECTIONS.length) idleId = idle(pump);
-        else mmCtx.add(finish);
+        if (dead || finished) return;
+        if (next >= SECTIONS.length) return mmCtx.add(finish);
+        if (deadline.didTimeout || deadline.timeRemaining() > 12) mmCtx.add(() => initSection(next++));
+        idleId = idle(pump);
       };
       // Start after the intro and the hero's line reveal, so section builds (long tasks on phones) don't
       // land on top of the first impression. The stage pin is 300% long: nobody scrolls past it first.

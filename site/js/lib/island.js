@@ -34,9 +34,10 @@ export function derive(data, { burnRate = true, labels = null, warn = WARN } = {
   const metric = (w, key, name, base, label) => {
     const pct = w?.pct ?? null;
     const raw = w ? fmtReset(left(w)) : " ";
+    const wv = w?.warn ?? warn;   // a window may carry its own threshold (the nav island's session wing during the finale HIT)
     return {
       key, name, base, pct, label: w?.label ?? label ?? name,
-      tone: tintOf(pct, base, warn), hot: pct != null && pct > warn,
+      tone: tintOf(pct, base, wv), hot: pct != null && pct > wv,
       reset: w?.caption ?? raw, rawReset: raw, spark: w?.spark ?? null, href: w?.href ?? null,
     };
   };
@@ -394,7 +395,7 @@ export class Island {
               <linearGradient id="${id}-rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".04"/><stop offset="1" stop-color="#fff" stop-opacity=".2"/></linearGradient>
               <radialGradient id="${id}-hot" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="150"><stop offset="0" stop-color="#fff" stop-opacity=".8"/><stop offset=".45" stop-color="#fff" stop-opacity=".22"/><stop offset="1" stop-color="#fff" stop-opacity=".06"/></radialGradient>
             </defs>
-            <path class="isl-focus"/><path class="isl-fill"/><path class="isl-rim" stroke="url(#${id}-rim)"/><path class="isl-hot" stroke="url(#${id}-hot)"/>
+            <path class="isl-focus"/><path class="isl-focus isl-focus--ink"/><path class="isl-fill"/><path class="isl-rim" stroke="url(#${id}-rim)"/><path class="isl-hot" stroke="url(#${id}-hot)"/>
           </svg>
           <div class="island__clip">
             <div class="i-pane i-pane--c" aria-hidden="true"></div>
@@ -412,7 +413,7 @@ export class Island {
     this._sh = $(".island__sh");
     this._bd = $(".island__bd");
     this._svg = $(".island__shape");
-    this._pFill = $(".isl-fill"); this._pRim = $(".isl-rim"); this._pHot = $(".isl-hot"); this._pFocus = $(".isl-focus");
+    this._pFill = $(".isl-fill"); this._pRim = $(".isl-rim"); this._pHot = $(".isl-hot"); this._pFocus = $(".isl-focus"); this._pFocusInk = $(".isl-focus--ink");
     this._hotGrad = $(`#${id}-hot`);
     this._clip = $(".island__clip");
     this._pane = { c: $(".i-pane--c"), p: $(".i-pane--p"), x: $(".i-pane--x") };
@@ -712,8 +713,11 @@ export class Island {
     const open = d.slice(0, -1);  // rims stroke the sides and bottom only: the top edge is the screen's edge
     this._pRim.setAttribute("d", open);
     this._pHot.setAttribute("d", open);
-    const fo = 4 / u;  // focus ring: 3px gap + half of a 2px stroke
-    this._pFocus.setAttribute("d", shapePath(w + 2 * fo, h + fo, rt, rb + fo, ox - fo));
+    // Focus ring, two-tone like the global :focus-visible: teal (1–4px out), then ink (4–6px out), so it
+    // clears 3:1 on paper (teal alone is 1.7:1 there) and still reads on night.
+    const ring = (px) => { const fo = px / u; return shapePath(w + 2 * fo, h + fo, rt, rb + fo, ox - fo); };
+    this._pFocus.setAttribute("d", ring(2.5));
+    this._pFocusInk.setAttribute("d", ring(5));
     const cp = `path("${shapePath(w, h, rt, rb, ox, u)}")`;
     this._clip.style.clipPath = cp;
     if (this.opts.material !== "solid") { this._bd.style.clipPath = cp; this._bd.style.setProperty("--hpx", h * u + "px"); }

@@ -1,5 +1,5 @@
-// §04 yours — the playground: a Mac desktop with the real island, the real menu and every setting.
-// One store (S) drives the island, the menu (it shares the object), the controls and the desk.
+// §04 yours — the playground: a Mac desktop with the real island and the app's right-click menu, open.
+// One store (S) drives the island, both menus (the popup shares the object), the desk and the simulations.
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -36,22 +36,28 @@ export function termLine(n) {
   }
 }
 
+const MATS = ["solid", "frosted", "glass"];
 const MAT_LABEL = { solid: "SOLID", frosted: "FROSTED", glass: "LIQUID GLASS" };
+const ROLE = { check: "menuitemcheckbox", radio: "menuitemradio" };
+const ARROW = '<svg class="yr-mi__ar" viewBox="0 0 6 10" aria-hidden="true"><path d="M1.2 1.2 4.8 5 1.2 8.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const KEY = "cm-yours";
 
 export default function init(root, ctx) {
   const { gsap, ScrollTrigger, reduced, mobile, lib, Island } = ctx;
-  const { SPR, whileVisible, showBanner, attachMenu, openMenu, defaultItems, closeMenu, renderStatus, fmtReset, fmtForecast, CLEARS, demo, scribble, revealLines, scramble } = lib;
+  const { SPR, whileVisible, showBanner, attachMenu, defaultItems, closeMenu, renderStatus, fmtReset, fmtForecast, CLEARS, demo, revealLines, scramble, untracked } = lib;
   const $ = (s) => root.querySelector(s), $$ = (s) => [...root.querySelectorAll(s)];
-  const desk = $(".yr-desk"), bezel = $(".yr-bezel"), knob = $(".yr-lever__knob"), lever = $(".yr-lever");
+  const desk = $(".yr-desk"), bezel = $(".yr-bezel"), knob = $(".yr-lever__knob"), lever = $(".yr-lever"), wall = $(".yr-wall");
   const range = $(".yr-range input"), rangeWrap = $(".yr-range"), rangeOut = $(".yr-range__out");
-  const full = $(".yr-full"), winA = $(".yr-win--a"), winB = $(".yr-win--b"), notchEl = $(".yr-notch"), note = $(".yr-note");
+  const full = $(".yr-full"), winA = $(".yr-win--a"), notchEl = $(".yr-notch"), ptr = $(".yr-ptr");
   const status = $(".yr-status"), clock = $(".yr-clock"), datum = $(".yr-datum");
   const termEl = $(".yr-term__lines"), termCur = $(".yr-term__cur");
-  const termHTML = termEl?.innerHTML; // restored on cleanup, so a re-init starts the session over
+  const menu = $(".yr-menu"), menuHome = menu.parentNode, menuNext = menu.nextSibling;
+  const termHTML = termEl?.innerHTML, menuHTML = menu.innerHTML; // restored on cleanup, so a re-init starts over
+  const onDesk = !mobile; // from 768px the menu hangs off the island, on the screen
   const offs = [], timers = new Set();
   const on = (el, ev, fn, o) => { if (!el) return; el.addEventListener(ev, fn, o); offs.push(() => el.removeEventListener(ev, fn, o)); };
   const later = (fn, ms) => { const id = setTimeout(() => { timers.delete(id); fn(); }, ms); timers.add(id); return id; };
+  const h = (tag, cls, attrs = {}) => { const n = document.createElement(tag); n.className = cls; for (const k in attrs) n.setAttribute(k, attrs[k]); return n; };
 
   // ------------------------------------------------------------------ store
   const DEF = { material: "solid", display: "percent", burnRate: true, notifications: false, menuBar: false, login: false, notch: true };
@@ -65,7 +71,7 @@ export default function init(root, ctx) {
   // live usage (the desk's copy of the account): session climbs with PACE, weekly holds
   const D = { session: 46, weekly: 38, resetAt: Date.now() + 7980e3 };
   const secsLeft = () => Math.max(0, (D.resetAt - Date.now()) / 1000);
-  const P = { v: 0, timer: 0, autoPeek: false, busy: null, full: false, quit: false, launched: reduced };
+  const P = { v: 0, timer: 0, autoPeek: false, busy: null, full: false, quit: false, launched: reduced, user: false, tour: null };
   const track = makeTracker();
   track(D.session);
 
@@ -86,8 +92,12 @@ export default function init(root, ctx) {
     desk.dataset.isl = isl.state;
     isl.on("state", (s) => { desk.dataset.isl = s; });
     isl.on("interact", ({ type }) => {
-      if (type === "quit") P.quit = true;
-      if (type === "relaunch") P.quit = false;
+      if (type === "quit" || type === "relaunch") {
+        P.quit = type === "quit";
+        desk.classList.toggle("is-quit", P.quit);
+        if (P.quit && menu.contains(document.activeElement)) later(() => isl.el.querySelector(".island__relaunch")?.focus({ preventScroll: true }), 950);
+        if (!P.quit && document.activeElement === document.body && rows.length) later(() => focusRow(rows[rows.length - 1]), 60);
+      }
       if (type === "state") P.autoPeek = false; // the user took over
     });
   }
@@ -95,17 +105,15 @@ export default function init(root, ctx) {
 
   // Liquid Glass lens: tracks the island's body (the hit area is resized to it every frame), inset so its
   // square corners stay inside the shape's rounded ones.
-  const lens = document.createElement("div");
-  lens.className = "yr-lens";
-  lens.setAttribute("aria-hidden", "true");
+  const lens = h("div", "yr-lens", { "aria-hidden": "true" });
   const hit = isl?.el.querySelector(".island__hit");
   let roLens = null;
   if (hit) {
     $(".yr-isl").prepend(lens);
     roLens = new ResizeObserver(([e]) => {
-      const { inlineSize: w, blockSize: h } = e.borderBoxSize[0], i = 8 * k;
+      const { inlineSize: w, blockSize: bh } = e.borderBoxSize[0], i = 6 * k;
       lens.style.width = `${Math.max(0, w - 2 * i)}px`;
-      lens.style.height = `${Math.max(0, h - i)}px`;
+      lens.style.height = `${Math.max(0, bh - i)}px`;
     });
     roLens.observe(hit, { box: "border-box" });
   }
@@ -115,9 +123,16 @@ export default function init(root, ctx) {
     return D.session + ((100 - D.session) * secsLeft()) / (f.min * 60);
   };
 
-  // ------------------------------------------------------------------ setters (menu hooks + controls)
+  // ------------------------------------------------------------------ setters (both menus + simulations)
+  /** The look only (the tour previews through here without touching the store). */
+  function showMat(m) {
+    isl?.setOption("material", m);
+    desk.dataset.mat = m;
+    if (datum.textContent !== MAT_LABEL[m]) scramble(datum, MAT_LABEL[m], { chars: "ABCDEFGHIJKLMNOPQRSTUVWXYZ " });
+    rows.filter((r) => r._it.type === "radio").forEach((r, i) => paintCheck(r, MATS[i] === m));
+  }
   const apply = {
-    material: (v) => { isl?.setOption("material", v); desk.dataset.mat = v; if (datum.textContent !== MAT_LABEL[v]) scramble(datum, MAT_LABEL[v], { chars: "ABCDEFGHIJKLMNOPQRSTUVWXYZ " }); showOff(); },
+    material: (v) => { showMat(v); showOff(); },
     display: (v) => { isl?.setOption("display", v); paintStatus(); },
     burnRate: (v) => isl?.setOption("burnRate", v),
     notifications: () => {},
@@ -128,17 +143,26 @@ export default function init(root, ctx) {
     login: () => {},
     notch: (v) => setNotch(v),
   };
-  // a material only shows over something: peek across the windows for a beat, then fold back (unless the user took over)
+  // A material only shows over something: the island blooms over the windows and the menu for a beat, then
+  // folds back (unless the user took over). While it blooms it ignores the pointer, so the next pick still lands.
   function showOff() {
-    if (!isl || !P.launched || P.quit || P.full || isl.state !== "collapsed") return;
-    isl.setState("peek"); P.autoPeek = true;
+    if (!isl || !P.launched || P.quit || P.full || P.tour) return;
+    if (!(isl.state === "collapsed" || (P.autoPeek && isl.state === "peek"))) return;
+    if (isl.state === "collapsed") isl.setState("peek");
+    P.autoPeek = true;
+    desk.classList.add("is-show");
     clearTimeout(P.showT); timers.delete(P.showT);
-    P.showT = later(() => { if (P.autoPeek && P.v <= 15 && !P.busy && isl.state === "peek") isl.setState("collapsed"); P.autoPeek = false; }, 2400);
+    P.showT = later(() => {
+      desk.classList.remove("is-show");
+      if (P.autoPeek && P.v <= 15 && !P.busy && isl.state === "peek") isl.setState("collapsed");
+      P.autoPeek = false;
+    }, 2200);
   }
   function set(key, val) {
     S[key] = val;
     apply[key](val);
-    paintControls();
+    syncMenu();
+    paintLid();
     save();
   }
   const hooks = {
@@ -155,53 +179,104 @@ export default function init(root, ctx) {
     if (!status.hidden) renderStatus(status, { session: { pct: D.session }, weekly: { pct: D.weekly } }, { display: S.display });
   }
 
-  const segs = $$(".yr-seg"), sws = $$(".yr-sw");
-  function paintControls() {
-    for (const seg of segs) {
-      const val = seg.dataset.seg === "material" ? S.material : S.notch ? "notch" : "external";
-      const btns = [...seg.querySelectorAll("button")];
-      btns.forEach((b, i) => {
-        const on = b.dataset.val === val;
-        b.setAttribute("aria-checked", on);
-        b.tabIndex = on ? 0 : -1;
-        if (on) seg.style.setProperty("--i", i);
-      });
+  // ------------------------------------------------------------------ the menu, open (built from menu.js: same items, same order)
+  let rows = [];
+  const flat = (items) => items.flatMap((it) => (it.type === "sep" ? [] : it.type === "submenu" ? (onDesk ? [it, ...it.items] : it.items) : [it]));
+  const paintCheck = (r, v) => { r.setAttribute("aria-checked", String(v)); r.firstElementChild.textContent = v ? "✓" : ""; };
+  const paintRow = (r, it) => {
+    r._it = it;
+    const lb = r.children[1];
+    if (lb.textContent !== it.label) lb.textContent = it.label;
+    if (ROLE[it.type]) paintCheck(r, !!it.checked);
+  };
+  const row = (it) => {
+    const r = h(it.type === "link" ? "a" : "div", "yr-mi", { role: ROLE[it.type] || "menuitem", tabindex: "-1" });
+    if (it.type === "link") Object.assign(r, { href: it.href, target: "_blank", rel: "noopener" });
+    if (it.type === "info") r.setAttribute("aria-disabled", "true");
+    r.innerHTML = '<span class="yr-mi__ck" aria-hidden="true"></span><span class="yr-mi__lb"></span>';
+    paintRow(r, it);
+    rows.push(r);
+    return r;
+  };
+  function renderMenu() {
+    const main = h("div", "yr-menu__main", { role: "menu", "aria-label": "Claude Meter’s right‑click menu" });
+    let sub = null;
+    rows = [];
+    for (const it of defaultItems(isl, hooks)) {
+      if (it.type === "sep") { main.append(h("div", "yr-mi-sep", { role: "separator" })); continue; }
+      if (it.type !== "submenu") { main.append(row(it)); continue; }
+      if (onDesk) { // a real submenu beside its row, held open
+        const r = row(it);
+        r.setAttribute("aria-haspopup", "menu"); r.setAttribute("aria-expanded", "true"); r.setAttribute("aria-controls", "yr-sub");
+        r.insertAdjacentHTML("beforeend", ARROW);
+        main.append(r);
+        sub = h("div", "yr-menu__sub", { role: "menu", "aria-label": it.label, id: "yr-sub" });
+        it.items.forEach((s) => sub.append(row(s)));
+      } else { // touch: the submenu opens in place, under its label
+        const head = h("div", "yr-mi yr-mi--head", { role: "none", id: "yr-app-h" });
+        head.textContent = it.label;
+        const g = h("div", "yr-mi-group", { role: "group", "aria-labelledby": "yr-app-h" });
+        it.items.forEach((s) => g.append(row(s)));
+        main.append(head, g);
+      }
     }
-    for (const b of sws) {
-      const key = b.dataset.sw;
-      const val = key === "display" ? S.display === "percent" : !!S[key];
-      if (b.getAttribute("aria-checked") === String(val)) continue;
-      b.setAttribute("aria-checked", val);
-      const thumb = b.querySelector(".yr-sw__thumb i");
-      if (!reduced && thumb.animate) thumb.animate([{ transform: "scaleX(1)" }, { transform: "scaleX(1.25)", offset: 0.3 }, { transform: "scaleX(1)" }], { duration: 460, easing: "cubic-bezier(.2,.8,.2,1)" });
-    }
+    menu.replaceChildren(main, ...(sub ? [sub] : []));
+    const app = rows.find((r) => r._it.type === "submenu");
+    // the submenu's first row sits level with Appearance (in em, so it holds as the desk rescales)
+    if (sub && app) sub.style.setProperty("--sub-top", `${(app.offsetTop - main.clientTop - parseFloat(getComputedStyle(main).paddingTop)) / parseFloat(getComputedStyle(menu).fontSize)}em`);
+    (app || rows.find((r) => r._it.checked && r._it.type === "radio") || rows.find((r) => r._it.type !== "info")).tabIndex = 0;
   }
-
-  // controls
-  for (const seg of segs) {
-    const pick = (b) => {
-      if (b.getAttribute("aria-checked") === "true") return;
-      if (seg.dataset.seg === "material") set("material", b.dataset.val);
-      else set("notch", b.dataset.val === "notch");
-    };
-    on(seg, "click", (e) => { const b = e.target.closest("button"); if (b) pick(b); });
-    on(seg, "keydown", (e) => {
-      const dir = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
-      if (!dir) return;
-      e.preventDefault();
-      const btns = [...seg.querySelectorAll("button")];
-      const i = btns.findIndex((b) => b.getAttribute("aria-checked") === "true");
-      const next = btns[(i + dir + btns.length) % btns.length];
-      pick(next); next.focus();
+  function syncMenu() {
+    if (!rows.length) return;
+    const f = flat(defaultItems(isl, hooks));
+    rows.forEach((r, i) => f[i] && paintRow(r, f[i]));
+  }
+  const menuOf = (r) => r.closest(".yr-menu__sub, .yr-menu__main");
+  const live = (r) => r._it.type !== "info";
+  function focusRow(r) { rows.forEach((x) => (x.tabIndex = -1)); r.tabIndex = 0; r.focus({ preventScroll: true }); }
+  const blink = (r) => { if (reduced) return; r.classList.remove("is-blink"); void r.offsetWidth; r.classList.add("is-blink"); };
+  function activate(r) {
+    const it = r._it;
+    if (!live(r) || it.type === "link") return; // links navigate natively
+    if (it.type === "submenu") return focusRow(rows.find((x) => x._it.type === "radio" && x._it.checked) || r);
+    blink(r);
+    it.type === "check" ? it.onSelect(!it.checked) : it.onSelect?.();
+    syncMenu();
+  }
+  if (isl) {
+    if (onDesk) desk.append(menu);
+    renderMenu();
+    on(menu, "click", (e) => {
+      const r = e.target.closest(".yr-mi");
+      if (!r || !rows.includes(r)) return;
+      P.user = true;
+      if (r.tagName !== "A") e.preventDefault();
+      if (live(r)) { rows.forEach((x) => (x.tabIndex = -1)); r.tabIndex = 0; }
+      activate(r);
+    });
+    on(menu, "keydown", (e) => {
+      const r = e.target.closest(".yr-mi");
+      if (!r || !rows.includes(r)) return;
+      const list = rows.filter((x) => live(x) && menuOf(x) === menuOf(r)), i = list.indexOf(r);
+      const go = (n) => { e.preventDefault(); focusRow(list[(n + list.length) % list.length]); };
+      const inSub = menuOf(r).classList.contains("yr-menu__sub");
+      switch (e.key) {
+        case "ArrowDown": return go(i + 1);
+        case "ArrowUp": return go(i - 1);
+        case "Home": return go(0);
+        case "End": return go(list.length - 1);
+        case "ArrowRight": if (r._it.type === "submenu") { e.preventDefault(); activate(r); } return;
+        case "ArrowLeft": case "Escape": if (inSub) { e.preventDefault(); e.stopPropagation(); focusRow(rows.find((x) => x._it.type === "submenu")); } return;
+        case "Enter": case " ":
+          if (r.tagName === "A") { if (e.key === " ") { e.preventDefault(); r.click(); } return; }
+          e.preventDefault(); activate(r); return;
+      }
     });
   }
-  for (const b of sws) on(b, "click", () => {
-    const key = b.dataset.sw;
-    if (key === "display") set("display", S.display === "percent" ? "ticks" : "percent");
-    else set(key, !S[key]);
-  });
 
-  // ------------------------------------------------------------------ external display: the housing folds away
+  // ------------------------------------------------------------------ no notch (lid closed): the housing folds away
+  const lidBtn = $('[data-act="lid"]');
+  const paintLid = () => lidBtn?.setAttribute("aria-pressed", String(!S.notch));
   function setNotch(v) {
     desk.dataset.notch = v;
     if (!isl) return;
@@ -215,6 +290,7 @@ export default function init(root, ctx) {
       later(() => S.notch && isl.setOption("notch", true), 180); // island wings return as the housing lands
     }
   }
+  on(lidBtn, "click", () => set("notch", !S.notch));
 
   // ------------------------------------------------------------------ usage + notifications
   function notify(ev) {
@@ -247,11 +323,13 @@ export default function init(root, ctx) {
     const ev = track(D.session, reset);
     setIsland({ session: { pct: D.session, resetIn: secsLeft(), projected: projected() } }, { duration });
     paintStatus();
+    syncMenu();
     ev.forEach(notify);
   }
 
   // ------------------------------------------------------------------ PACE
   const valueText = (f) => (f.clears ? CLEARS : fmtForecast(f.min * 60));
+  const tip = $(".yr-lever__tip");
   function setPace(v, { user = true } = {}) {
     P.v = clamp(v, 0, 100);
     const f = forecastFor(P.v), tone = f.clears ? "clear" : f.tone, text = valueText(f);
@@ -286,7 +364,6 @@ export default function init(root, ctx) {
   // spring back to "easy": bounces off the bottom stop instead of passing it
   const bounce = (p) => { const x = SPR.play.ease(p); return x > 1 ? 2 - x : x; };
 
-  const tip = $(".yr-lever__tip");
   const leverOn = !!(lever && getComputedStyle(lever).display !== "none");
   let drag = null;
   if (leverOn) {
@@ -304,17 +381,26 @@ export default function init(root, ctx) {
       lever.classList.remove("is-drag");
       gsap.to(knob, { y: 0, duration: SPR.play.duration, ease: bounce, onUpdate: () => fromKnob(false), onComplete: () => { P.backing = false; setPace(0, { user: false }); settle(); } });
     };
-    // Draggable + InertiaPlugin load on demand (lib.loadDrag); the keyboard path below works without them.
-    let alive = true;
+    // Draggable + InertiaPlugin (43 KB) load the first time a pointer comes near the lever or it takes focus;
+    // a press that beats the download is handed over once it lands. The keyboard path needs neither.
+    let alive = true, dragP = null, down = null;
     offs.push(() => { alive = false; });
-    lib.loadDrag().then(({ Draggable }) => { if (alive) drag = Draggable.create(knob, {
-      type: "y", bounds: { minY: -travel(), maxY: 0 }, inertia: true, edgeResistance: 0.9, zIndexBoost: false,
-      onPress() { gsap.killTweensOf(knob); P.backing = false; lever.classList.add("is-drag"); },
-      onDrag: () => fromKnob(true),
-      onThrowUpdate: () => fromKnob(true),
-      onRelease() { const self = this; later(() => { if (!(self.tween && self.tween.isActive())) back(); }, 40); },
-      onThrowComplete: back,
-    })[0]; }, (e) => console.error("[yours] lever drag unavailable", e));
+    const ensureDrag = () => dragP || (dragP = lib.loadDrag().then(({ Draggable }) => {
+      if (!alive) return;
+      drag = Draggable.create(knob, {
+        type: "y", bounds: { minY: -travel(), maxY: 0 }, inertia: true, edgeResistance: 0.9, zIndexBoost: false,
+        onPress() { gsap.killTweensOf(knob); P.backing = false; lever.classList.add("is-drag"); },
+        onDrag: () => fromKnob(true),
+        onThrowUpdate: () => fromKnob(true),
+        onRelease() { const self = this; later(() => { if (!(self.tween && self.tween.isActive())) back(); }, 40); },
+        onThrowComplete: back,
+      })[0];
+      if (down) drag.startDrag(down);
+    }, (e) => console.error("[yours] lever drag unavailable", e)));
+    on(lever, "pointerenter", ensureDrag);
+    on(knob, "focus", ensureDrag);
+    on(knob, "pointerdown", (e) => { if (!drag) { down = e; ensureDrag(); } });
+    on(window, "pointerup", () => { down = null; });
     // keyboard: ±10 per arrow, value holds (a slider must not move on its own for a keyboard user)
     on(knob, "keydown", (e) => {
       const step = { ArrowUp: 10, ArrowRight: 10, PageUp: 10, ArrowDown: -10, ArrowLeft: -10, PageDown: -10 }[e.key];
@@ -325,7 +411,10 @@ export default function init(root, ctx) {
       gsap.to(knob, { y: (-to / 100) * travel(), ...SPR.value, onUpdate: () => fromKnob(true) });
       if (to <= 15) settle();
     });
-    const roLever = new ResizeObserver(() => drag && drag.applyBounds({ minY: -travel(), maxY: 0 }));
+    const roLever = new ResizeObserver(() => {
+      drag && drag.applyBounds({ minY: -travel(), maxY: 0 });
+      if (!drag && P.v) gsap.set(knob, { y: (-P.v / 100) * travel() });
+    });
     roLever.observe(trackEl);
     offs.push(() => roLever.disconnect());
   }
@@ -346,14 +435,15 @@ export default function init(root, ctx) {
     offs.push(() => gsap.killTweensOf(proxy));
   }
 
-  // ------------------------------------------------------------------ links
+  // ------------------------------------------------------------------ simulations
   const busyBtn = $('[data-act="busy"]'), fullBtn = $('[data-act="full"]'), fullLbl = fullBtn.querySelector(".yr-lnk__t");
+  const FULL_OFF = fullLbl.textContent;
   on(busyBtn, "click", () => {
     if (P.busy) return;
     busyBtn.setAttribute("aria-disabled", "true");
-    if (!S.notifications && !reduced) { // nudge: the banners need the switch
-      const sw = root.querySelector('[data-sw="notifications"] .yr-sw__track');
-      sw.animate?.([{ transform: "scale(1)" }, { transform: "scale(1.18)" }, { transform: "scale(1)" }], { duration: 520, easing: "cubic-bezier(.2,.8,.2,1)" });
+    if (!S.notifications && !reduced) { // nudge: the banners need "Usage notifications" ticked
+      const r = rows.find((x) => x._it.label === "Usage notifications");
+      r?.animate([{ background: "rgb(176 168 237 / .55)" }, { background: "rgb(176 168 237 / 0)" }], { duration: 1100, easing: "cubic-bezier(.2,.8,.2,1)" });
     }
     if (isl && isl.state === "collapsed" && !P.quit && !P.full) { isl.setState("peek"); P.autoPeek = true; }
     const f = forecastFor(88);
@@ -377,26 +467,25 @@ export default function init(root, ctx) {
   function setFull(v) {
     if (P.full === v) return;
     P.full = v;
-    fullLbl.textContent = v ? "Leave full screen" : "Open a full‑screen app";
+    fullLbl.textContent = v ? "Leave full screen" : FULL_OFF;
     fullBtn.classList.toggle("is-on", v);
     desk.classList.toggle("is-full", v);
     const d = desk.getBoundingClientRect(), w = winA.getBoundingClientRect();
     const mb = 32 * k;
     const rect = `inset(${Math.max(0, w.top - d.top - mb)}px ${d.right - w.right}px ${d.bottom - w.bottom}px ${w.left - d.left}px round 12px)`;
-    const cap = full.querySelector(".yr-full__cap"), doc = full.querySelector(".yr-full__doc");
+    const cap = full.querySelector(".yr-full__cap");
     if (v) {
-      drift.forEach((t) => t.pause());
       full.hidden = false;
       if (!reduced) {
         gsap.fromTo(full, { clipPath: rect }, { clipPath: "inset(0px 0px 0px 0px round 0px)", duration: 0.4, ease: "edit" });
-        gsap.fromTo([doc, cap], { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.5, ease: "edit", delay: 0.22, stagger: 0.06 });
+        gsap.fromTo([fullDoc, cap], { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.5, ease: "edit", delay: 0.22, stagger: 0.06 });
       }
       if (isl && !P.quit) isl.setState("hidden"); // scale into the housing (close spring)
     } else {
-      const end = () => { full.hidden = true; if (!P.full) drift.forEach((t) => live && t.play()); };
+      const end = () => { full.hidden = true; };
       if (reduced) end();
       else {
-        gsap.to([doc, cap], { opacity: 0, duration: 0.15 });
+        gsap.to([fullDoc, cap], { opacity: 0, duration: 0.15 });
         gsap.to(full, { clipPath: rect, duration: 0.4, ease: "edit", onComplete: end });
       }
       if (isl && !P.quit) isl.setState("collapsed"); // back with the open spring
@@ -405,20 +494,11 @@ export default function init(root, ctx) {
   on(fullBtn, "click", () => setFull(!P.full));
   on(document, "keydown", (e) => { if (e.key === "Escape" && P.full && !document.querySelector(".cm-menu, .cm-about")) setFull(false); });
 
-  // mobile / touch: a visible menu button
-  const menuBtn = $(".yr-openmenu");
-  on(menuBtn, "click", () => {
-    if (!isl) return;
-    const r = menuBtn.getBoundingClientRect();
-    const m = openMenu(isl, { x: r.left, y: r.top, items: defaultItems(isl, hooks), trigger: menuBtn });
-    m.style.top = `${Math.max(8, r.top - m.offsetHeight - 8)}px`; // open upward, above the button
-    m.style.transformOrigin = "left bottom";
-  });
-
-  // ------------------------------------------------------------------ Liquid Glass shimmer egg
-  const disp = document.querySelector("#cm-liquid feDisplacementMap");
-  const shim = { s: 18 };
-  const paintShim = () => disp.setAttribute("scale", shim.s.toFixed(1));
+  // ------------------------------------------------------------------ Liquid Glass shimmer egg (the lens's own filter)
+  const disp = root.querySelector("#yr-lens feDisplacementMap");
+  const base = disp ? +disp.getAttribute("scale") : 0;
+  const shim = { s: base };
+  const paintShim = () => disp.setAttribute("scale", shim.s.toFixed(3));
   let last = null;
   if (isl && disp && !reduced) on(isl.el, "pointermove", (e) => {
     const t = e.timeStamp;
@@ -426,7 +506,7 @@ export default function init(root, ctx) {
       const dt = t - last.t;
       const speed = dt > 0 && dt < 120 ? (Math.hypot(e.clientX - last.x, e.clientY - last.y) / dt) * 1000 : 0;
       if (speed > 1200 && !gsap.isTweening(shim)) {
-        gsap.timeline().to(shim, { s: 34, duration: 0.12, ease: "power2.out", onUpdate: paintShim }).to(shim, { s: 18, ...SPR.close, onUpdate: paintShim });
+        gsap.timeline().to(shim, { s: base * 1.9, duration: 0.12, ease: "power2.out", onUpdate: paintShim }).to(shim, { s: base, ...SPR.close, onUpdate: paintShim });
       }
     }
     last = { x: e.clientX, y: e.clientY, t };
@@ -439,7 +519,7 @@ export default function init(root, ctx) {
     clock.dateTime = d.toISOString();
   };
   tickClock();
-  const clockId = setInterval(() => document.hidden || tickClock(), 15000);
+  const clockId = setInterval(() => { if (!document.hidden) { tickClock(); syncMenu(); } }, 15000);
   const ro = new ResizeObserver(() => {
     const nk = k0();
     if (nk === k) return;
@@ -449,49 +529,108 @@ export default function init(root, ctx) {
   });
   ro.observe(desk);
 
-  // ------------------------------------------------------------------ ambient loops (only while visible)
-  let live = false;
-  const drift = reduced ? [] : [
-    gsap.fromTo(winA, { xPercent: -4 }, { xPercent: mobile ? 8 : 48, duration: 7, ease: "sine.inOut", repeat: -1, yoyo: true, paused: true }),
-    gsap.fromTo(winB, { xPercent: 0 }, { xPercent: mobile ? -10 : -82, duration: 9.5, ease: "sine.inOut", repeat: -1, yoyo: true, paused: true }),
-  ];
-  const stopLoops = whileVisible(desk, () => {
-    live = true; desk.classList.add("is-live");
-    if (!P.full) drift.forEach((t) => t.play());
-  }, () => {
-    live = false; desk.classList.remove("is-live");
-    drift.forEach((t) => t.pause());
-  });
+  // ------------------------------------------------------------------ the tour: the pointer right-clicks the island once
+  // Positions are layout offsets inside the desk (the bezel may still be scaling in).
+  const at = (el, fx, fy) => {
+    let x = 0, y = 0, n = el;
+    while (n && n !== desk) { x += n.offsetLeft; y += n.offsetTop; n = n.offsetParent; }
+    return { x: x + el.offsetWidth * fx, y: y + el.offsetHeight * fy };
+  };
+  const menuParts = () => [...menu.children];
+  const hot = (r) => rows.forEach((x) => x.classList.toggle("is-hot", x === r));
+  // the Glass rim follows the demo pointer exactly as it follows yours (island.js lights from pointermove)
+  const light = () => { const r = ptr.getBoundingClientRect(); desk.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, clientX: r.left + 1, clientY: r.top + 1, pointerType: "mouse" })); };
+  const openNow = () => { if (onDesk) gsap.to(menuParts(), { autoAlpha: 1, scale: 1, duration: reduced ? 0 : 0.14, ease: "settle", stagger: 0.05, overwrite: true }); };
+  function playTour() {
+    const radios = rows.filter((r) => r._it.type === "radio"), app = rows.find((r) => r._it.type === "submenu");
+    if (!isl || !onDesk || reduced || !lib.finePointer() || P.user || P.quit || P.full || !app || radios.length !== 3) return openNow();
+    const [main, sub] = menuParts();
+    const W = desk.clientWidth, H = desk.clientHeight;
+    const A = at(main, 0, 0), ap = at(app, 0.3, 0.55);
+    const order = [...MATS.filter((m) => m !== S.material), S.material]; // end on the viewer's own look
+    const pk = isl.size("peek");
+    const tl = gsap.timeline({ onComplete: () => endTour(false) });
+    gsap.set(ptr, { x: W * 0.72, y: H * 0.84, scale: 1, opacity: 0 });
+    tl.to(ptr, { opacity: 1, duration: 0.3 })
+      .to(ptr, { x: A.x + 1, y: A.y - 3, duration: 1.05, ease: "power3.inOut" }, "<")
+      .to(ptr, { scale: 0.84, duration: 0.08, ease: "power2.in" })
+      .to(main, { autoAlpha: 1, scale: 1, duration: 0.14, ease: "settle" })   // right-click: menu.js's own open
+      .to(ptr, { scale: 1, duration: 0.3, ease: "back.out(3)" }, "<")
+      .to(ptr, { x: ap.x, y: ap.y, duration: 0.55, ease: "power2.inOut" }, "+=.3")
+      .to(sub, { autoAlpha: 1, scale: 1, duration: 0.14, ease: "settle" }, "+=.06");
+    order.forEach((m, i) => {
+      const r = radios[MATS.indexOf(m)], p = at(r, 0.36, 0.55);
+      tl.to(ptr, { x: p.x, y: p.y, duration: 0.42, ease: "power2.inOut", onStart: () => hot(null) }, "+=.2")
+        .add(() => hot(r))
+        .to(ptr, { scale: 0.84, duration: 0.08, ease: "power2.in" }, "+=.16")
+        .add(() => { blink(r); showMat(m); })
+        .to(ptr, { scale: 1, duration: 0.3, ease: "back.out(3)" })
+        .add(() => isl.setState("peek"), "+=.1");
+      if (m === "glass") { // sweep the pointer along the lower rim: the light travels with it
+        const y = pk.h - 10 * k;
+        tl.to(ptr, { x: W / 2 - pk.w * 0.28, y, duration: 0.5, ease: "power2.inOut", onUpdate: light }, "+=.25")
+          .to(ptr, { x: W / 2 + pk.w * 0.3, duration: 1.2, ease: "sine.inOut", onUpdate: light })
+          .add(() => isl.setState("collapsed"), "+=.15");
+      } else tl.add(() => isl.setState("collapsed"), i === order.length - 1 ? "+=1.1" : "+=1.5");
+    });
+    P.tour = tl;
+  }
+  function endTour(abort) {
+    const tl = P.tour;
+    if (!tl) return;
+    P.tour = null;
+    tl.kill();
+    openNow();
+    if (abort) {
+      hot(null);
+      showMat(S.material);
+      if (isl?.state === "peek" && !hit?.matches(":hover")) isl.setState("collapsed");
+      gsap.to(ptr, { opacity: 0, duration: 0.2, overwrite: true });
+    }
+  }
+  // the viewer takes over: the demo stops (or the resting pointer steps aside)
+  const takeOver = (e) => {
+    if (!e.isTrusted || !root.contains(e.target)) return;
+    P.user = true;
+    if (P.tour) endTour(true);
+    else if (+gsap.getProperty(ptr, "opacity") > 0) { hot(null); gsap.to(ptr, { opacity: 0, duration: 0.25, overwrite: true }); }
+  };
+  on($(".yr-play"), "pointermove", takeOver);
+  on(document, "pointerdown", takeOver);
+  on(document, "keydown", takeOver);
 
-  // ------------------------------------------------------------------ scroll: entrance, parallax, launch
-  const noteSvg = note?.querySelector("svg");
-  const noteTl = note ? scribble(noteSvg, { duration: 0.8, trigger: false }) : null;
-  if (noteTl) gsap.set(noteSvg, { autoAlpha: 0 }); // round caps leave a dot at 0%
-  const noteTxt = note?.querySelector("span");
+  // ------------------------------------------------------------------ ambient (only while visible): the windows drift (CSS)
+  const stopLoops = whileVisible(desk, () => desk.classList.add("is-live"), () => { desk.classList.remove("is-live"); endTour(true); });
+
+  // ------------------------------------------------------------------ scroll: entrance, parallax, wake
   const wake = $(".yr-wake");
   const launch = () => {
     if (P.launched || !isl) return;
     P.launched = true;
-    // the display wakes: black lifts, the wallpaper blooms back to size, then the island is born from the housing
-    gsap.to(wake, { opacity: 0, duration: 1.1, ease: "edit" });
-    gsap.fromTo($(".yr-wall"), { scale: 1.08 }, { scale: 1, duration: 1.6, ease: "edit" });
-    if (leverOn) gsap.to(lever, { xPercent: 0, duration: 0.9, ease: "edit", delay: 0.7, clearProps: "transform" });
+    // the display wakes from dim, the wallpaper settles, the island springs out of the housing
+    untracked(() => {
+      gsap.to(wake, { opacity: 0, duration: 1.2, ease: "edit" });
+      gsap.fromTo(wall, { scale: 1.06 }, { scale: 1, duration: 1.6, ease: "edit" });
+      if (leverOn) gsap.to(lever, { autoAlpha: 1, x: 0, duration: 0.8, ease: "edit", delay: 0.6, clearProps: "transform,opacity,visibility" });
+    });
     isl.setState("collapsed");
-    later(() => setIsland({ session: { pct: D.session }, weekly: { pct: D.weekly }, models: demo().models }, { duration: 0.6 }), 160);
-    if (noteTl) { later(() => { gsap.set(noteSvg, { autoAlpha: 1 }); noteTl.play(); }, 900); gsap.fromTo(noteTxt, { opacity: 0, x: 8 }, { opacity: 1, x: 0, duration: 0.6, ease: "edit", delay: 1.4 }); }
+    later(() => { setIsland({ session: { pct: D.session }, weekly: { pct: D.weekly }, models: demo().models }, { duration: 0.6 }); syncMenu(); }, 160);
+    later(() => untracked(playTour), P.user ? 0 : 800);
   };
   if (!reduced) {
-    if (isl) { gsap.set(wake, { opacity: 1 }); if (leverOn) gsap.set(lever, { xPercent: 170 }); }
-    if (noteTxt) gsap.set(noteTxt, { opacity: 0 });
+    if (isl) {
+      gsap.set(wake, { opacity: 0.62 });
+      if (leverOn) gsap.set(lever, { autoAlpha: 0, x: 14 });
+      if (onDesk) gsap.set(menuParts(), { autoAlpha: 0, scale: 0.96 });
+    }
     revealLines(root.querySelector("h2"));
-    const lede = $(".yr-lede"), facts = $(".yr-facts"), panel = $(".yr-panel");
+    const lede = $(".yr-lede"), facts = $(".yr-facts");
     gsap.from([lede, ...$$(".yr-facts li")], { y: 26, autoAlpha: 0, duration: 0.9, ease: "edit", stagger: 0.07, scrollTrigger: { trigger: lede, start: "top 88%", once: true } });
     gsap.from($$(".yr-tick b"), { scaleX: 0, duration: 0.7, ease: "edit", stagger: 0.09, delay: 0.35, scrollTrigger: { trigger: facts, start: "top 88%", once: true } });
     gsap.fromTo(bezel, { yPercent: 9, scale: 0.9 }, { yPercent: 0, scale: 1, ease: "none", scrollTrigger: { trigger: $(".yr-play"), start: "top bottom", end: "top 30%", scrub: 0.8 } });
-    gsap.fromTo($(".yr-wall"), { yPercent: -6 }, { yPercent: 6, ease: "none", scrollTrigger: { trigger: desk, start: "top bottom", end: "bottom top", scrub: true } });
-    gsap.fromTo(panel, { y: 64 }, { y: 0, ease: "none", scrollTrigger: { trigger: panel, start: "top bottom", end: "top 72%", scrub: 0.8 } });
-    ScrollTrigger.create({ trigger: desk, start: "top 62%", once: true, onEnter: launch });
-    on(root, "focusin", launch); // keyboard: wake the desk as soon as focus enters, so the island joins the tab order
+    gsap.fromTo(wall, { yPercent: -6 }, { yPercent: 6, ease: "none", scrollTrigger: { trigger: desk, start: "top bottom", end: "bottom top", scrub: true } });
+    ScrollTrigger.create({ trigger: desk, start: "top 72%", once: true, onEnter: launch });
+    on(root, "focusin", () => { P.user = true; launch(); }); // keyboard: wake as soon as focus enters, so the island and menu join the tab order
     // …and one stop earlier: when focus reaches the last tabbable before the desk, so forward Tab lands on the island
     const TAB = 'a[href],button,input,select,textarea,[tabindex]';
     const tabbable = (n) => n.tabIndex >= 0 && !n.disabled && !n.closest("[inert],[hidden],[aria-hidden='true']") && n.getClientRects().length > 0;
@@ -499,12 +638,11 @@ export default function init(root, ctx) {
       if (P.launched || !(e.target.compareDocumentPosition(root) & Node.DOCUMENT_POSITION_FOLLOWING)) return;
       const all = [...document.querySelectorAll(TAB)];
       const next = all.slice(all.indexOf(e.target) + 1).find(tabbable);
-      if (!next || root.contains(next) || root.compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING) launch();
+      if (!next || root.contains(next) || root.compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING) { P.user = true; launch(); }
     });
     // hovering a fact refills its tick
     for (const li of $$(".yr-facts li")) on(li, "pointerenter", () => gsap.fromTo(li.querySelector(".yr-tick b"), { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: "edit", overwrite: true }));
   }
-  if (isl) isl.on("contextmenu", () => note && gsap.to(note, { opacity: 0, duration: 0.3 })); // the note has done its job
 
   // ------------------------------------------------------------------ first paint from the store
   datum.textContent = MAT_LABEL[S.material];
@@ -512,7 +650,7 @@ export default function init(root, ctx) {
   desk.dataset.notch = S.notch;
   status.hidden = !S.menuBar;
   paintStatus();
-  paintControls();
+  paintLid();
   if (!S.notch) gsap.set(notchEl, { scaleX: 0 });
   setPace(0, { user: false });
 
@@ -524,21 +662,21 @@ export default function init(root, ctx) {
     roLens?.disconnect();
     lens.remove();
     stopLoops();
+    P.tour?.kill();
     detachMenu();
     closeMenu();
     drag && drag.kill();
     if (P.busy && P.busy.kill) P.busy.kill();
-    drift.forEach((t) => t.kill());
-    gsap.killTweensOf([knob, notchEl, full, status, shim, note, noteTxt, wake, $(".yr-wall"), ...$$(".yr-full > *"), ...$$(".yr-tick b")]);
-    if (disp) disp.setAttribute("scale", "18");
-    gsap.killTweensOf(lever);
-    clearTimeout(P.showT);
+    gsap.killTweensOf([knob, notchEl, full, status, shim, wake, wall, ptr, lever, ...menuParts(), ...$$(".yr-full > *"), ...$$(".yr-tick b")]);
+    if (disp) disp.setAttribute("scale", String(base));
     if (termEl) termEl.innerHTML = termHTML;
-    gsap.set([knob, notchEl, full, status, note, winA, winB, wake, lever], { clearProps: "all" });
+    menuHome.insertBefore(menu, menuNext);
+    menu.innerHTML = menuHTML;
+    gsap.set([knob, notchEl, full, status, wake, lever, ptr], { clearProps: "all" });
     full.hidden = true;
-    desk.classList.remove("is-full", "is-live");
+    desk.classList.remove("is-full", "is-live", "is-show", "is-quit");
     desk.querySelector(".cm-banners")?.remove();
-    fullLbl.textContent = "Open a full‑screen app";
+    fullLbl.textContent = FULL_OFF;
     fullBtn.classList.remove("is-on");
     busyBtn.removeAttribute("aria-disabled");
     isl?.destroy();

@@ -155,7 +155,14 @@
 }
 @media (max-width:767px){
   .s--faq{--pc:34px;--gc:84px;--row-pad:22px}
-  .faq__item summary{column-gap:12px}
+  /* no hover here, so the island only shows on open rows: it takes no column (the question keeps the width);
+     it lands on the hairline and nudges the question down to make room */
+  .faq__item{transition:padding-top .44s var(--ease-edit)}
+  .faq__item[open]{padding-top:calc(var(--gc) * .37 + 12px)}
+  .faq__item summary{position:static;grid-template-columns:var(--pc) minmax(0,1fr);column-gap:12px}
+  .faq__glyph{position:absolute;top:0;right:0;margin:0}
+  .faq__bar{top:-.5px}
+  .faq__plus{top:-10px}
   .faq__pct{font-size:11px}
   .faq__glyph .g-key{font-size:16px}
   .faq__gauge .seg{stroke-width:14}

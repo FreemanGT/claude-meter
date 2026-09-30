@@ -225,11 +225,14 @@ export default function init(root, ctx) {
     // on a phone that means stretching the letters, which suits a wall.
     const top = t.y + 57 + 2.5 * lineH, ky = Math.min(2.4, Math.max(1, (pin.clientHeight - top) / (fs * 0.675)));
     slab.style.transform = `scaleY(${ky.toFixed(3)})`;
-    // Act Two: the same wall rises from where it hides (yPercent 112) and stops short, under the close
-    // line, always showing enough of itself to read. --rise is in the letters' own (unscaled) pixels.
-    const sr = slab.getBoundingClientRect(), pr = pin.getBoundingClientRect(), c = rel(close);
+    // Act Two: the same wall rises from where it hides (letters at yPercent 112) and stops short, under the
+    // close line, always showing enough of itself to read. Offsets, not rects: they ignore the current rise.
+    // (slamBox sits at the pin's origin; the slab scales about a point .09em above its bottom edge.)
+    // The caps' ink stands ~.05em proud of the .7em line box, so aim the ink, not the box.
+    const c = rel(close), sh = slab.offsetHeight, o = sh - 0.09 * fs;
+    const hidden = slab.offsetTop + o * (1 - ky) + (1.12 * sh - 0.05 * fs) * ky;
     const stop = Math.round(Math.min(c.y + c.h + (stacked ? 14 : 30), pin.clientHeight - (stacked ? 58 : 84)));
-    slab.style.setProperty("--rise", `${((sr.top - pr.top + 1.12 * sr.height - stop) / ky).toFixed(1)}px`);
+    slab.style.setProperty("--rise", `${(hidden - stop).toFixed(1)}px`);
     ok.style.left = `${t.x + t.w / 2}px`;
     ok.style.top = `${Math.round((stop + pin.clientHeight) / 2)}px`;
     if (!isl) return;
@@ -331,14 +334,15 @@ export default function init(root, ctx) {
   });
 
   // ---------------------------------------------------------------- the halt (time-based, Act Two's mirror)
-  // Same four letters, same floor. This time they lunge up, strain past the mark and settle short of the
-  // work: no shake, no flash, no night. Then the plate goes on, teal.
+  // Same four letters, same floor. This time the wall lunges up in one piece, strains past its mark and
+  // settles short of the work: no shake, no flash, no night. Then the plate goes on, teal. (The rise is the
+  // slab's CSS translate: GSAP folds `translate` into its own transform on anything it animates.)
   const LUNGE = lib.spring({ duration: 0.55, bounce: 0.3 });
-  gsap.set(slam, { "--up": 0 });
+  gsap.set(slab, { "--up": 0 });
   gsap.set(ok, { autoAlpha: 0, scale: 1.25, rotation: -7 });
   const halt = gsap.timeline({ paused: true })
-    .to(word, { yPercent: 40, autoAlpha: 0, duration: 0.3, ease: "power2.in" }, 0)      // the gauge-word gives way, as in Act One
-    .to(slam, { "--up": 1, duration: LUNGE.duration, ease: LUNGE.ease, stagger: 0.045 }, 0.1)
+    .to(ink, { yPercent: 40, autoAlpha: 0, duration: 0.3, ease: "power2.in" }, 0)       // the gauge-word gives way, as in Act One
+    .to(slab, { "--up": 1, duration: LUNGE.duration, ease: LUNGE.ease }, 0.1)           // one piece this time
     .to(ok, { autoAlpha: 1, scale: 1, rotation: -2, ...lib.SPR.open }, 0.5);
 
   // ---------------------------------------------------------------- discrete beats
@@ -348,21 +352,29 @@ export default function init(root, ctx) {
     const rewinding = p >= RWU0 && p < RWU1;
     const min = rewinding ? HIT_MIN - Math.round((HIT_MIN - START) * ((p - RWU0) / (RWU1 - RWU0))) : f.min;
     if (min !== cur.min) {
-      clocks.forEach((r) => r.set(min, { instant: rewinding }));   // a scrubbed run-back writes digits; beats roll them
+      const dir = min > cur.min ? 1 : -1;
+      clocks.forEach((set) => set(min, { instant: rewinding || cur.min == null, dir }));   // a scrubbed run-back writes digits; beats roll them
       if (f.beat === 1 && cur.beat === 1) writeNumeral(min);
     }
     if (cur.beat == null) {
-      [label.textContent, title.innerHTML, sub.innerHTML] = COPY[f.beat];
+      label.textContent = COPY[f.beat][0];
+      [title.innerHTML, sub.innerHTML] = CUT[f.beat];
       act.classList.toggle("is-hit", f.beat === 1);
     } else if (f.beat !== cur.beat) setCopy(f.beat, f.beat > cur.beat ? 1 : -1);
 
     const on = p >= IMPACT && p < RW0;
     if (on !== cur.on) {
-      if (cur.on === undefined) impact.progress(on ? 1 : 0);
+      if (cur.on === undefined) impact.progress(1).progress(on ? 1 : 0);   // runs every tween's init now (80 debris chars), not mid-scroll
       else if (on) { impact.timeScale(1).play(); if (cur.p < IMPACT) fx(); }
       else impact.timeScale(1.7).reverse();
       lib.setNight("wall", on);
       root.classList.toggle("is-night", on);
+    }
+    const up = p >= HALT;
+    if (up !== cur.up) {
+      if (cur.up === undefined) halt.progress(1).progress(up ? 1 : 0);
+      else if (up) halt.timeScale(1).play();
+      else halt.timeScale(1.8).reverse();
     }
     const rw = p >= RW0 && p < RWU1 + 0.01;
     if (rw !== cur.rw) chip.classList.toggle("is-rw", rw);   // the chip only spins while it shows
@@ -379,7 +391,7 @@ export default function init(root, ctx) {
       lineEls[cl]?.classList.add("is-cur");
       term.classList.toggle("is-idle", cl < 0);
     }
-    cur = { p, min, beat: f.beat, on, rw, ik, state: f.state, notch, cl };
+    cur = { p, min, beat: f.beat, on, up, rw, ik, state: f.state, notch, cl };
   };
 
   // ---------------------------------------------------------------- scrubbed timeline
@@ -391,9 +403,8 @@ export default function init(root, ctx) {
   gsap.set(cam, { y: -dropY });
   gsap.set([note, close, chip, scan], { autoAlpha: 0 });
   gsap.set(term, { "--hot": 0 });
-  gsap.set(body, { "--cut": "0px" });
   gsap.set(lineEls.slice(10), { visibility: "hidden" });                        // Act B's lines wait for their act
-  const drawable = [...arrowLine, ...arrowHead, ...qa(".note__check path, .wall__zig path")];
+  const drawable = [...arrowLine, ...arrowHead, ...qa(".note__check path")];
   gsap.set(drawable, { drawSVG: "0%" });
 
   // Type line i: the cover steps back one cell at a time; the block scrolls so the newest row sits last.
@@ -406,7 +417,7 @@ export default function init(root, ctx) {
   const scene = lib.pinScene(root, {
     length: "300%", mobileLength: "210%", scrub: 0.8,
     build(tl) {
-      tl.eventCallback("onUpdate", () => lib.untracked(() => apply(tl.progress())));   // roller/island tweens born here are transient
+      tl.eventCallback("onUpdate", () => lib.untracked(() => apply(tl.progress())));   // island/fx tweens born here are transient
       // FILL — Act A types in; the WALL squeezes and greys; the terminal edge warms.
       A_AT.forEach((at, i) => type(tl, i, at, A_DUR, i + 1));
       tl.to(word, { "--sq": 1, duration: IMPACT - 0.05 }, 0.05);
@@ -439,6 +450,9 @@ export default function init(root, ctx) {
       // ACT TWO — the island drops out of the terminal's top edge; the same lines type again, metered.
       tl.fromTo(cam, { y: () => -dropY }, { y: 0, duration: 0.035, ease: "island", immediateRender: false }, ACT2);
       B_AT.forEach((at, i) => type(tl, i, at, 0.0105, i + 1));
+      // The gauge-word measures again, and this time stops short of the slam width (84% of the squeeze).
+      tl.to(word, { "--sq": 0.84, duration: PINNED - B_AT[0], ease: "none" }, B_AT[0]);
+      tl.to(ink, { xPercent: -7, color: tok("--paper-3"), duration: PINNED - B_AT[0], ease: "none" }, B_AT[0]);
 
       // FORECAST — arrow from the island's forecast to the margin note.
       tl.to(arrowLine, { drawSVG: "100%", duration: 0.028, ease: "power1.inOut" }, 0.664);
@@ -450,9 +464,8 @@ export default function init(root, ctx) {
       tl.to([...arrowLine, ...arrowHead], { drawSVG: "0%", duration: 0.014 }, PINNED - 0.01);
       tl.to(qa(".note__check path"), { drawSVG: "100%", duration: 0.014 }, PINNED + 0.006);
 
-      // CLOSE — the line under the terminal, a teal zigzag through the WALL.
+      // HALT (time-based, from HALT) — then the close line lands in the gap the meter bought.
       tl.to(close, { autoAlpha: 1, y: 0, duration: 0.03, ease: "power2.out", startAt: { y: 24 } }, 0.92);
-      tl.to(qa(".wall__zig path"), { drawSVG: "100%", duration: 0.05, ease: "power1.inOut" }, 0.94);
     },
   });
   apply(scene ? scene.tl.progress() : 0);
@@ -460,8 +473,10 @@ export default function init(root, ctx) {
 
   return () => {
     ScrollTrigger.removeEventListener("refreshInit", layout);
-    swaps.forEach((r) => { r.tw?.kill(); r.split?.revert(); });
-    gsap.killTweensOf([label, term, cam, body, flash, wrap, slamBox]);   // the untracked ones; the context reverts the rest
+    [title, sub, label].forEach((el) => { el.classList.remove("is-swap"); el.getAnimations({ subtree: true }).forEach((a) => a.cancel()); });
+    swaps.forEach((r) => { r.tok++; });
+    gsap.killTweensOf([term, flash, wrap, slamBox]);   // the untracked ones; the context reverts the rest
+    cam.style.scale = ""; body.style.removeProperty("--wall-cut"); root.classList.remove("is-shut");
     chip.classList.remove("is-rw");
     gsap.set([cam, wrap, slamBox], { clearProps: "transform" });
     lib.setNight("wall", false);
@@ -473,8 +488,7 @@ export default function init(root, ctx) {
     act.classList.remove("is-hit");
     lineEls.forEach((l, i) => { l.innerHTML = saved.lines[i]; l.classList.remove("is-cur"); });
     title.innerHTML = saved.title; sub.innerHTML = saved.sub; label.textContent = saved.label;
-    slab.style.fontSize = ""; slab.style.transform = "";
-    clocks.forEach((r) => { r.el.classList.remove("roller"); });
+    slab.style.fontSize = ""; slab.style.transform = ""; slab.style.removeProperty("--rise");
     q(".term--a .term__clock").textContent = "1:12 PM";
     q(".wall__rhclock").textContent = "10:04 AM";
     term.classList.remove("is-idle", "is-under", "has-notch");

@@ -233,7 +233,9 @@ export default function init(root, ctx) {
       .to(cap, { autoAlpha: 1, duration: 0.04, ease: "none" }, 0.96);
     tl.set({}, {}, 1); // pad: progress == stage y / height
   } else {
-    tl.to(lbls, { ...pin, duration: 0.6, stagger: 0.15 }, 0)
+    // "02 Talks to" waits for the first wire, so the column is never an empty heading
+    tl.to(lbls[0], { ...pin, duration: 0.6 }, 0)
+      .to(lbls[1], { ...pin, duration: 0.6 }, 1.05)
       .to(src, { ...pin, duration: 0.7 }, 0.05)
       .to(node, { scale: 1, opacity: 1, ...lib.SPR.open }, 0.1)
       .to(read, { drawSVG: "100%", duration: 0.5, ease: "edit" }, 0.3)

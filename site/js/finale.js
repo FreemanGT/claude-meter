@@ -24,6 +24,7 @@ let everShown = false; // .after is never re-hidden once shown, even across a br
 const fmtS = (s) => { s = Math.max(1, Math.round(s)); return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`; };
 const zone = (x) => (x > 85 ? "red" : x > 75 ? "amber" : x > 60 ? "lav" : "teal");
 const drainZone = (x) => (x > 85 ? "red" : x > 50 ? "amber" : "teal"); // the RESET crossing: red → amber → teal
+const CLICKS = [85, 64, 42, 21, 0]; // the drain's rolls after 100
 
 /**
  * @param {HTMLElement} root  the <section id="finale">
@@ -136,18 +137,18 @@ export default function init(root, ctx) {
     bt.style.transform = `translate3d(0,${f(cy - half + ov - h)}px,0)`;
     bb.style.transform = `translate3d(0,${f(cy + half - ov)}px,0)`;
   };
-  // In the black the session drains 100 → 0: the ring round the lens sweeps down like a countdown, the digits roll
-  // (throttled so each roll reads), and everything crosses red → amber → teal at 85 and 50.
+  // In the black the session drains 100 → 0: the ring round the lens sweeps down like a clock, the digits roll in
+  // whole clicks (each one reads, like the app's numericText between refreshes), and the colour crosses
+  // red → amber → teal with the number shown (past 85, past 50).
   const drain = { v: 100 };
-  let drainN = 100, drainT = 0;
+  let drainI = 0;
   const drainTick = () => {
     ring.style.strokeDashoffset = (100 - drain.v).toFixed(2);
-    const z = drainZone(drain.v);
-    if (iris.dataset.zone !== z) iris.dataset.zone = z;
-    const n = Math.round(drain.v), now = performance.now();
-    if (n === drainN || (n > 0 && now - drainT < 60)) return;
-    drainN = n; drainT = now;
+    if (drainI >= CLICKS.length || drain.v > CLICKS[drainI]) return;
+    while (drainI < CLICKS.length - 1 && drain.v <= CLICKS[drainI + 1]) drainI++;
+    const n = CLICKS[drainI++];
     roller.set(n);
+    iris.dataset.zone = drainZone(n);
   };
 
   // While the iris is shut the page is stopped: wheel, touch and scroll keys do nothing (no root overflow toggle).
@@ -328,22 +329,22 @@ export default function init(root, ctx) {
         // staged; the lift cut waits a beat so no text write lands in the same frame as a move
         .call(() => {
           stay(); render(0); stage();
-          drain.v = 100; drainN = 100; roller.set(100, { instant: true }); iris.dataset.zone = "red"; drainTick();
+          drain.v = 100; drainI = 0; roller.set(100, { instant: true }); iris.dataset.zone = "red"; drainTick();
         }, null, 0.66)
         .call(() => { gsap.set(meterEl, { y: 0 }); liftY = 0; }, null, 0.72)
-        // .72–1.84s HOLD BLACK: a beam falls from the lens, the ring sweeps down, the digits roll 100 → 0 red → amber → teal
+        // .72–1.98s HOLD BLACK: a beam falls from the lens, the ring sweeps down, the digits roll 100 → 0 red → amber → teal
         .fromTo([ringSvg, num], { autoAlpha: 0, scale: 0.94 }, { autoAlpha: 1, scale: 1, duration: 0.3, ease: "settle", immediateRender: false }, 0.72)
         .fromTo(beam, { autoAlpha: 0, scaleY: 0.7 }, { autoAlpha: 1, scaleY: 1, duration: 0.5, ease: "settle", immediateRender: false }, 0.72)
         .fromTo(txt, { autoAlpha: 0, y: 4 }, { autoAlpha: 1, y: 0, duration: 0.25, ease: "settle", immediateRender: false }, 0.8)
-        .to(drain, { v: 0, duration: 0.95, ease: "power2.inOut", onUpdate: drainTick }, 0.86)
+        .to(drain, { v: 0, duration: 0.84, ease: "none", onUpdate: drainTick }, 0.78)
         .call(playH2, null, 1.6)   // "Fresh window." is already rising when the iris opens onto it
-        .to([txt, ringSvg, num, beam], { autoAlpha: 0, duration: 0.2 }, 1.9)
-        // 2.02–2.8s IRIS OPEN out of the lens; the wordmark refills from 0 as it does
-        .call(() => { hold(false); stay(); toReset(true); }, null, 2.02)
-        .to(lens, { autoAlpha: 0, duration: 0.15 }, 2.02)
-        .fromTo(geo, { r: () => geo.rl }, { r: () => geo.r0, duration: 0.78, ease: "edit", onUpdate: drawIris, immediateRender: false }, 2.02)
-        .call(() => revealAfter(), null, 2.2)
-        .call(() => lib.showBanner(document.body, RESET_BANNER), null, 2.4);
+        .to([txt, ringSvg, num, beam], { autoAlpha: 0, duration: 0.2 }, 1.86)
+        // 1.98–2.76s IRIS OPEN out of the lens; the wordmark refills from 0 as it does
+        .call(() => { hold(false); stay(); toReset(true); }, null, 1.98)
+        .to(lens, { autoAlpha: 0, duration: 0.15 }, 1.98)
+        .fromTo(geo, { r: () => geo.rl }, { r: () => geo.r0, duration: 0.78, ease: "edit", onUpdate: drawIris, immediateRender: false }, 1.98)
+        .call(() => revealAfter(), null, 2.16)
+        .call(() => lib.showBanner(document.body, RESET_BANNER), null, 2.36);
     });
   };
 

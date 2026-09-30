@@ -168,6 +168,8 @@
   .s--yours .yr-desk[data-mat="glass"] .yr-lens { display: block; backdrop-filter: url(#yr-lens); }
 }
 
+.s--yours .yr-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+
 /* the demo pointer: it right-clicks the island once on wake, then steps aside for the real one */
 .s--yours .yr-ptr {
   position: absolute; left: 0; top: 0; z-index: 8; width: calc(12.6px * var(--k)); height: calc(18.2px * var(--k));
@@ -362,8 +364,10 @@ html[data-night] .s--yours .yr-range[data-tone="red"] { --tone: var(--red); }
 
 /* ---------------------------------------------------------------- reduced motion: everything works, nothing drifts */
 html[data-motion="reduced"] .s--yours .yr-win { animation: none; }
-html[data-motion="reduced"] .s--yours .yr-win--a { left: 14%; top: 13%; }
-html[data-motion="reduced"] .s--yours .yr-win--b { right: 12%; top: 30%; }
+@media (min-width: 768px) {
+  html[data-motion="reduced"] .s--yours .yr-win--a { left: 14%; top: 13%; }
+  html[data-motion="reduced"] .s--yours .yr-win--b { right: 12%; top: 30%; }
+}
 @media (prefers-reduced-motion: reduce) {
   .s--yours *, .s--yours *::before, .s--yours *::after { transition-duration: 0s !important; }
 }

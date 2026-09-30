@@ -15,6 +15,17 @@
 .s--wall .act__ap{font-size:.3em;font-weight:500;letter-spacing:.04em}   /* inline, so its leading space survives (screen readers say "1:12 PM") */
 .s--wall .wall__close{font:760 calc(var(--t-h3) * 1.08)/1.02 var(--f-display);font-stretch:125%;letter-spacing:-.025em;color:var(--ink);margin-top:28px;text-wrap:balance}
 
+/* live copy swaps: every word rises in its own mask (clipped only mid-swap, so descenders and italics never crop at rest) */
+.s--wall .wm{display:inline-block}
+.s--wall .wm--b,.s--wall .wm--b>.wm__i{display:block}
+.s--wall .wm__i{display:inline-block}
+.s--wall .is-swap .wm{clip-path:inset(-.08em -.3em -.26em -.14em)}
+/* session clocks: hours:minutes right-aligned in a fixed 5-cell slot, the meridiem in its own */
+.s--wall .wclk{display:inline-flex;justify-content:flex-end;min-width:5ch}
+.s--wall .wclk>span{display:inline-grid}
+.s--wall .wclk>span>*{grid-area:1/1}
+.s--wall .wclk__ap{display:inline-block;width:2ch}
+
 /* ---------- terminal ---------- */
 .s--wall .term{position:relative;margin:0;background:#0E0F0E;border:1px solid var(--rule-night);border-radius:20px;box-shadow:var(--sh-float);color:var(--fg);isolation:isolate}
 .s--wall .term::after{content:"";position:absolute;inset:-1px;border-radius:inherit;border:1px solid var(--red);opacity:var(--hot,0);pointer-events:none}
@@ -25,7 +36,9 @@
 .s--wall .term__clock{justify-self:end}
 .s--wall .term__body{position:relative;padding:20px 24px;font:400 15px/1.6 var(--f-mono);font-variant-numeric:tabular-nums;overflow:hidden;border-radius:0 0 19px 19px}
 /* expanded, the island covers the top of the screen: rows scrolled up under it fade out instead of peeking past its corners */
-.s--wall.is-live .term__body{-webkit-mask:linear-gradient(transparent calc(var(--cut,0px) - 10px),#000 calc(var(--cut,0px) + 6px));mask:linear-gradient(transparent calc(var(--cut,0px) - 10px),#000 calc(var(--cut,0px) + 6px))}
+@property --wall-cut{syntax:"<length>";inherits:false;initial-value:0px}
+.s--wall.is-live .term__body{-webkit-mask:linear-gradient(transparent calc(var(--wall-cut) - 10px),#000 calc(var(--wall-cut) + 6px));mask:linear-gradient(transparent calc(var(--wall-cut) - 10px),#000 calc(var(--wall-cut) + 6px));
+  transition:--wall-cut var(--w-dur) var(--w-spr)}
 .s--wall .term__lines{display:grid;grid-template-columns:minmax(0,1fr)}
 .s--wall .l{position:relative;display:flex;gap:2ch;min-width:0;white-space:pre}
 .s--wall .l__t{position:relative;min-width:0;overflow-x:clip;overflow-y:visible;text-overflow:ellipsis}
@@ -51,6 +64,10 @@
 .s--wall .bezel{position:relative;height:36px;background:#0E0F0E;border:1px solid var(--rule-night);border-bottom:0;border-radius:20px 20px 0 0}
 .s--wall .bezel+.term{border-top-left-radius:0;border-top-right-radius:0;border-top:0}
 .s--wall .bezel__cam{position:absolute;inset:0;transform-origin:50% 0}
+/* the camera follows the island on the app's springs: open bouncy, close smooth (wall.js sets scale + --wall-cut) */
+.s--wall.is-live{--w-spr:var(--spring-open);--w-dur:var(--spring-open-dur)}
+.s--wall.is-live.is-shut{--w-spr:var(--spring-close);--w-dur:var(--spring-close-dur)}
+.s--wall.is-live .bezel__cam{transition:scale var(--w-dur) var(--w-spr)}
 .s--wall .term__bar>*{transition:opacity .28s var(--ease-settle)}
 .s--wall .term.is-under .term__bar>*,.s--wall .term.has-notch .term__title{opacity:0}
 @media (max-width:1023px){.s--wall .wall__grid{grid-template-columns:minmax(0,1fr)}}
@@ -127,19 +144,18 @@
 
 .s--wall.is-live .wall__night{display:block;position:absolute;inset:0;z-index:0;background:var(--night);
   clip-path:circle(calc(var(--nr,0) * 1%) at var(--nx,30%) var(--ny,70%))}
-.s--wall.is-live .wall__bg{display:block;position:absolute;inset:0;z-index:1;pointer-events:none;overflow:clip}
+.s--wall.is-live .wall__bg{display:block;position:absolute;inset:0;z-index:1;pointer-events:none;overflow:clip;contain:strict}   /* the wdth squeeze relayouts the word alone */
 /* Anchored by its LEFT edge (left:100%, pulled back by a transform): the wdth squeeze changes its width,
    never its start, so the scrub logs no layout shift. --sq: 0 = wdth 150 … 1 = wdth 50 */
 .s--wall .wall__word{position:absolute;left:100%;bottom:-.1em;translate:-88% 0;font:800 var(--t-wall)/.78 var(--f-display);
   font-stretch:calc((150 - var(--sq,0) * 100) * 1%);letter-spacing:var(--tr-wall);white-space:nowrap;user-select:none}
 .s--wall .wall__ink{position:relative;display:block;color:var(--paper-2)}
-.s--wall .wall__zig{position:absolute;left:0;top:48%;width:100%;height:38%;overflow:visible;color:var(--teal-ink)}
-.s--wall .wall__zig path{stroke-width:6}
 
 /* the wall itself: four red letters that slam up from the floor in front of the terminal (font-size set by wall.js) */
 .s--wall.is-live .wall__slam{display:block;position:absolute;inset:0;z-index:6;overflow:clip;pointer-events:none}
 /* four separate blocks with a thin run of mortar between them, so the word reads at a glance even stretched */
-.s--wall .wall__slab{position:absolute;left:0;bottom:-.09em;transform-origin:50% calc(100% - .09em);display:flex;gap:.018em;font:900 100px/.7 var(--f-display);font-stretch:50%;color:var(--red);white-space:nowrap}
+.s--wall .wall__slab{position:absolute;left:0;bottom:-.09em;transform-origin:50% calc(100% - .09em);translate:0 calc(var(--up,0) * var(--rise,0px) * -1);   /* --up: Act Two's halt (0..1, springs past 1) */
+  display:flex;gap:.018em;font:900 100px/.7 var(--f-display);font-stretch:50%;color:var(--red);white-space:nowrap}
 .s--wall .wall__slab i{display:block;font-style:normal}
 /* the limit line, carried onto the wall as a bolted-on sign where it printed (placed by wall.js) */
 .s--wall .wall__sign{position:absolute;left:0;top:0;margin:0;translate:-50% -50%;padding:.78em 1.5em;border-radius:5px;background:#0B0B0B;color:var(--red);
@@ -148,6 +164,8 @@
 .s--wall .wall__sign b{font-weight:700}
 .s--wall .wall__sign::before,.s--wall .wall__sign::after{content:"";position:absolute;top:50%;width:5px;height:5px;margin-top:-2.5px;border-radius:50%;background:#2a2a2a;box-shadow:inset 0 1px 0 rgb(255 255 255/.14)}
 .s--wall .wall__sign::before{left:.6em}.s--wall .wall__sign::after{right:.6em}
+/* Act Two's plate: same plate, same bolts, bolted on where the wall stopped. Teal, because nothing broke. */
+.s--wall .wall__sign--ok{color:var(--teal);box-shadow:inset 0 0 0 1px rgb(92 201 166/.5),0 22px 44px -14px rgb(0 0 0/.6)}
 .s--wall.is-live .wall__flash{display:block;position:absolute;inset:0;z-index:7;background:var(--red);opacity:0;pointer-events:none}
 
 .s--wall.is-live .wall__arrow{display:block;position:absolute;inset:0;width:100%;height:100%;z-index:5;pointer-events:none;overflow:visible;color:var(--ink)}
@@ -162,7 +180,7 @@
   .s--wall.is-live .wall__grid .bezel,.s--wall.is-live .term--a{grid-column:1;grid-row:2}
   .s--wall.is-live .wall__close{grid-column:1;grid-row:3}
   .s--wall.is-live .note,.s--wall.is-live .wall__arrow{display:none}
-  .s--wall .wall__slab{left:50%;translate:-50% 0}
+  .s--wall .wall__slab{left:50%;translate:-50% calc(var(--up,0) * var(--rise,0px) * -1)}
 }
 @media (max-width:767px){
   .s--wall.is-live .act__label{margin-bottom:10px;font-size:11px}
@@ -176,8 +194,6 @@
   .s--wall.is-live .wall__close{font-size:calc(var(--t-h3) * 1.05)}
   .s--wall.is-live .wall__bg{opacity:.6}
   .s--wall .wall__word{font-size:60vw;bottom:auto;top:50%;translate:calc(-50% - .2em) -50%;rotate:-90deg}
-  .s--wall .wall__zig{top:52%;height:40%}
-  .s--wall .wall__zig path{stroke-width:6}
 }
 /* short phones (320×640, landscape-ish): 8 terminal rows and a tighter headline keep the whole story on one screen */
 @media (max-width:767px) and (max-height:720px){

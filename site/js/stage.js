@@ -1,11 +1,13 @@
-// §01 stage — hero + dolly-in tour (SPEC §9.1, review round 1). The spine of the page.
-// Hero: warm paper, ink type and one black object — the menu bar with the live island hanging from it
-// (attract loop until touched) — over a liquid WALL that fills to the island's session %.
+// §01 stage — hero + dolly-in tour (SPEC §9.1, review round 2). The spine of the page.
+// Hero: paper, ink type and one black object — the menu bar with the live island hanging from it
+// (a short attract loop until touched) — over a liquid WALL that fills to the island's session %,
+// leans toward the pointer and sloshes with the scroll. Under it, the session bar is the scroll cue.
 // Scroll: one pinned shot. The camera dollies into the notch (the hero flies out past the lens, the
-// menu bar thickens) and stages each app state its own way: wing close-up with ink notes → peek with a
-// ghost cursor → pinned as an annotated spec sheet → the session bar magnified across the screen →
-// a red flush past 85% → real-size banners as it pulls back. Everything in the tour is a pure function
-// of scroll progress (frame(p)), so scrubbing either way, resizing and jumping all land exactly.
+// menu bar thickens) and stages each app state with its caption hung directly under the island:
+// wing close-up with ink notes → peek (rings draw as it opens, the readings set big) → pinned as an
+// annotated spec sheet → the session bar raised and magnified → a red flush past 85% → banners at
+// the notch, and the session resets to empty. Everything in the tour is a pure function of scroll
+// progress (frame(p)), so scrubbing either way, resizing and jumping all land exactly.
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const mix = (a, b, t) => a + (b - a) * t;
@@ -15,7 +17,7 @@ const RS = 4.5;                                        // island render scale (p
 const SITE = "https://claudemeter.vercel.app/";
 // Pinned-pane geometry in pt from the island's top centre (island.css: 39pt insets, 84/44/flex/38/96 columns,
 // 12pt gaps, 32pt header, 14pt rows 8pt apart, 16pt note gap, 16pt bottom). Pure numbers: no DOM reads.
-const PIN_H = 147, PEEK_H = 166, BAR = { x: -89, w: 172 };
+const PIN_H = 147, PEEK_H = 166, RING_DX = 422 / 3, BAR = { x: -89, w: 172 };
 const MARKS = [
   { kind: "rect", x: -149, y: 40, w: 52, h: 66, lx: -123 },   // the sparkline column
   { kind: "circle", x: 0, y: 51, r: 9, lx: 0 },               // the projected tick (x set from `projected`)
@@ -26,16 +28,21 @@ export default function init(root, ctx) {
   const { gsap, ScrollTrigger, reduced, mobile, Island, lib, intro } = ctx;
   const $ = (s) => root.querySelector(s), $$ = (s) => [...root.querySelectorAll(s)];
   const display = $(".display"), rig = $(".stage-rig"), cam = $(".stage-cam"), host = $(".island-host"), bezel = $(".bezel");
-  const hero = $(".hero"), wall = $(".wall"), liq = $(".wall__liq"), noteIn = $(".note__in"), cue = $(".cue"), flush = $(".flush");
-  const fc = $(".fc"), fcBar = $(".fc__bar"), fcRs = $(".fc__rs"), fcTxt = $(".fc__txt");
+  const hero = $(".hero"), wall = $(".wall"), liq = $(".wall__liq"), noteIn = $(".note__in"), flush = $(".flush"), l1 = $(".l1 .ln__i");
+  const fc = $(".fc"), fcBar = $(".fc__bar"), fcPct = $(".fc__pct"), fcRt = $(".fc__rt"), fcTxt = $(".fc__txt");
   const annos = $$(".anno"), specG = $(".spec__g"), specLabels = $$(".spec-labels p");
+  const nums = $(".nums"), numEls = $$(".num").map((el) => ({ el, o: el.querySelector(".num__o"), f: el.querySelector(".num__f"), v: null }));
   const ghost = $(".ghost"), arrow = $(".ghost__arrow"), ring = $(".ghost__ring"), ripple = $(".ghost__ripple");
-  const send = $(".send"), cap5 = $$(".cap__t")[4];
+  const send = $(".send"), caps = $$(".cap"), cap5 = $$(".cap__t")[4];
+  const chips = Object.fromEntries($$(".chip__n").map((el) => [el.dataset.k, el]));
+  const bandBits = mobile ? [...document.querySelectorAll(".band__brand, .band__dl")] : [];
   const disposers = [], statics = [], banners = [null, null];
-  let dead = false, locked = false, touched = false, menuBar = false, attract = null, s0 = null, lastKey = "";
-  let W = innerWidth, H = innerHeight, heroS = 2, bandH = 40, barW = 1000, marks = [];
-  let onRefreshInit = null, onRefresh = null, scene = null;
-  let heroVisible = false, heroInFrame = true, breathe = null;   // the hero's ambient loops run only while both hold
+  let dead = false, locked = false, touched = false, menuBar = false, attract = null, s0 = null, lastKey = "", barKey = "";
+  let W = innerWidth, H = innerHeight, heroS = 2, bandH = 40, barW = 1000, marks = [], l1R = 0;
+  let dockY = 0, raiseY = 0, nf = 100, bannerTop = 80;
+  let onRefreshInit = null, onRefresh = null, scene = null, settle = 0;
+  let tilt = () => {}, bob = () => {}, lean = 0;   // the liquid's springs (fine pointers + scroll), set once live
+  let heroVisible = false, heroInFrame = true;   // the hero's ambient loops run only while both hold
   const E = gsap.parseEase("edit"), IO = gsap.parseEase("power2.inOut"), OUT = gsap.parseEase("power2.out"), IN2 = gsap.parseEase("power2.in"), IN3 = gsap.parseEase("power3.in"), LIN = (t) => t;
   /** eased 0..1 progress of p through the window [a, b] */
   const k = (p, a, b, e = E) => e(clamp((p - a) / (b - a), 0, 1));
@@ -49,6 +56,7 @@ export default function init(root, ctx) {
     c[prop] = v;
     prop.startsWith("--") ? el.style.setProperty(prop, v) : (el.style[prop] = v);
   };
+  const txt = (el, t) => { if (el.textContent !== t) el.textContent = t; };
 
   function measure() {
     W = display.clientWidth || innerWidth;
@@ -56,27 +64,56 @@ export default function init(root, ctx) {
     bandH = mobile ? 44 : 40;
     heroS = lib.heroScale();                                  // shared with main.js → the intro builds the notch at this size
     root.style.setProperty("--hs", heroS);
-    // Dolly-in: the panel is the art. Desktop never shows it below 1:1; phones fit it edge to edge
-    // (only the flared corners and a little of the black padding leave the frame).
+    l1R = l1 && l1.offsetWidth ? l1.offsetLeft + l1.offsetWidth + 20 : 0;   // the hero peek may grow up to "See the", never over it
+    // Dolly-in: the panel is the art. Desktop never shows it below 1:1 and leaves room under it for the
+    // beat's caption; phones fit it edge to edge (only the flared corners leave the frame).
     if (mobile) {
       S.col = Math.min(RS, (W - 24) / 277);
       S.peek = Math.min(1, W / 462);
       S.pin = Math.min(1, W / 522);
+      nf = Math.round(RING_DX * S.peek * 0.46);
     } else {
       S.col = Math.min(RS, (0.86 * W) / 277);
-      S.peek = Math.min(RS, (0.86 * W) / 500, (0.5 * H) / PEEK_H);
-      S.pin = Math.min(RS, (0.86 * W) / 560, (0.45 * H) / PIN_H);
+      S.peek = Math.max(1, Math.min(RS, (0.78 * W) / 500, (H - 470) / PEEK_H));
+      S.pin = Math.max(1, Math.min(RS, (0.86 * W) / 560, (H - 430) / PIN_H));
+      nf = Math.round(Math.min(RING_DX * S.peek * 0.44, H * 0.16));
     }
     barW = fcBar.offsetWidth || W - 48;
+    const barB = fcBar.offsetTop + fcBar.offsetHeight;
+    dockY = H - (mobile ? 22 : clamp(0.044 * H, 24, 44)) - barB;
+    raiseY = PIN_H * S.pin + (mobile ? 26 : 38);
+    bannerTop = 32 * heroS + (mobile ? 14 : 20);
+    root.style.setProperty("--nf", `${nf}px`);
+    display.style.setProperty("--bt", `${bannerTop.toFixed(1)}px`);
+    placeCaps();
   }
-  const heroTarget = (state) => state === "peek" ? (mobile ? (W - 24) / 500 : Math.min(heroS, 1.2, (0.5 * W) / 500))
-    : state === "pinned" ? (mobile ? (W - 24) / 560 : Math.min(heroS, 1.15, (0.5 * W) / 560)) : heroS;
+  /** each beat's caption hangs just under that beat's island (and whatever the beat sets under it) */
+  function placeCaps() {
+    const gap = mobile ? 22 : 34;
+    const annoB = mobile ? 32 * S.col + 8 + 44 + 38 : 32 * S.col + 14 + clamp(0.074 * W, 64, 116) * 0.9 + clamp(0.025 * W, 24, 38) * 1.2 + 6;
+    const bnr = (mobile ? 2 * 70 + 8 : 1.22 * (2 * 72 + 8));
+    const tops = [
+      annoB + gap,
+      PEEK_H * S.peek + 18 + nf * 0.8 + 26 + gap,
+      PIN_H * S.pin + (mobile ? 0 : 52) + gap,
+      raiseY + (fc.offsetHeight || 120) + gap - (mobile ? 6 : 12),
+      PIN_H * S.pin + gap + 6,
+      bannerTop + bnr + gap,
+    ];
+    caps.forEach((c, i) => c.style.setProperty("--ct", `${Math.round(tops[i])}px`));
+  }
+  const heroTarget = (state) => {
+    if (mobile) return state === "peek" ? (W - 24) / 500 : state === "pinned" ? (W - 24) / 560 : heroS;
+    const room = l1R ? W - 2 * l1R : 0.56 * W;
+    return state === "peek" ? clamp(room / 500, 1, Math.min(heroS, 1.6))
+      : state === "pinned" ? clamp(room / 560, 1, Math.min(heroS, 1.45)) : heroS;
+  };
   measure();
   hcam.s = heroS;
 
   // ---------------------------------------------------------------- the island + chips
   const live = !reduced;
-  const counting = live && !intro.skipped;       // the intro counts the wings up from 00
+  const counting = live && !intro.skipped;       // the intro counts the wings (and the WALL) up from 00
   let isl = null;
   if (Island) {
     const data = lib.demo();
@@ -85,10 +122,14 @@ export default function init(root, ctx) {
     isl = new Island(host, { scale: RS, bezel: true, live: false, data });
     cam.style.transform = `scale(${heroS / RS})`;
   }
-  const rollers = Object.fromEntries($$(".chip__n").map((el) => {
-    const v = { session: 46, weekly: 38, opus: 62 }[el.dataset.k];
-    return [el.dataset.k, { r: new lib.Roller(el, { value: counting ? 0 : v, format: lib.fmtPct }), v }];
-  }));
+  // Chips carry their final values in the HTML (no count-up inside the LCP paragraph); a bump swaps the
+  // text in its fixed-width box and nudges the glyphs with a composited roll.
+  const setChip = (key, v) => {
+    const el = chips[key], t = lib.fmtPct(v);
+    if (!el || el.textContent === t) return;
+    el.textContent = t;
+    if (!reduced && el.animate) el.animate([{ transform: "translateY(45%)", opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 320, easing: "cubic-bezier(.2,.8,.2,1)" });
+  };
   const sBase = () => s0 ?? Math.round(isl ? isl.data.session.pct : 46);
   const status = () => menuBar && isl && lib.statusItem(true, isl.data, { display: isl.opts.display });
 
@@ -126,6 +167,14 @@ export default function init(root, ctx) {
     if (reduced) { hcam.s = target; return camRefresh(); }
     lib.untracked(() => gsap.to(hcam, { s: target, ...(open ? lib.SPR.open : lib.SPR.close), overwrite: true, onUpdate: camRefresh }));
   };
+  // Phones: the open island would sit over the band's icon and download button, so they step aside.
+  let bandOff = false;
+  const bandFade = (off) => {
+    if (!bandBits.length || off === bandOff) return;
+    bandOff = off;
+    lib.untracked(() => gsap.to(bandBits, { autoAlpha: off ? 0 : 1, duration: off ? 0.16 : 0.3, ease: "power2.out", overwrite: true,
+      onComplete: off ? null : () => gsap.set(bandBits, { clearProps: "opacity,visibility" }) }));
+  };
   if (isl) {
     // A scrub jump emits several states in one render; settle on the final one afterwards.
     let camQueued = false;
@@ -137,6 +186,7 @@ export default function init(root, ctx) {
         if (dead) return;
         const open = isl.state === "peek" || isl.state === "pinned";
         root.classList.toggle("is-open", open);
+        bandFade(open && !locked);
         if (!locked) camTo(heroTarget(isl.state), open);
       });
     });
@@ -153,7 +203,7 @@ export default function init(root, ctx) {
   ScrollTrigger.addEventListener("refreshInit", onRefreshInit);
 
   // ---------------------------------------------------------------- reduced motion: the static composition
-  scene = lib.pinScene(root, { length: "300%", mobileLength: "240%", scrub: 0.8, build: buildTour });
+  scene = lib.pinScene(root, { length: "225%", mobileLength: "180%", scrub: 0.8, build: buildTour });
   if (!scene) {
     staticBeats();
     return cleanup;
@@ -163,24 +213,27 @@ export default function init(root, ctx) {
   root.classList.add("is-live");
   measure();
   buildMarks();
-  // The headline, WALL (and its fill), lede and CTA rise in with CSS keyframes from the first paint
-  // (stage.css "hero reveal"), so the hero never waits for this module; JS only adds what needs it.
-  gsap.set([noteIn, cue.firstElementChild], { autoAlpha: 0 });
-  wall.style.setProperty("--wb", 1);
+  // The headline, WALL, lede and CTA rise in with CSS keyframes from the first paint (stage.css
+  // "hero reveal"), so the hero never waits for this module; JS only adds what needs it.
+  gsap.set(noteIn, { autoAlpha: 0 });
+  fc.style.setProperty("--fin", 0);
+  if (counting) { wall.style.setProperty("--lvl", 0); wall.style.animation = "none"; }   // the count below drives the fill
 
-  const reveal = gsap.timeline({ paused: true, defaults: { ease: "edit" } })
-    .call(() => Object.values(rollers).forEach(({ r, v }, i) => gsap.delayedCall(i * 0.12, () => r.set(v))), null, 0.7)
-    .to(cue.firstElementChild, { autoAlpha: 1, duration: 0.6, ease: "power2.out" }, 1.3);
+  const reveal = gsap.timeline({ paused: true }).to(fc, { "--fin": 1, duration: 0.7, ease: "power2.out" }, 1.1);
   reveal.eventCallback("onComplete", () => { if (!dead) disposers.push(lib.squash(wall, { split: false, radius: 260 })); });
   intro.reveal.then(() => !dead && reveal.play());
 
+  // The intro's count: the wings roll 00 → 46 / 38 / 62 and the WALL and the session bar fill with them.
+  // It runs long enough to still be filling as the black lifts off the WALL.
   if (counting && isl) intro.wings.then(() => !dead && ctx.add(() => {
     const c = { t: 0 };
-    gsap.to(c, { t: 1, duration: 0.6, ease: "power2.out", onUpdate() {
+    gsap.to(c, { t: 1, duration: 1.5, ease: "power2.out", onUpdate() {
       if (locked) return;
       const d = isl.data;
       d.session.pct = Math.round(46 * c.t); d.weekly.pct = Math.round(38 * c.t); d.models[0].pct = Math.max(0.4, Math.round(62 * c.t));
       isl.render();
+      wall.style.setProperty("--lvl", (0.46 * c.t).toFixed(4));
+      paintBar(46 * c.t, 71 * c.t, 7980, false, 0);
     } });
   }));
 
@@ -189,35 +242,45 @@ export default function init(root, ctx) {
   const heroLoops = () => {
     const on = heroVisible && heroInFrame;
     wall.classList.toggle("is-wave", on);
-    cue.classList.toggle("is-on", on);
-    if (breathe) on ? breathe.play() : breathe.pause();
+    fc.classList.toggle("is-on", on);
   };
-  breathe = mobile ? gsap.to(wall, { "--wb": 0.8, duration: 2.5, ease: "sine.inOut", yoyo: true, repeat: -1, paused: true }) : null;
   disposers.push(lib.whileVisible(display, () => { heroVisible = true; heroLoops(); }, () => { heroVisible = false; heroLoops(); }));
 
-  // The liquid sloshes against a fast pointer (a spring back to level; fine pointers only).
+  // The liquid is a body of water: its surface leans toward the pointer, sloshes against fast moves and
+  // against the scroll (frame()), and springs back level. Transforms on one element; nothing re-lays out.
+  tilt = gsap.quickTo(liq, "rotation", { duration: 1.3, ease: "elastic.out(1,0.32)" });
+  bob = gsap.quickTo(liq, "y", { duration: 1.1, ease: "elastic.out(1,0.3)" });
   if (lib.finePointer()) {
-    const tilt = gsap.quickTo(liq, "rotation", { duration: 1.2, ease: "elastic.out(1,0.32)" });
-    let lx = 0, lt = 0, idle = 0;
-    const onWallMove = (e) => {
+    let lx = 0, lt = 0, wr = null;
+    const onMove = (e) => {
+      const r = wr || (wr = wall.getBoundingClientRect());
+      lean = -2.4 * clamp((e.clientX - (r.left + r.width / 2)) / (r.width / 2), -1.2, 1.2);   // the side nearer the pointer rises
       const dt = e.timeStamp - lt;
-      if (lt && dt > 0 && dt < 120) tilt(clamp(((e.clientX - lx) / dt) * -1.6, -3.5, 3.5));
+      const kick = lt && dt > 0 && dt < 120 ? clamp(((e.clientX - lx) / dt) * -1.4, -3, 3) : 0;
+      tilt(clamp(lean + kick, -5, 5));
       lx = e.clientX; lt = e.timeStamp;
-      clearTimeout(idle);
-      idle = setTimeout(() => tilt(0), 140);
+      clearTimeout(settle);
+      settle = setTimeout(level, 160);
     };
-    wall.addEventListener("pointermove", onWallMove, { passive: true });
-    disposers.push(() => { clearTimeout(idle); wall.removeEventListener("pointermove", onWallMove); });
+    const onLeave = () => { lean = 0; wr = null; lt = 0; clearTimeout(settle); level(); };
+    // a fast entry into the WALL is a splash: the surface kicks up, then settles
+    const onEnter = (e) => { const r = wall.getBoundingClientRect(); wr = null; if (Math.abs(e.movementY) + Math.abs(e.movementX) > 14) { bob(-0.05 * r.height); clearTimeout(settle); settle = setTimeout(level, 160); } };
+    hero.addEventListener("pointermove", onMove, { passive: true });
+    hero.addEventListener("pointerleave", onLeave, { passive: true });
+    wall.addEventListener("pointerenter", onEnter, { passive: true });
+    disposers.push(() => { hero.removeEventListener("pointermove", onMove); hero.removeEventListener("pointerleave", onLeave); wall.removeEventListener("pointerenter", onEnter); });
   }
+  disposers.push(() => clearTimeout(settle));
 
   intro.done.then(() => !dead && ctx.add(() => {
-    // the note draws itself, then nudges toward the island every 5s until the island is touched
+    // the note draws itself, then nudges toward the island a few times until the island is touched
     if (!touched) {
       const ink = lib.scribble(noteIn.querySelector("svg"), { trigger: false, duration: 0.8 });
       gsap.timeline({ delay: 1.6 }).to(noteIn, { autoAlpha: 1, duration: 0.3 }).add(() => ink && ink.play(), 0);
-      const nudge = () => !touched && !locked && gsap.timeline()
+      let n = 0;
+      const nudge = () => n++ < 4 && !touched && !locked && lib.untracked(() => gsap.timeline()
         .to(noteIn, { x: -3, y: -2, duration: 0.16, ease: "power2.out" })
-        .to(noteIn, { x: 0, y: 0, ...lib.SPR.play });
+        .to(noteIn, { x: 0, y: 0, ...lib.SPR.play }));
       disposers.push(lib.visibleInterval(display, nudge, 5000));
     }
     startAttract();
@@ -229,13 +292,17 @@ export default function init(root, ctx) {
   disposers.push(() => hero.removeEventListener("focusin", onHeroFocus));
 
   // ---------------------------------------------------------------- attract loop
+  // Two demo peeks (2s after the intro, then 12s later) and a slow session creep, then it rests:
+  // a parked hero costs nothing.
   function startAttract() {
     if (!isl || touched || locked || attract) return;
     const peek = () => !locked && !touched && isl.state === "collapsed" && isl.setState("peek");
     const shut = () => !locked && !touched && isl.state === "peek" && isl.setState("collapsed");
-    const cycle = gsap.timeline({ repeat: -1 }).call(peek, null, 5).call(shut, null, 8);
     const bumps = gsap.timeline({ repeat: 5 }).call(bump, null, 7);
-    attract = gsap.timeline({ paused: true }).call(peek, null, 2).call(shut, null, 4.6).add(cycle, 4.6).add(bumps, 0);
+    attract = gsap.timeline({ paused: true, onComplete: stopAttract })
+      .call(peek, null, 2).call(shut, null, 4.6)
+      .call(peek, null, 16.6).call(shut, null, 19.6)
+      .add(bumps, 0);
     attract.vis = lib.whileVisible(display, () => attract && attract.resume(), () => attract && attract.pause());
   }
   function stopAttract() {
@@ -249,8 +316,9 @@ export default function init(root, ctx) {
     const v = Math.round(isl.data.session.pct) + 1;
     if (v > 52) return;
     isl.update({ session: { pct: v } });
-    rollers.session?.r.set(v);
+    setChip("session", v);
     setWall(v);
+    paintBar(v, 71, 7980, false, 0);
     status();
   }
 
@@ -274,7 +342,7 @@ export default function init(root, ctx) {
     tl.addLabel("b0", 0);
 
     // Captions: opacity/transform only, so every caption stays in the accessibility tree in DOM order.
-    $$(".cap").forEach((cap, i) => {
+    caps.forEach((cap, i) => {
       const parts = [...cap.querySelectorAll(".cap__idx,.cap__t,.cap__b")];
       const a = BEATS[i], b = BEATS[i + 1];
       gsap.set(parts, { opacity: 0, y: 28 });
@@ -344,6 +412,7 @@ export default function init(root, ctx) {
       stopAttract();
       lib.closeMenu();
       park();
+      bandFade(false);
       if (isl.state === "hidden") isl.relaunch();
       else if (isl.state !== "collapsed" && (p < 0.28 || p > 0.88)) isl.setState("collapsed");
       if (hcam.s !== heroS) camTo(heroS, false);
@@ -356,19 +425,23 @@ export default function init(root, ctx) {
 
   function tour(p) {
     const base = sBase();
-    const r = k(p, 0.33, 0.38, OUT), filling = p >= 0.302 && p < 0.38;     // rings fill from 0 once the peek pane lands
+    // The rings draw as the peek pane squeezes in (the pane enters over .30–.325), never after it.
+    const r = k(p, 0.30, 0.33, OUT), filling = p >= 0.302 && p < 0.33;
     let s = filling ? base * r : base, w = filling ? 38 * r : 38, o = filling ? 62 * r : 62, prj = filling ? 71 * r : 71;
     s = mix(s, 71, k(p, 0.55, 0.62, IO)); s = mix(s, 80, k(p, 0.62, 0.68, IO));
     prj = mix(prj, 120, k(p, 0.55, 0.68, IO));                               // walks right, clamps at the end (derive caps at 100)
     const ex = 4320 - 1200 * k(p, 0.55, 0.68, IN3);                          // 72m → 52m; crosses the hour at ≈ .66 → red
     // resets in 2h 13m → ticks down through the peek → 1h 5m by the forecast (the banner's line)
-    const rs = 7980 - 180 * k(p, 0.29, 0.40, LIN) - 3900 * k(p, 0.55, 0.68, LIN);
+    let rs = 7980 - 180 * k(p, 0.29, 0.40, LIN) - 3900 * k(p, 0.55, 0.68, LIN);
     w = mix(w, 89, k(p, 0.70, 0.765, LIN));                                  // crosses 85 at ≈ .76
     o = mix(o, 100, k(p, 0.72, 0.80, IO));
-    const tt = p < 0.302 || p >= 0.38 ? 1 : k(p, 0.34, 0.38, LIN);           // peek text: blank, then fades in
+    // b6: "Session reset" — the 5-hour window is back to full (the RESET verb, on the session only)
+    const rz = k(p, 0.93, 0.96, IO);
+    s = mix(s, 0, rz); prj = mix(prj, 0, rz); rs = mix(rs, 18000, rz);
+    const tt = p < 0.302 || p >= 0.33 ? 1 : k(p, 0.305, 0.33, LIN);          // peek text fades in with the rings
     // Like UsageHistory.projectedPct: the session only "hits the cap" once its projection reaches 100.
     // Until then (beats 01–03) the forecast reads "on track — resets first", matching the tick at 71%.
-    const burn = prj >= 100;
+    const burn = prj >= 100 && rz < 0.5;
     return { s: Math.round(s), w: Math.round(w), o: Math.round(o), prj: Math.round(prj), ex: Math.round(ex / 60) * 60, rs: Math.round(rs / 60) * 60, tt, burn, sr: s, pr: prj };
   }
 
@@ -383,6 +456,26 @@ export default function init(root, ctx) {
     status();
   }
 
+  /** the session bar: fill, the forecast ghost + tick, the red cap past 100, and its readouts */
+  function paintBar(s, prj, rs, burn, ex) {
+    const key = `${s.toFixed(1)}|${prj.toFixed(1)}|${rs}|${burn}|${ex}`;
+    if (key === barKey) return;
+    barKey = key;
+    const pj = clamp(prj, 0, 100);
+    put(fc, "--s", clamp(s / 100, 0, 1).toFixed(4));
+    put(fc, "--pj", (pj / 100).toFixed(4));
+    put(fc, "--tx", `${((barW * pj) / 100).toFixed(1)}px`);
+    put(fc, "--tk", pj > s + 1 ? "1" : "0");
+    put(fc, "--cap", clamp((prj - 100) / 4, 0, 1).toFixed(3));
+    txt(fcPct, `${Math.round(s)}%`);
+    txt(fcRt, lib.fmtReset(rs));
+    txt(fcTxt, `Session ${burn ? lib.fmtForecast(ex) : lib.CLEARS}`);
+    const tone = burn ? (ex < 3600 ? "red" : "amber") : "";
+    if (fc.dataset.tone !== tone) fc.dataset.tone = tone;
+  }
+
+  function level() { tilt(lean); bob(0); }
+
   function banner(i, on, title, body) {
     if (on && !banners[i]) banners[i] = lib.showBanner(display, { title, body, timeout: 0 });
     else if (!on && banners[i]) { banners[i].dismiss(); banners[i] = null; }
@@ -390,7 +483,7 @@ export default function init(root, ctx) {
 
   function frame(p, force = false) {
     if (dead) return;
-    if (force) lastKey = "";
+    if (force) { lastKey = ""; barKey = ""; }
     const lockNow = p > 0.02 && p < 0.98;
     if (lockNow !== locked) setLock(lockNow, p);
 
@@ -415,6 +508,10 @@ export default function init(root, ctx) {
     put(wall, "--drain", k(p, 0, 0.055, IN2).toFixed(3));                  // the liquid empties into the notch it came from
     const inFrame = p < 0.08;
     if (inFrame !== heroInFrame) { heroInFrame = inFrame; root.classList.contains("is-live") && heroLoops(); }
+    if (inFrame && !force && scene) {                                          // the scroll sloshes the liquid
+      const v = scene.st.getVelocity();
+      if (Math.abs(v) > 40) { tilt(clamp(lean + v / 260, -6, 6)); bob(clamp(v / 90, -16, 16)); clearTimeout(settle); settle = setTimeout(level, 140); }
+    }
 
     const d = tour(p);
     if (isl) {
@@ -425,9 +522,9 @@ export default function init(root, ctx) {
       }
     }
     put(host, "--ptx", d.tt.toFixed(3));                                    // peek captions fade in as the rings fill
-    put(host, "--spk", k(p, 0.46, 0.49, LIN).toFixed(3));
-    put(host, "--spa", k(p, 0.48, 0.50, LIN).toFixed(3));
-    put(host, "--bar", k(p, 0.46, 0.50, OUT).toFixed(3));
+    put(host, "--spk", k(p, 0.445, 0.475, LIN).toFixed(3));
+    put(host, "--spa", k(p, 0.46, 0.48, LIN).toFixed(3));
+    put(host, "--bar", k(p, 0.44, 0.48, OUT).toFixed(3));
 
     // b1: ink notes under the wings (arrow tips just below the island's bottom edge)
     const ao = (k(p, 0.105, 0.12, LIN) * (1 - k(p, 0.225, 0.24, LIN))).toFixed(3);
@@ -436,6 +533,18 @@ export default function init(root, ctx) {
       put(a, "transform", `translate3d(${wx.toFixed(1)}px,${(32 * s + (mobile ? 8 : 14)).toFixed(1)}px,0)`);
       put(a, "opacity", ao);
     });
+
+    // b2: the three readings, set big under their rings, counting and filling with them
+    const no = k(p, 0.302, 0.325, LIN) * (1 - k(p, 0.392, 0.405, LIN));
+    put(nums, "opacity", no.toFixed(3));
+    if (no > 0) {
+      const ny = PEEK_H * s + 18 + 14 * (1 - k(p, 0.302, 0.33, OUT));
+      [d.s, d.w, d.o].forEach((v, i) => {
+        const n = numEls[i];
+        put(n.el, "transform", `translate3d(${(cx + (i - 1) * RING_DX * s).toFixed(1)}px,${ny.toFixed(1)}px,0)`);
+        if (n.v !== v) { n.v = v; n.o.textContent = n.f.textContent = `${v}%`; n.el.style.setProperty("--f", (v / 100).toFixed(2)); }
+      });
+    }
 
     // b3: the pinned table as a spec sheet
     if (marks.length) {
@@ -449,20 +558,14 @@ export default function init(root, ctx) {
       });
     }
 
-    // b4: the session bar, magnified across the screen: fill, the projected tick sweeping, the red cap
-    const fo = k(p, 0.545, 0.56, LIN) * (1 - k(p, 0.695, 0.71, LIN));
-    put(fc, "opacity", fo.toFixed(3));
-    if (fo > 0) {
-      put(fc, "transform", `translate3d(0,${(PIN_H * S.pin + (mobile ? 28 : 44)).toFixed(1)}px,0)`);
-      put(fc, "--s", clamp(d.sr / 100, 0, 1).toFixed(4));
-      put(fc, "--tx", `${((barW * clamp(d.pr, 0, 100)) / 100).toFixed(1)}px`);
-      put(fc, "--cap", clamp((d.pr - 100) / 4, 0, 1).toFixed(3));
-      const rs = lib.fmtReset(d.rs), txt = `Session ${d.burn ? lib.fmtForecast(d.ex) : lib.CLEARS}`;
-      if (fcRs.textContent !== rs) fcRs.textContent = rs;
-      if (fcTxt.textContent !== txt) fcTxt.textContent = txt;
-      const tone = d.burn ? (d.ex < 3600 ? "red" : "amber") : "";
-      if (fc.dataset.tone !== tone) fc.dataset.tone = tone;
-    }
+    // The session bar: docked at the foot of the screen (the hero's scroll cue, then the tour's running
+    // meter), raised and magnified under the pinned island for beat 04, docked again, emptied at the reset.
+    const rz = k(p, 0.54, 0.575, IO) * (1 - k(p, 0.685, 0.715, IO));
+    put(fc, "transform", `translate3d(0,${mix(dockY, raiseY, rz).toFixed(1)}px,0)`);
+    put(fc, "--rz", rz.toFixed(3));
+    put(fc, "--cue", (1 - k(p, 0.004, 0.03, LIN)).toFixed(3));
+    put(fc, "--fo", (mobile ? k(p, 0.02, 0.05, LIN) : 1).toFixed(3));
+    paintBar(d.sr, d.pr, d.rs, d.burn, d.ex);
 
     // b5: past 85% the whole screen flushes red and the caption goes bold (the HIT: no shake here)
     const fl = k(p, 0.7605, 0.775, LIN) * (1 - k(p, 0.84, 0.865, LIN));
@@ -490,7 +593,7 @@ export default function init(root, ctx) {
     put(ripple, "transform", `scale(${(0.3 + 1.3 * tap).toFixed(3)})`);
     put(ripple, "opacity", tap > 0 && tap < 1 ? (1 - tap).toFixed(3) : "0");
 
-    // b6: the nudges, at real macOS size (reversible: scrolling back takes them away)
+    // b6: the nudges, big and right under the notch (reversible: scrolling back takes them away)
     banner(0, p >= 0.87, "Session at 80%", "80% used · resets in 1h 5m");
     banner(1, p >= 0.93, "Session reset", "Your 5-hour window is back to full.");
   }
@@ -533,6 +636,7 @@ export default function init(root, ctx) {
     send.hidden = true;
     detachMenu();
     if (menuBar) lib.statusItem(false);
+    if (bandBits.length) { gsap.killTweensOf(bandBits); gsap.set(bandBits, { clearProps: "opacity,visibility" }); }
     display.querySelectorAll(".cm-banners").forEach((b) => b.remove());
     isl && isl.destroy();
     statics.forEach((s) => s.destroy());
@@ -540,8 +644,10 @@ export default function init(root, ctx) {
     specG.replaceChildren();
     root.classList.remove("is-live", "is-tour", "is-open");
     wall.classList.remove("is-wave");
-    cue.classList.remove("is-on");
-    [cam, rig, bezel, hero, host, ghost, arrow, ring, ripple, flush, fc, wall, liq, cap5, ...annos, ...specLabels].forEach((el) => { el.removeAttribute("style"); delete el.__stc; });
+    fc.classList.remove("is-on");
+    root.style.removeProperty("--nf");
+    [cam, rig, bezel, hero, host, ghost, arrow, ring, ripple, flush, fc, wall, liq, cap5, nums, display, ...caps, ...annos, ...specLabels, ...numEls.map((n) => n.el)].forEach((el) => { el.removeAttribute("style"); delete el.__stc; });
+    numEls.forEach((n) => (n.v = null));
     delete specG.__stc;
     specG.removeAttribute("style");
   }

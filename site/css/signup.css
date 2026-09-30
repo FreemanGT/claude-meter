@@ -5,7 +5,8 @@
 html.su-open{overflow:hidden}
 
 .su{position:fixed;inset:0 0 auto;margin:0 auto;padding:0;border:0;background:none;color:var(--fg);
-  width:min(540px,calc(100vw - 16px));max-width:none;max-height:100svh;overflow:visible}
+  width:min(540px,calc(100vw - 16px));max-width:none;max-height:100svh;overflow:visible;
+  border-radius:0 0 30px 30px;box-shadow:0 34px 70px -24px rgb(0 0 0/.6),0 16px 36px rgb(0 0 0/.3)}
 .su::backdrop{background:rgb(7 7 8/.5);-webkit-backdrop-filter:blur(6px) saturate(.9);backdrop-filter:blur(6px) saturate(.9)}
 .su:focus{outline:none}
 
@@ -14,7 +15,6 @@ html.su-open{overflow:hidden}
   background:linear-gradient(#000,#000) padding-box,
     linear-gradient(transparent var(--band-h),rgb(255 255 255/.06) calc(var(--band-h) + 24px),rgb(255 255 255/.2)) border-box;
   padding:0 clamp(20px,5vw,34px) clamp(22px,4vw,30px);
-  box-shadow:0 34px 70px -24px rgb(0 0 0/.6),0 16px 36px rgb(0 0 0/.3);
   font-family:var(--f-display);font-stretch:100%}
 
 /* header band beside the housing, like the island's pinned header */

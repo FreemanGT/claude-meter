@@ -356,13 +356,17 @@ export default function init(root, ctx) {
     });
 
     // Ambient: while the list is on screen, the next unread question's island drops out of its hairline for a beat.
-    let timer = 0;
+    // Its gauge segment ghosts for the same beat: this one costs 10%.
+    let timer = 0, ghostId = 0;
     const tick = () => {
       if (hovered >= 0 || root.contains(document.activeElement) && document.activeElement.tagName === "SUMMARY") return;
       const i = items.findIndex((it) => !isUsed(it) && !it.open);
-      if (i >= 0) glyphs[i].blink();
+      if (i < 0 || glyphs[i].state !== "h") return;
+      glyphs[i].blink();
+      segGho[i].classList.add("is-on");
+      ghostId = setTimeout(() => hovered !== i && segGho[i].classList.remove("is-on"), 1300);
     };
-    disposeLoop = lib.whileVisible($(".faq__list"), () => { timer = setInterval(tick, 4200); }, () => clearInterval(timer));
+    disposeLoop = lib.whileVisible($(".faq__list"), () => { timer = setInterval(tick, 4200); }, () => { clearInterval(timer); clearTimeout(ghostId); });
   }
 
   return () => {

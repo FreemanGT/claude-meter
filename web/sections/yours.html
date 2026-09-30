@@ -82,6 +82,15 @@
             </div>
 
             <i class="yr-ptr" aria-hidden="true"><svg viewBox="0 0 18 26"><path d="M1.6 1.4v20.2l4.9-4.7 3.3 7.6 3.5-1.5-3.3-7.5h6.8z"/></svg></i>
+            <svg class="yr-defs" width="0" height="0" aria-hidden="true" focusable="false">
+              <!-- Liquid Glass lens: an edge map (strongest at the rim, clear in the middle) scaled to the island's body -->
+              <filter id="yr-lens" x="0" y="0" width="1" height="1" primitiveUnits="objectBoundingBox" color-interpolation-filters="sRGB">
+                <feImage href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'><linearGradient id='g'><stop offset='0' stop-color='%23f00'/><stop offset='.04' stop-color='%23d00'/><stop offset='.11' stop-color='%23980000'/><stop offset='.2' stop-color='%23800000'/><stop offset='.8' stop-color='%23800000'/><stop offset='.89' stop-color='%23680000'/><stop offset='.96' stop-color='%23300000'/><stop offset='1' stop-color='%23000'/></linearGradient><rect width='100' height='100' fill='url(%23g)'/></svg>" x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="mx"/>
+                <feImage href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'><linearGradient id='g' x2='0' y2='1'><stop offset='0' stop-color='%23008000'/><stop offset='.62' stop-color='%23008000'/><stop offset='.86' stop-color='%23006800'/><stop offset='1' stop-color='%23003800'/></linearGradient><rect width='100' height='100' fill='url(%23g)'/></svg>" x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="my"/>
+                <feComposite in="mx" in2="my" operator="arithmetic" k2="1" k3="1" result="map"/>
+                <feDisplacementMap in="SourceGraphic" in2="map" scale=".07" xChannelSelector="R" yChannelSelector="G"/>
+              </filter>
+            </svg>
           </div>
         </div>
 
@@ -121,8 +130,8 @@
           </label>
         </div>
 
-        <div class="yr-links">
-          <p class="yr-links__lbl">SIMULATE</p>
+        <div class="yr-links" role="group" aria-labelledby="yr-sim">
+          <p class="yr-links__lbl" id="yr-sim">SIMULATE</p>
           <button type="button" class="yr-lnk" data-act="busy"><svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="8.25"/><path d="M7.2 5.6v6.8L12.6 9z"/></svg><span class="yr-lnk__t">A busy hour</span></button>
           <button type="button" class="yr-lnk" data-act="full"><svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="8.25"/><path d="M6 8V6h2M12 10v2h-2M10 6h2v2M8 12H6v-2"/></svg><span class="yr-lnk__t">A full&#8209;screen app</span></button>
           <button type="button" class="yr-lnk" data-act="lid" aria-pressed="false"><svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="8.25"/><path class="yr-lnk__notch" d="M5.5 6.2h7M7.2 6.2v1.1a.9.9 0 0 0 .9.9h1.8a.9.9 0 0 0 .9-.9V6.2"/><path class="yr-lnk__pill" d="M7 10.8h4"/></svg><span class="yr-lnk__t">No notch (lid closed)</span></button>

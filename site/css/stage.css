@@ -1,4 +1,4 @@
-/* §01 stage — hero + dolly-in tour (SPEC §9.1, review round 1). Scoped under .s--stage.
+/* §01 stage — hero + dolly-in tour (SPEC §9.1, review round 2). Scoped under .s--stage.
    Paper, ink and one black object: the menu bar and the island hanging from it.
    Base rules are the STATIC composition (no JS, reduced motion): the hero, then the six beats as a list.
    stage.js adds .is-live in motion mode: the display becomes the pinned 100svh screen and the camera rig
@@ -120,15 +120,16 @@
 }
 .s--stage .wall__word{position:relative;display:inline-block;padding:.07em .06em .02em;margin:-.07em -.06em -.02em;background:#fff;isolation:isolate;mix-blend-mode:multiply}
 .s--stage .ch{position:relative;display:inline-block;color:transparent;-webkit-text-stroke:var(--sw) var(--ink);
-  font-stretch:clamp(50%, calc(var(--wscroll) * var(--wb,1) * (1 - .55 * var(--sq,0))), 150%)}
+  font-stretch:clamp(50%, calc(var(--wscroll) * (1 - .55 * var(--sq,0))), 150%)}
 .s--stage .ch__f{position:absolute;left:0;top:0;z-index:-1;color:var(--fill-c);-webkit-text-stroke:0 transparent}
 .s--stage .wall__tank{position:absolute;inset:0;z-index:0;overflow:hidden;mix-blend-mode:screen;pointer-events:none}
 .s--stage .wall__liq{position:absolute;left:-12%;right:-12%;top:-1.5em;height:3em;background:linear-gradient(#fff 50%,#000 50%);
   translate:0 calc(.73em - var(--lvl) * (1 - var(--drain,0)) * .675em)}
-.s--stage .wall__wave{position:absolute;left:0;top:calc(50% - var(--wa) / 2);width:calc(100% + var(--wl));height:var(--wa);
+/* 4 wavelengths wide (always ≥ the liquid + one wavelength), so the loop is a plain -25% transform */
+.s--stage .wall__wave{position:absolute;left:0;top:calc(50% - var(--wa) / 2);width:calc(var(--wl) * 4);height:var(--wa);
   background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 20' preserveAspectRatio='none'%3E%3Cpath fill='%23fff' d='M0 0H200V10C175 17 175 17 150 10S125 3 100 10S75 17 50 10S25 3 0 10Z'/%3E%3Cpath d='M0 10C25 3 25 3 50 10S75 17 100 10S125 3 150 10S175 17 200 10V20H0Z'/%3E%3C/svg%3E") 0 0 / var(--wl) 100% repeat-x}
 .s--stage .wall.is-wave .wall__wave{animation:stage-wave 3.2s linear infinite}
-@keyframes stage-wave{to{transform:translateX(calc(var(--wl) * -1))}}
+@keyframes stage-wave{to{transform:translateX(-25%)}}
 .s--stage .wall[data-tone="amber"]{--fill-c:var(--amber)}
 .s--stage .wall[data-tone="red"]{--fill-c:var(--red);--sw:max(2.25px,.2vw)}
 
@@ -143,10 +144,54 @@
 .s--stage .v-tap{display:none}
 @media (hover:none){.s--stage .v-hover{display:none}.s--stage .v-tap{display:inline}}
 .s--stage .act{grid-area:a;margin-top:clamp(18px,3svh,36px)}
-.s--stage .act .cta-hang{border-top-color:var(--rule)}
+.s--stage .act .cta-hang{border-top-color:var(--rule);flex-wrap:wrap;align-items:flex-start}
 .s--stage .act .req{margin-top:2px;font-size:12px}
 .s--stage .req .nw{white-space:nowrap}
-.s--stage .send{display:inline-flex;align-items:center;gap:8px;margin-top:14px;height:40px;padding:0 16px 0 12px;border:1px solid var(--rule);border-radius:var(--r-pill);
+
+/* the Windows waitlist: a paper tab hanging from the same hairline, outlined, with the notch's flared
+   shoulders (a 1px ring arc per side; a paper sliver hides the straight border under each arc). It opens
+   like the Mac tab to say what it is. */
+.s--stage .win{position:relative;flex:none;display:flex;flex-direction:column;justify-content:flex-start;height:56px;margin:0 0 0 14px;padding:0 20px 0 22px;
+  border:1px solid var(--ink);border-top:0;border-radius:0 0 22px 22px;background:var(--paper);color:var(--ink);cursor:pointer;
+  font:inherit;text-align:left;transition:height var(--spring-close-dur) var(--spring-close)}
+.s--stage .win::before,.s--stage .win::after{content:"";position:absolute;top:0;width:12px;height:10px;pointer-events:none;background-repeat:no-repeat}
+.s--stage .win::before{left:-11px;background-image:radial-gradient(circle at 0 100%,transparent 9.9px,var(--ink) 10.1px 10.9px,transparent 11.1px),linear-gradient(var(--paper),var(--paper));background-size:100% 100%,2px 7px;background-position:0 0,100% 0}
+.s--stage .win::after{right:-11px;background-image:radial-gradient(circle at 100% 100%,transparent 9.9px,var(--ink) 10.1px 10.9px,transparent 11.1px),linear-gradient(var(--paper),var(--paper));background-size:100% 100%,2px 7px;background-position:0 0,0 0}
+.s--stage .win:hover,.s--stage .win:focus-visible{height:86px;transition:height var(--spring-open-dur) var(--spring-open)}
+.s--stage .win:focus-visible{outline:2px solid var(--ink);outline-offset:3px;box-shadow:0 0 0 4px var(--teal)}
+/* the Mac tab's magnetic label must not chase a pointer that is on its neighbours */
+.s--stage .act:has(.win:hover,.gh:hover,.req:hover,.send:hover) .cta__row{transform:none !important;transition:transform .35s var(--ease-settle)}
+.s--stage .win__row{display:flex;align-items:center;gap:10px;height:55px}
+.s--stage .win__l{font:700 17px/1 var(--f-display);font-stretch:92%;white-space:nowrap}
+.s--stage .win__pre{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}   /* spoken, not shown, where the tab sits beside the Mac one */
+.s--stage .win__tag{padding:4px 7px 3px;border:1px solid var(--rule);border-radius:var(--r-pill);font:500 11px/1 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);white-space:nowrap}
+.s--stage .win__meta{position:absolute;left:0;right:0;top:48px;height:30px;display:flex;align-items:center;justify-content:center;white-space:nowrap;
+  font:500 11px/1 var(--f-mono);letter-spacing:.04em;color:var(--ink-2);opacity:0;filter:blur(4px);transform:scaleX(.6);
+  transition:opacity .18s var(--ease-settle),filter .18s var(--ease-settle),transform .18s var(--ease-settle)}
+.s--stage .win:hover .win__meta,.s--stage .win:focus-visible .win__meta{opacity:1;filter:none;transform:none;transition-duration:.3s;transition-delay:.06s}
+
+/* Windows visitors: the waitlist leads (filled), the Mac tab steps back to an outline */
+html[data-os="windows"] .s--stage .win{order:-1;margin:0 14px 0 0;background:var(--black);border-color:var(--black);color:var(--fg)}
+html[data-os="windows"] .s--stage .win::before{background-image:radial-gradient(circle at 0 100%,transparent 10px,var(--black) 10.6px);background-size:100% 100%}
+html[data-os="windows"] .s--stage .win::after{background-image:radial-gradient(circle at 100% 100%,transparent 10px,var(--black) 10.6px);background-size:100% 100%}
+html[data-os="windows"] .s--stage .win :is(.win__tag,.win__meta){color:var(--fg-2);border-color:rgb(236 237 232/.22)}
+html[data-os="windows"] .s--stage .cta{color:var(--ink)}
+html[data-os="windows"] .s--stage .cta__shape path:first-of-type{fill:var(--paper);stroke:var(--ink);stroke-width:1}
+html[data-os="windows"] .s--stage .cta__ring .trk{stroke:rgb(17 19 17/.2)}
+html[data-os="windows"] .s--stage .cta__meta{color:var(--ink-2)}
+
+/* open source: a quiet star link (the live count appears only once the shared script has one) */
+.s--stage .act__more{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;margin-top:14px}
+.s--stage .gh{display:inline-flex;align-items:center;gap:8px;min-height:32px;color:var(--ink);text-decoration:none;font:600 15px/1 var(--f-display);font-stretch:96%}
+.s--stage .gh__star{width:17px;height:17px;flex:none;fill:transparent;stroke:currentColor;stroke-width:1.3;stroke-linejoin:round;
+  transition:fill .2s var(--ease-settle),rotate var(--spring-play-dur) var(--spring-play)}
+.s--stage .gh:hover .gh__star,.s--stage .gh:focus-visible .gh__star{fill:var(--amber);rotate:72deg}   /* one fifth of a turn: a spin that lands on the same star */
+.s--stage .gh:hover .gh__t{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px}
+.s--stage .gh__dim{color:var(--ink-2);font-weight:460}
+.s--stage .gh__n{display:inline-flex;align-items:center;height:22px;padding:0 8px;border:1px solid var(--rule);border-radius:var(--r-pill);
+  font:500 12px/1 var(--f-mono);color:var(--ink);font-variant-numeric:tabular-nums}
+.s--stage .gh__n:empty{display:none}
+.s--stage .send{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px 0 12px;border:1px solid var(--rule);border-radius:var(--r-pill);
   background:transparent;color:var(--ink);font:600 15px/1 var(--f-display);font-stretch:96%;cursor:pointer}
 .s--stage .send[hidden]{display:none}
 .s--stage .send svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
@@ -158,26 +203,30 @@
 .s--stage .note__in > *{transition:opacity .3s var(--ease-settle)}
 .s--stage.is-open .note__in > *{opacity:0}   /* the note steps aside while the island is open */
 
-/* scroll cue */
-.s--stage .cue{display:none}
-.s--stage.is-live .cue{display:flex;position:absolute;left:var(--gutter);bottom:clamp(24px,4.4svh,44px);pointer-events:none;
-  font:500 12px/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
-.s--stage .cue__in{display:flex;align-items:center;gap:10px}
-.s--stage .cue__tick{position:relative;display:block;width:26px;height:4px;border-radius:99px;background:var(--paper-3);overflow:hidden}
-.s--stage .cue__tick i{position:absolute;inset:0;border-radius:inherit;background:var(--ink);transform-origin:0 50%;transform:scaleX(.46)}
-.s--stage .cue.is-on .cue__tick i{animation:stage-tick 2.4s var(--ease-edit) infinite}
-@keyframes stage-tick{0%{transform:scaleX(.08)}70%,100%{transform:scaleX(1)}}
-
-/* ---------------------------------------------------------------- b4: the session bar, magnified across the screen */
+/* ---------------------------------------------------------------- the session bar
+   Docked at the foot of the screen it is the scroll cue and the tour's running meter (fill = session,
+   hatched ghost + tick = where it is heading); at beat 04 it rises under the pinned island and its
+   forecast reads out big. stage.js writes --s/--pj/--tx/--tk/--cap (values), --rz (raised), --cue. */
 .s--stage .fc{display:none}
-.s--stage.is-live .fc{display:block;position:absolute;z-index:3;left:var(--gutter);right:var(--gutter);top:0;opacity:0;pointer-events:none}
-.s--stage .fc__top{display:flex;justify-content:space-between;gap:16px;font:500 12px/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
-.s--stage .fc__bar{position:relative;height:14px;margin-top:12px;border-radius:99px;background:rgb(17 19 17/.1)}
-.s--stage .fc__fill{position:absolute;inset:0;border-radius:inherit;background:var(--teal);transform-origin:0 50%;transform:scaleX(var(--s,.46))}
-.s--stage .fc__cap{position:absolute;right:0;top:0;width:10px;height:100%;border-radius:0 99px 99px 0;background:var(--red);opacity:var(--cap,0)}
-.s--stage .fc__tick{position:absolute;left:0;top:-9px;width:4px;height:32px;margin-left:-2px;border-radius:2px;background:var(--ink);transform:translateX(var(--tx,0px))}
-.s--stage .fc__tick::after{content:"";position:absolute;left:50%;top:-5px;width:9px;height:9px;margin-left:-4.5px;border-radius:50%;background:inherit}
-.s--stage .fc__read{margin-top:clamp(18px,3svh,32px);text-align:right;font:640 clamp(34px,4.4vw,72px)/1 var(--f-display);font-stretch:88%;letter-spacing:-.03em;color:var(--ink)}
+.s--stage.is-live .fc{display:block;position:absolute;z-index:3;left:var(--gutter);right:var(--gutter);top:0;pointer-events:none;opacity:calc(var(--fin,1) * var(--fo,1))}
+.s--stage .fc__top{display:flex;justify-content:space-between;align-items:baseline;gap:16px;font:500 12px/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.s--stage .fc__k{display:grid}
+.s--stage .fc__k > *{grid-area:1/1;white-space:nowrap}
+.s--stage .fc__cue{opacity:var(--cue,1);color:var(--ink)}
+.s--stage .fc__lbl{opacity:calc(1 - var(--cue,1))}
+.s--stage .fc__arw{display:inline-block;font-style:normal}
+.s--stage .fc.is-on .fc__arw{animation:stage-arw 1.8s var(--ease-settle) infinite}
+@keyframes stage-arw{0%,55%,100%{transform:none}25%{transform:translateY(3px)}}
+.s--stage .fc__rs{white-space:nowrap}
+.s--stage .fc__pct{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.s--stage .fc__bar{position:relative;height:8px;margin-top:10px;border-radius:99px;background:rgb(17 19 17/.1);transform-origin:50% 100%;transform:scaleY(calc(1 + .75 * var(--rz,0)))}
+.s--stage .fc__bar > i{position:absolute;inset:0;border-radius:inherit}
+.s--stage .fc__prj{background:repeating-linear-gradient(-55deg,rgb(92 201 166/.7) 0 2px,transparent 2px 5px);clip-path:inset(0 calc(100% - var(--pj,.71) * 100%) 0 0 round 99px)}
+.s--stage .fc__fill{background:var(--teal);clip-path:inset(0 calc(100% - var(--s,.46) * 100%) 0 0 round 99px)}
+.s--stage .fc__cap{left:auto;width:10px;border-radius:0 99px 99px 0;background:var(--red);opacity:var(--cap,0)}
+.s--stage .fc__bar > .fc__tick{inset:auto;left:0;top:-6px;width:3px;height:20px;margin-left:-1.5px;border-radius:2px;background:var(--ink);opacity:var(--tk,1);transform:translateX(var(--tx,0px))}
+.s--stage .fc__read{margin-top:clamp(18px,3svh,32px);text-align:right;font:640 clamp(34px,4.4vw,72px)/1 var(--f-display);font-stretch:88%;letter-spacing:-.03em;color:var(--ink);
+  opacity:var(--rz,0);transform:translateY(calc((1 - var(--rz,0)) * 14px))}
 .s--stage .fc__txt{padding:0 .08em;-webkit-box-decoration-break:clone;box-decoration-break:clone}
 .s--stage .fc[data-tone="amber"] .fc__txt{background:linear-gradient(transparent 58%,var(--hl-amber) 58% 94%,transparent 94%)}   /* highlighter: amber is never text on paper */
 .s--stage .fc[data-tone="red"] .fc__read{color:var(--red-ink);font-weight:860}
@@ -201,38 +250,49 @@
 .s--stage.is-live .display{height:100svh;overflow:hidden}
 .s--stage.is-live .hero{height:100svh;min-height:0}
 .s--stage.is-live .captions{position:absolute;inset:0;z-index:3;display:block;padding:0;pointer-events:none}
-.s--stage.is-live .cap{position:absolute;left:var(--gutter);bottom:clamp(36px,7svh,84px);width:min(560px,42vw);display:block}
+.s--stage.is-live .cap{position:absolute;left:50%;top:var(--ct,50%);translate:-50% 0;width:min(680px,calc(100% - 2 * var(--gutter)));display:block;text-align:center}
+.s--stage.is-live .cap__b{margin-inline:auto}
 .s--stage.is-live .cap__isl{display:none}
-/* each beat gets its own framing: the thin collapsed shots (01, 06) carry display-size captions, the ghost's
-   beat (02) answers from the right, the dense panels (03–05) keep a compact caption under them */
+/* every caption hangs just under its beat's island (stage.js sets --ct from the camera geometry): the thin
+   collapsed shots (01, 06) carry display-size captions, the dense panels (02–05) a compact one */
 @media (min-width:1024px){
-  .s--stage.is-live .cap--c{left:50%;width:min(1000px,calc(100% - 2 * var(--gutter)));translate:-50% 0;text-align:center}
-  .s--stage.is-live .cap--c .cap__b{margin-inline:auto;max-width:46ch}
-  .s--stage.is-live .cap--r{left:auto;right:var(--gutter)}
-  .s--stage.is-live .cap--big{bottom:auto;top:52%;translate:0 -50%;width:min(1100px,74vw)}
+  .s--stage.is-live :is(.cap--c,.cap--big){width:min(1100px,calc(100% - 2 * var(--gutter)))}
+  .s--stage.is-live :is(.cap--c,.cap--big) .cap__b{max-width:46ch}
   .s--stage.is-live :is(.cap--c,.cap--big) .cap__t{font-size:clamp(44px,5.6vw,100px);line-height:.98;letter-spacing:-.035em}
   .s--stage.is-live :is(.cap--c,.cap--big) .cap__b{font-size:clamp(18px,1.35vw,21px);margin-top:22px}
 }
 .s--stage .cap:nth-child(5) :is(.cap__idx,.cap__b){color:var(--ink)}   /* it sits on the red flush: AA needs full ink */
-.s--stage .display > .cm-banners{top:calc(var(--band-h) + 20px);right:20px}
+/* b6: the banners drop right under the notch, a size up (they slide in from the right, as on macOS) */
+.s--stage .display > .cm-banners{top:var(--bt,60px);left:50%;right:auto;width:340px;translate:-50% 0;scale:1.22;transform-origin:50% 0}
+
+/* ---------------------------------------------------------------- b2: the ring readings, set big under the peek */
+.s--stage .nums{display:none}
+.s--stage.is-live .nums{display:block;position:absolute;left:0;top:0;width:0;height:0;opacity:0}
+.s--stage .num{position:absolute;left:0;top:0;margin:0;translate:-50% 0;text-align:center;white-space:nowrap}
+.s--stage :is(.num__o,.num__f){display:block;font:900 var(--nf,120px)/.78 var(--f-display);font-stretch:62%;letter-spacing:-.035em;font-variant-numeric:tabular-nums}
+.s--stage .num__o{color:transparent;-webkit-text-stroke:max(1.5px,.016em) var(--ink)}
+/* the WALL's grammar: a hard-stop fill clipped to the reading, on the cap height (baseline .66em, cap .675em) */
+.s--stage .num__f{position:absolute;left:0;right:0;top:0;z-index:-1;color:var(--c);clip-path:inset(calc(.66em - var(--f,0) * .675em) -.1em -.1em -.1em)}
+.s--stage .num__k{display:block;margin-top:12px;font:500 12px/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.s--stage .num--teal{--c:var(--teal)}
+.s--stage .num--lav{--c:var(--lav)}
+.s--stage .num--amber{--c:var(--amber)}
 
 /* ---------------------------------------------------------------- hero reveal
    CSS keyframes from the first paint, so the hero never waits for the module graph (LCP ≈ FCP).
    Paused while the intro covers the page; intro.js adds .is-revealing as the black lifts.
-   Chars rise on `top` (no transform: a stacking context would pull the fill glyph out of the blend group). */
+   The WALL rises as one word on a transform: .wall__word is already its own blend group, so this keeps the
+   fill glyphs in the blend, shifts no layout (no CLS) and paints part of the word from the first frame. */
 html[data-motion="full"] .s--stage .ln__i{animation:stage-rise .95s var(--ease-edit) backwards}
 html[data-motion="full"] .s--stage .l3 .ln__i{animation-delay:.14s}
 html[data-motion="full"] .s--stage .wall{animation:stage-fill 1.8s cubic-bezier(.45,0,.55,1) .45s backwards}
-html[data-motion="full"] .s--stage .wall .ch{animation:stage-char 1s var(--ease-edit) .06s backwards}
-html[data-motion="full"] .s--stage .wall .ch:nth-child(3){animation-delay:.12s}
-html[data-motion="full"] .s--stage .wall .ch:nth-child(4){animation-delay:.18s}
-html[data-motion="full"] .s--stage .wall .ch:nth-child(5){animation-delay:.24s}
+html[data-motion="full"] .s--stage .wall__word{animation:stage-word 1.05s var(--ease-edit) .06s backwards}
 html[data-motion="full"] .s--stage :is(.lede,.act){animation:stage-side .8s var(--ease-edit) .3s backwards}
 html[data-motion="full"] .s--stage .act{animation-delay:.4s}
-html.is-intro:not(.is-revealing) .s--stage :is(.ln__i,.wall,.wall .ch,.lede,.act){animation-play-state:paused}
+html.is-intro:not(.is-revealing) .s--stage :is(.ln__i,.wall,.wall__word,.lede,.act){animation-play-state:paused}
 html[data-motion="full"] .s--stage:not(.is-live) .note{opacity:0}   /* the note points at the island, which needs JS */
 @keyframes stage-rise{from{transform:translateY(135%)}}   /* clear of the .16em mask padding */
-@keyframes stage-char{from{top:.95em}}
+@keyframes stage-word{from{transform:translateY(.62em)}}
 @keyframes stage-side{from{transform:translateY(18px);opacity:0}}
 @keyframes stage-fill{from{--lvl:0}}
 
@@ -247,7 +307,7 @@ html[data-motion="full"] .s--stage:not(.is-live) .note{opacity:0}   /* the note 
   .s--stage .note__t{font-size:19px;rotate:-3deg}
   .s--stage .cap{grid-template-columns:minmax(0,1fr);row-gap:0}
   .s--stage .cap__isl{grid-column:1;grid-row:auto;margin-top:28px}
-  .s--stage.is-live .cap{width:auto;right:var(--gutter);max-width:560px;top:max(44svh,280px);bottom:auto}
+  .s--stage.is-live .cap{width:min(680px,calc(100% - 2 * var(--gutter)))}
 }
 @media (min-width:768px) and (max-width:1023px){.s--stage{--wrest:100%;--wk:2.821;--wl0:.0155}}
 @media (max-width:767px){
@@ -260,10 +320,20 @@ html[data-motion="full"] .s--stage:not(.is-live) .note{opacity:0}   /* the note 
   .s--stage .lede{font-size:16px;margin-top:16px}
   .s--stage .act{margin-top:14px}
   .s--stage .act .req{font-size:min(11px,2.82vw)}
+  /* phones: the Windows waitlist is a full-width outlined pill under the full-width Mac tab */
+  .s--stage .act .cta-hang{padding-bottom:0}
+  .s--stage .win{flex:1 1 100%;height:48px;margin:36px 0 0;border-top:1px solid var(--ink);border-radius:var(--r-pill);padding:0 18px}
+  .s--stage .win::before,.s--stage .win::after,.s--stage .win__meta{display:none}
+  .s--stage .win:hover,.s--stage .win:focus-visible{height:48px}
+  .s--stage .win__row{height:46px;justify-content:center}
+  .s--stage .win__pre{position:static;width:auto;height:auto;overflow:visible;clip-path:none}
+  html[data-os="windows"] .s--stage .win{margin:36px 0 0}
+  .s--stage .act .req{margin-top:14px}
   .s--stage .req__sep{display:none}
   .s--stage .req__trust{display:block}
-  .s--stage.is-live .cue{display:none}
-  .s--stage.is-live .cap{left:var(--gutter);right:var(--gutter);width:auto;top:max(44svh,280px);bottom:auto}
+  .s--stage.is-live .cap{left:var(--gutter);right:var(--gutter);width:auto;translate:none;text-align:left}
+  .s--stage .display > .cm-banners{width:min(340px,calc(100% - 32px));scale:1}
+  .s--stage .num__k{margin-top:8px;font-size:10px}
   .s--stage.is-live .cap__t{font-size:clamp(26px,7.4vw,32px)}
   .s--stage.is-live .cap__b{font-size:16px;margin-top:10px}
   .s--stage .fc__read{font-size:clamp(24px,7vw,32px);text-align:left}

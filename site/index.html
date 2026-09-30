@@ -27,9 +27,9 @@
 <meta name="twitter:image" content="https://claudemeter.vercel.app/assets/og.png">
 
 <script type="application/ld+json">
-{"@context":"https://schema.org","@graph":[{"@type":"SoftwareApplication","@id":"https://claudemeter.vercel.app/#app","name":"Claude Meter","operatingSystem":"macOS 14.4 or later","applicationCategory":"UtilitiesApplication","softwareVersion":"1.2","softwareRequirements":"Claude Code signed in with a Claude Pro or Max plan; macOS 14.4 or later","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"isAccessibleForFree":true,"license":"https://opensource.org/licenses/MIT","downloadUrl":"https://claudemeter.vercel.app/ClaudeMeter.dmg","author":{"@type":"Person","name":"Yiftach Freeman"},"image":"https://claudemeter.vercel.app/assets/icon-512.png","url":"https://claudemeter.vercel.app/","sameAs":["https://github.com/yiftach41/claude-meter"],"description":"Free, open-source (MIT) macOS app that puts your Claude Pro or Max limits in the MacBook notch: the 5-hour session, the weekly limit and per-model limits. Needs Claude Code signed in with a Claude Pro or Max plan. A Windows version is on a waitlist."},{"@type":"SoftwareSourceCode","@id":"https://claudemeter.vercel.app/#source","name":"Claude Meter","codeRepository":"https://github.com/yiftach41/claude-meter","programmingLanguage":"Swift","runtimePlatform":"macOS 14.4 or later","license":"https://opensource.org/licenses/MIT","author":{"@type":"Person","name":"Yiftach Freeman"},"targetProduct":{"@id":"https://claudemeter.vercel.app/#app"}}]}
+{"@context":"https://schema.org","@graph":[{"@type":"SoftwareApplication","@id":"https://claudemeter.vercel.app/#app","name":"Claude Meter","operatingSystem":"macOS 14.4 or later","applicationCategory":"UtilitiesApplication","softwareVersion":"1.2","softwareRequirements":"Claude Code signed in with a Claude Pro or Max plan; macOS 14.4 or later","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"isAccessibleForFree":true,"license":"https://opensource.org/licenses/MIT","downloadUrl":"https://claudemeter.vercel.app/ClaudeMeter.dmg","author":{"@type":"Person","name":"Yiftach Freeman"},"image":"https://claudemeter.vercel.app/assets/icon-512.png","url":"https://claudemeter.vercel.app/","sameAs":["https://github.com/FreemanGT/claude-meter"],"description":"Free, open-source (MIT) macOS app that puts your Claude Pro or Max limits in the MacBook notch: the 5-hour session, the weekly limit and per-model limits. Needs Claude Code signed in with a Claude Pro or Max plan. A Windows version is on a waitlist."},{"@type":"SoftwareSourceCode","@id":"https://claudemeter.vercel.app/#source","name":"Claude Meter","codeRepository":"https://github.com/FreemanGT/claude-meter","programmingLanguage":"Swift","runtimePlatform":"macOS 14.4 or later","license":"https://opensource.org/licenses/MIT","author":{"@type":"Person","name":"Yiftach Freeman"},"targetProduct":{"@id":"https://claudemeter.vercel.app/#app"}}]}
 </script>
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Is it actually free?","acceptedAnswer":{"@type":"Answer","text":"Yes. No trial, no account, nothing to upgrade to. You do need Claude Pro or Max, since that’s what it measures. The download asks for your email, which is used only for Claude Meter updates. It’s signed with an Apple Developer ID and notarized by Apple, so macOS opens it without a fight."}},{"@type":"Question","name":"Is it open source?","acceptedAnswer":{"@type":"Answer","text":"Yes. The whole app is MIT-licensed and on GitHub, so you can read exactly what it does with your sign-in, build it yourself, or send a fix. If it earns its spot under your notch, a star helps other people find it. Star it on GitHub"}},{"@type":"Question","name":"What do I need?","acceptedAnswer":{"@type":"Answer","text":"A Mac on macOS 14.4 or later (Apple Silicon or Intel) and Claude Code signed in with a Claude Pro or Max plan, even if you mostly use claude.ai: install Claude Code, run claude , then /login with your Pro or Max account. API-key (Console) logins and a custom CLAUDE_CONFIG_DIR aren’t supported."}},{"@type":"Question","name":"Is there a Windows version?","acceptedAnswer":{"@type":"Answer","text":"Not yet. It’s Mac-only for now. Join the waitlist and we’ll email you when the Windows version ships. Your name and email are used for Claude Meter news and nothing else. Join the Windows waitlist"}},{"@type":"Question","name":"Will macOS ask for my keychain password?","acceptedAnswer":{"@type":"Answer","text":"Usually not. Claude Meter reads the sign-in Claude Code already saved (the macOS Keychain first, then ~/.claude/.credentials.json) and never writes to it; a refreshed token lives in memory only. If a prompt asks to let “security” use “Claude Code-credentials”, that’s Apple’s own keychain tool fetching it for Claude Meter. Enter your Mac password and choose Always Allow."}},{"@type":"Question","name":"Who does it talk to?","acceptedAnswer":{"@type":"Answer","text":"Three places: api.anthropic.com for your usage, every 5 minutes and when you hover, but never more than once every 3 minutes; platform.claude.com to refresh a token; and claudemeter.vercel.app/version.json once a day. If there’s a newer version, the right-click menu shows “Update available”, which brings you back here to download it. The app has no analytics, no account, no server of ours."}},{"@type":"Question","name":"Will it nag me?","acceptedAnswer":{"@type":"Answer","text":"Only if you ask it to. Notifications are off until you turn them on. Then you get a heads-up at 50, 80 and 95% of a session, at 80 and 95% of weekly and per-model limits, and a “back to full” when a tight window resets."}},{"@type":"Question","name":"What if my Mac has no notch?","acceptedAnswer":{"@type":"Answer","text":"You get a compact pill at the top centre instead. That covers Macs without a notch and a MacBook running lid-closed on an external display. With the lid open, the island stays on the built-in screen, so switch on Menu bar item to keep your numbers in the menu bar. It steps aside in full-screen apps."}},{"@type":"Question","name":"How do I quit it, or change settings?","acceptedAnswer":{"@type":"Answer","text":"There’s no Dock icon, so right-click the island, or click the menu bar item if you’ve turned it on. Appearance, percentages, burn-rate estimates, notifications, the menu bar item, launch at login and Quit all live there. To uninstall, quit it and drag it from Applications to the Trash."}},{"@type":"Question","name":"Is this made by Anthropic?","acceptedAnswer":{"@type":"Answer","text":"No. It’s an independent project by Yiftach Freeman, not affiliated with or endorsed by Anthropic."}}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Is it actually free?","acceptedAnswer":{"@type":"Answer","text":"Yes. No trial, no account, nothing to upgrade to. You do need Claude Pro or Max, since that’s what it measures. The download asks for your email, which is used only for Claude Meter updates. It’s signed with an Apple Developer ID and notarized by Apple, so macOS opens it without a fight."}},{"@type":"Question","name":"Is it open source?","acceptedAnswer":{"@type":"Answer","text":"Yes. The whole app is MIT-licensed and on GitHub, so you can read exactly what it does with your sign-in, build it yourself, or send a fix. If it earns its spot under your notch, a star helps other people find it. Star it on GitHub"}},{"@type":"Question","name":"What do I need?","acceptedAnswer":{"@type":"Answer","text":"A Mac on macOS 14.4 or later (Apple Silicon or Intel) and Claude Code signed in with a Claude Pro or Max plan, even if you mostly use claude.ai: install Claude Code, then run claude and type /login with your Pro or Max account. API-key (Console) logins and a custom CLAUDE_CONFIG_DIR aren’t supported."}},{"@type":"Question","name":"Is there a Windows version?","acceptedAnswer":{"@type":"Answer","text":"Not yet. It’s Mac-only for now. Join the waitlist and we’ll email you when the Windows version ships. Your name and email are used for Claude Meter news and nothing else. Join the Windows waitlist"}},{"@type":"Question","name":"Will macOS ask for my keychain password?","acceptedAnswer":{"@type":"Answer","text":"Usually not. Claude Meter reads the sign-in Claude Code already saved (the macOS Keychain first, then ~/.claude/.credentials.json) and never writes to it; a refreshed token lives in memory only. If a prompt asks to let “security” use “Claude Code-credentials”, that’s Apple’s own keychain tool fetching it for Claude Meter. Enter your Mac password and choose Always Allow."}},{"@type":"Question","name":"Who does it talk to?","acceptedAnswer":{"@type":"Answer","text":"Three places: api.anthropic.com for your usage, every 5 minutes and when you hover, but never more than once every 3 minutes; platform.claude.com to refresh a token; and claudemeter.vercel.app/version.json once a day. If there’s a newer version, the right-click menu shows “Update available”, which brings you back here to download it. The app has no analytics, no account, no server of ours."}},{"@type":"Question","name":"Will it nag me?","acceptedAnswer":{"@type":"Answer","text":"Only if you ask it to. Notifications are off until you turn them on. Then you get a heads-up at 50, 80 and 95% of a session, at 80 and 95% of weekly and per-model limits, and a “back to full” when a tight window resets."}},{"@type":"Question","name":"What if my Mac has no notch?","acceptedAnswer":{"@type":"Answer","text":"You get a compact pill at the top centre instead. That covers Macs without a notch and a MacBook running lid-closed on an external display. With the lid open, the island stays on the built-in screen, so switch on Menu bar item to keep your numbers in the menu bar. It steps aside in full-screen apps."}},{"@type":"Question","name":"How do I quit it, or change settings?","acceptedAnswer":{"@type":"Answer","text":"There’s no Dock icon, so right-click the island, or click the menu bar item if you’ve turned it on. Appearance, percentages, burn-rate estimates, notifications, the menu bar item, launch at login and Quit all live there. To uninstall, quit it and drag it from Applications to the Trash."}},{"@type":"Question","name":"Is this made by Anthropic?","acceptedAnswer":{"@type":"Answer","text":"No. It’s an independent project by Yiftach Freeman, not affiliated with or endorsed by Anthropic."}}]}</script>
 
 <link rel="preload" href="/fonts/anybody.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/geist-mono.woff2" as="font" type="font/woff2" crossorigin>
@@ -114,7 +114,7 @@
   <div class="band__right">
     <span class="band__status" hidden></span>
     <time class="band__clock"></time>
-    <a class="band__gh" href="https://github.com/yiftach41/claude-meter" target="_blank" rel="noopener" data-cta="github" aria-label="Star Claude Meter on GitHub">
+    <a class="band__gh" href="https://github.com/FreemanGT/claude-meter" target="_blank" rel="noopener" data-cta="github" aria-label="Star Claude Meter on GitHub">
       <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
       <span class="band__gh-lbl">Star</span><span class="band__gh-n" data-stars hidden></span>
     </a>
@@ -194,11 +194,11 @@
             <span class="cta__meta">Free · v1.2 · macOS 14.4+</span>
           </a><button class="win" type="button" data-cta="windows" data-cursor="we’ll email you at launch">
             <span class="win__row"><span class="win__l"><span class="win__pre">Download for </span>Windows</span><span class="win__tag"><span class="sr-only"> — </span>waitlist</span></span>
-            <span class="win__meta" aria-hidden="true">Not out yet · we’ll email you</span>
+            <span class="win__meta" aria-hidden="true">Coming soon</span>
           </button></div>
           <p class="req">Needs Claude Code signed in with Claude Pro or Max<br><span class="nw">Apple Silicon &amp; Intel</span><span class="req__sep"> · </span><span class="req__trust nw"><span class="seal" aria-hidden="true">✓</span> Developer ID signed · notarized by Apple</span></p>
           <p class="act__more">
-            <a class="gh" href="https://github.com/yiftach41/claude-meter" target="_blank" rel="noopener" data-cta="github" data-cursor="MIT · read every line"><svg class="gh__star" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 1.6l1.95 4.02 4.43.6-3.23 3.1.8 4.4L8 11.6l-3.95 2.12.8-4.4-3.23-3.1 4.43-.6z"/></svg><span class="gh__t">Open source <span class="gh__dim">· Star on GitHub</span></span><span class="gh__n" data-stars></span></a>
+            <a class="gh" href="https://github.com/FreemanGT/claude-meter" target="_blank" rel="noopener" data-cta="github" data-cursor="MIT · read every line"><svg class="gh__star" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 1.6l1.95 4.02 4.43.6-3.23 3.1.8 4.4L8 11.6l-3.95 2.12.8-4.4-3.23-3.1 4.43-.6z"/></svg><span class="gh__t">Open source <span class="gh__dim">· Star on GitHub</span></span><span class="gh__n" data-stars></span></a>
             <button class="send" type="button" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 12.5V2.8m-3.6 3.4L10 2.6l3.6 3.6M5.5 9H4.2v8.4h11.6V9h-1.3"/></svg>Send the link to my Mac</button>
           </p>
         </div>
@@ -231,7 +231,7 @@
   <div class="pin">
     <div class="wall__night" aria-hidden="true"></div>
     <div class="wall__bg" aria-hidden="true">
-      <span class="wall__word"><span class="wall__ink">WALL<svg class="wall__zig ink" viewBox="0 0 1000 300" preserveAspectRatio="none"><path d="M10 200 Q36 131 46 57 Q73 145 89 236 Q117 149 126 59 Q148 148 159 239 Q182 155 198 69 Q220 146 229 225 Q252 149 260 70 Q285 138 300 209 Q325 145 344 78 Q368 161 383 245 Q408 138 415 29 Q441 118 453 210 Q473 126 485 41 Q505 137 516 236 Q537 155 552 72 Q574 159 589 247 Q615 156 626 62 Q648 142 663 224 Q691 154 706 80 Q733 164 748 251 Q770 146 783 40 Q807 124 817 210 Q841 131 857 49 Q885 138 899 231 Q925 152 943 72 Q963 145 973 219"/></svg></span></span>
+      <span class="wall__word"><span class="wall__ink">WALL</span></span>
     </div>
     <div class="wrap wall__wrap">
       <p class="rh"><span>§02 — THE WALL</span><span class="rh__datum"><span class="wall__rhk">SESSION </span>CLOCK <span class="wall__rhclock">10:04 AM</span></span></p>
@@ -269,7 +269,7 @@
         <div class="wall__b">
           <p class="act__label">ACT TWO · SAME DAY, WITH A METER</p>
           <h3 class="act__h3"><span class="act__t">12:50<span class="act__ap"> PM</span></span> Committed. <em>Notes written.</em></h3>
-          <p class="act__sub">Stopped at a clean line, not a cliff.</p>
+          <p class="act__sub">At noon the notch said “hits the cap in 1h 12m.” By 12:50: tests green, part 1 in git, next steps in HANDOFF.md.</p>
           <div class="bezel"><div class="bezel__cam"></div></div>
           <figure class="term term--b">
             <figcaption class="term__bar"><span class="term__dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="term__title">~/app — zsh</span><span class="term__clock">12:50 PM</span></figcaption>
@@ -291,7 +291,7 @@
         </div>
       </div>
     </div>
-    <div class="wall__slam" aria-hidden="true"><span class="wall__slab"><i>W</i><i>A</i><i>L</i><i>L</i></span><p class="wall__sign"><b>✕</b> usage limit reached · resets 3:04&nbsp;PM</p></div>
+    <div class="wall__slam" aria-hidden="true"><span class="wall__slab"><i>W</i><i>A</i><i>L</i><i>L</i></span><p class="wall__sign"><b>✕</b> usage limit reached · resets 3:04&nbsp;PM</p><p class="wall__sign wall__sign--ok"><b>✓</b> stopped on purpose · 22m to spare</p></div>
     <svg class="wall__arrow ink" aria-hidden="true"><path class="wall__arrow-halo wall__arrow-line"/><path class="wall__arrow-halo wall__arrow-head"/><path class="wall__arrow-line"/><path class="wall__arrow-head"/></svg>
     <div class="wall__flash" aria-hidden="true"></div>
   </div>
@@ -480,6 +480,15 @@
             </div>
 
             <i class="yr-ptr" aria-hidden="true"><svg viewBox="0 0 18 26"><path d="M1.6 1.4v20.2l4.9-4.7 3.3 7.6 3.5-1.5-3.3-7.5h6.8z"/></svg></i>
+            <svg class="yr-defs" width="0" height="0" aria-hidden="true" focusable="false">
+              <!-- Liquid Glass lens: an edge map (strongest at the rim, clear in the middle) scaled to the island's body -->
+              <filter id="yr-lens" x="0" y="0" width="1" height="1" primitiveUnits="objectBoundingBox" color-interpolation-filters="sRGB">
+                <feImage href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'><linearGradient id='g'><stop offset='0' stop-color='%23f00'/><stop offset='.04' stop-color='%23d00'/><stop offset='.11' stop-color='%23980000'/><stop offset='.2' stop-color='%23800000'/><stop offset='.8' stop-color='%23800000'/><stop offset='.89' stop-color='%23680000'/><stop offset='.96' stop-color='%23300000'/><stop offset='1' stop-color='%23000'/></linearGradient><rect width='100' height='100' fill='url(%23g)'/></svg>" x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="mx"/>
+                <feImage href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'><linearGradient id='g' x2='0' y2='1'><stop offset='0' stop-color='%23008000'/><stop offset='.62' stop-color='%23008000'/><stop offset='.86' stop-color='%23006800'/><stop offset='1' stop-color='%23003800'/></linearGradient><rect width='100' height='100' fill='url(%23g)'/></svg>" x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="my"/>
+                <feComposite in="mx" in2="my" operator="arithmetic" k2="1" k3="1" result="map"/>
+                <feDisplacementMap in="SourceGraphic" in2="map" scale=".07" xChannelSelector="R" yChannelSelector="G"/>
+              </filter>
+            </svg>
           </div>
         </div>
 
@@ -519,8 +528,8 @@
           </label>
         </div>
 
-        <div class="yr-links">
-          <p class="yr-links__lbl">SIMULATE</p>
+        <div class="yr-links" role="group" aria-labelledby="yr-sim">
+          <p class="yr-links__lbl" id="yr-sim">SIMULATE</p>
           <button type="button" class="yr-lnk" data-act="busy"><svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="8.25"/><path d="M7.2 5.6v6.8L12.6 9z"/></svg><span class="yr-lnk__t">A busy hour</span></button>
           <button type="button" class="yr-lnk" data-act="full"><svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="8.25"/><path d="M6 8V6h2M12 10v2h-2M10 6h2v2M8 12H6v-2"/></svg><span class="yr-lnk__t">A full&#8209;screen app</span></button>
           <button type="button" class="yr-lnk" data-act="lid" aria-pressed="false"><svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="8.25"/><path class="yr-lnk__notch" d="M5.5 6.2h7M7.2 6.2v1.1a.9.9 0 0 0 .9.9h1.8a.9.9 0 0 0 .9-.9V6.2"/><path class="yr-lnk__pill" d="M7 10.8h4"/></svg><span class="yr-lnk__t">No notch (lid closed)</span></button>
@@ -541,7 +550,7 @@
           <span class="pv-never"><span class="pv-never__in"><em class="pv-never__em">Never</em> <span class="mark pv-mark">writes.</span></span></span>
         </span>
       </h2>
-      <p class="pv-lead" data-reveal="lines">Claude Meter uses the sign&#8209;in Claude Code already saved on your Mac. It reads it from the macOS Keychain, through Apple’s own security tool, or from <span class="pv-nw"><code>~/.claude/.credentials.json</code>,</span> and never changes it. Short&#8209;lived tokens are refreshed in memory, never written back. Up to 24 hours of readings, kept for the sparklines and forecast, stay on your Mac.</p>
+      <p class="pv-lead" data-reveal="lines">Claude Meter uses the sign&#8209;in Claude Code already saved on your Mac. It reads it from the macOS Keychain, through Apple’s own security tool, or from <span class="pv-nw"><code>~/.claude/.credentials.json</code>,</span> and never changes it. Short&#8209;lived tokens are refreshed in memory, never written back.</p>
     </div>
 
     <figure class="pv-net" aria-labelledby="pv-net-cap">
@@ -626,7 +635,7 @@
       <div class="pv-legend">
         <p class="pv-lbl pv-lbl--never"><span class="pv-lbl__n">03</span><svg class="pv-lbl__x" viewBox="-10 -10 20 20" aria-hidden="true" focusable="false"><circle r="9"/><path d="M-3.5,-3.5 L3.5,3.5 M3.5,-3.5 L-3.5,3.5"/></svg>Never</p>
         <ul class="pv-zeros" role="list">
-          <li class="pv-zero"><span class="pv-zero__n" data-n="0">0</span><span class="pv-zero__txt"><span class="pv-zero__cap">analytics</span></span></li>
+          <li class="pv-zero"><span class="pv-zero__n" data-n="0">0</span><span class="pv-zero__txt"><span class="pv-zero__cap">analytics</span><span class="pv-zero__sub">your readings (up to 24h, for the sparklines) stay on this Mac</span></span></li>
           <li class="pv-zero"><span class="pv-zero__n" data-n="0">0</span><span class="pv-zero__txt"><span class="pv-zero__cap">new accounts</span><span class="pv-zero__sub">no Claude Meter login, ever</span></span></li>
           <li class="pv-zero"><span class="pv-zero__n" data-n="0">0</span><span class="pv-zero__txt"><span class="pv-zero__cap">backends</span><span class="pv-zero__sub">the update check is one static file</span></span></li>
           <li class="pv-zero"><span class="pv-zero__n" data-n="0">0</span><span class="pv-zero__txt"><span class="pv-zero__cap">writes to your sign&#8209;in</span></span></li>
@@ -640,11 +649,11 @@
       <p class="pv-lbl"><span class="pv-lbl__n">04</span>Open source</p>
       <h3 class="pv-os__h"><span class="pv-os__in">Every claim here <em class="pv-os__em">compiles.</em><svg class="pv-os__ok" viewBox="-18 -18 36 36" aria-hidden="true" focusable="false"><circle r="16"/><path d="M-7,0.5 L-2,5.5 L7.5,-5"/></svg></span></h3>
       <div class="pv-os__go">
-        <a class="pv-gh" data-cta="github" href="https://github.com/yiftach41/claude-meter" target="_blank" rel="noopener" data-cursor="MIT · read every line">
+        <a class="pv-gh" data-cta="github" href="https://github.com/FreemanGT/claude-meter" target="_blank" rel="noopener" data-cursor="MIT · read every line">
           <span class="pv-gh__star" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path class="pv-gh__o" d="M12 2.8l2.84 5.76 6.36.92-4.6 4.48 1.08 6.33L12 17.3l-5.68 2.99 1.08-6.33-4.6-4.48 6.36-.92z"/><path class="pv-gh__f" d="M12 2.8l2.84 5.76 6.36.92-4.6 4.48 1.08 6.33L12 17.3l-5.68 2.99 1.08-6.33-4.6-4.48 6.36-.92z"/></svg></span>
           <span class="pv-gh__k">Star on GitHub</span><span class="pv-gh__n" data-stars></span>
         </a>
-        <p class="pv-os__meta">MIT licensed. Read the Swift, build it with <code>./build.sh</code>, count the hosts yourself: <span class="pv-nw">github.com/yiftach41/claude-meter</span></p>
+        <p class="pv-os__meta">MIT licensed. Read the Swift, build it with <code>./build.sh</code>, count the hosts yourself.<span class="pv-os__url">github.com/FreemanGT/claude-meter</span></p>
       </div>
     </div>
 
@@ -677,11 +686,11 @@
       <details class="faq__item" data-key="MIT">
         <summary><span class="faq__pct" aria-hidden="true">10%</span><span class="faq__q">Is it open source?</span><span class="faq__bar" aria-hidden="true"><span class="faq__ghost"></span><span class="faq__fill"></span></span></summary>
         <div class="faq__a"><p>Yes. The whole app is MIT‑licensed and on GitHub, so you can read exactly what it does with your sign‑in, build it yourself, or send a fix. If it earns its spot under your notch, a star helps other people find it.</p>
-          <p class="faq__acts"><a class="faq__act" href="https://github.com/yiftach41/claude-meter" target="_blank" rel="noopener" data-cta="github" data-cursor="MIT · open source"><svg class="faq__act-ico" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 1.6l1.95 4.02 4.43.6-3.23 3.1.8 4.4L8 11.6l-3.95 2.12.8-4.4-3.23-3.1 4.43-.6z"/></svg><span class="faq__act-t">Star it on GitHub</span><span class="faq__stars" data-stars></span></a></p></div>
+          <p class="faq__acts"><a class="faq__act" href="https://github.com/FreemanGT/claude-meter" target="_blank" rel="noopener" data-cta="github" data-cursor="MIT · open source"><svg class="faq__act-ico" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 1.6l1.95 4.02 4.43.6-3.23 3.1.8 4.4L8 11.6l-3.95 2.12.8-4.4-3.23-3.1 4.43-.6z"/></svg><span class="faq__act-t">Star it on GitHub</span><span class="faq__stars" data-stars></span></a></p></div>
       </details>
       <details class="faq__item" data-key="14.4+">
         <summary><span class="faq__pct" aria-hidden="true">20%</span><span class="faq__q">What do I need?</span><span class="faq__bar" aria-hidden="true"><span class="faq__ghost"></span><span class="faq__fill"></span></span></summary>
-        <div class="faq__a"><p>A Mac on macOS 14.4 or later (Apple Silicon or Intel) and Claude Code signed in with a Claude Pro or Max plan, even if you mostly use claude.ai: install Claude Code, run <code>claude</code>, then <code>/login</code> with your Pro or Max account. API‑key (Console) logins and a custom CLAUDE_CONFIG_DIR aren’t supported.</p></div>
+        <div class="faq__a"><p>A Mac on macOS 14.4 or later (Apple Silicon or Intel) and Claude Code signed in with a Claude Pro or Max plan, even if you mostly use claude.ai: install Claude Code, then run <code>claude</code> and type <code>/login</code> with your Pro or Max account. API‑key (Console) logins and a custom CLAUDE_CONFIG_DIR aren’t supported.</p></div>
       </details>
       <details class="faq__item" data-key="Not yet">
         <summary><span class="faq__pct" aria-hidden="true">30%</span><span class="faq__q">Is there a Windows version?</span><span class="faq__bar" aria-hidden="true"><span class="faq__ghost"></span><span class="faq__fill"></span></span></summary>
@@ -749,11 +758,11 @@
           <!-- Windows is the Mac tab's forecast: its ghost, dashed, hanging from it. Hover (or a Windows visitor) makes it real. -->
           <div class="fin-win-hang"><button class="fin-win" type="button" data-cta="windows" data-cursor="coming soon · waitlist">
             <svg class="fin-win__shape" viewBox="0 0 300 52" preserveAspectRatio="none" aria-hidden="true"><path d="M0 0Q8 0 8 8L8 32Q8 52 28 52L272 52Q292 52 292 32L292 8Q292 0 300 0"/></svg>
-            <span class="fin-win__row"><span class="fin-win__ring" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" pathLength="100"/><path d="M12 7.5V12l3 2.2"/></svg></span><span class="fin-win__label">Windows <span aria-hidden="true">·</span> join the waitlist</span></span>
+            <span class="fin-win__row"><span class="fin-win__ring" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" pathLength="100"/><path d="M12 7.5V12l3 2.2"/></svg></span><span class="fin-win__label">Windows <span class="fin-win__x"><span aria-hidden="true">·</span> join the</span> waitlist</span></span>
           </button></div>
         </div>
         <div class="fin-oss">
-          <a class="fin-gh" data-cta="github" href="https://github.com/yiftach41/claude-meter" target="_blank" rel="noopener" aria-label="Star Claude Meter on GitHub" data-cursor="open source · MIT">
+          <a class="fin-gh" data-cta="github" href="https://github.com/FreemanGT/claude-meter" target="_blank" rel="noopener" aria-label="Star Claude Meter on GitHub" data-cursor="open source · MIT">
             <span class="fin-gh__star" aria-hidden="true"><svg viewBox="0 0 24 24"><path class="f" d="M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.4L12 17.4l-5.8 3 1.1-6.4-4.7-4.6 6.5-.9z"/><path class="o" d="M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.4L12 17.4l-5.8 3 1.1-6.4-4.7-4.6 6.5-.9z"/></svg></span>
             <span class="fin-gh__label">Star it on GitHub</span>
             <span class="fin-gh__n" data-stars hidden></span>
@@ -779,7 +788,7 @@
         <li><a href="#privacy">Privacy</a></li>
         <li><a href="#faq">FAQ</a></li>
         <li><a href="https://claude.ai/settings/usage" target="_blank" rel="noopener">Usage on claude.ai</a></li>
-        <li><a href="https://github.com/yiftach41/claude-meter" data-cta="github">GitHub</a></li>
+        <li><a href="https://github.com/FreemanGT/claude-meter" data-cta="github">GitHub</a></li>
         <li><a href="#waitlist" data-cta="windows">Windows waitlist</a></li>
         <li><a href="/llms.txt">llms.txt</a></li>
         <li><a href="#top" class="fin-foot__top">Back to top <span aria-hidden="true">↑</span></a></li>

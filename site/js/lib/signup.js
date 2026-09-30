@@ -8,8 +8,8 @@
 import { reduced } from "./motion.js";
 import { lenis } from "./smooth.js";
 
-export const REPO = "https://github.com/yiftach41/claude-meter";
-const API = "https://api.github.com/repos/yiftach41/claude-meter";
+export const REPO = "https://github.com/FreemanGT/claude-meter";
+const API = "https://api.github.com/repos/FreemanGT/claude-meter";
 const DMG = "/ClaudeMeter.dmg";
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;          // the same test signup-sheet.gs applies
 const SPRING_OPEN = "linear(0,.017,.062,.127,.205,.29,.378,.466,.55,.629,.702,.766,.824,.873,.915,.949,.978,1,1.017,1.029,1.038,1.043,1.045,1.046,1.045,1.043,1.039,1.036,1.032,1.028,1.024,1.02,1.016,1.013,1.01,1.008,1.005,1.004,1.002,1.001,1)";
@@ -131,7 +131,8 @@ function housingClip() {
   const bh = document.querySelector(".band")?.offsetHeight || 40;
   return `inset(0px calc(50% - ${hw}px) calc(100% - ${bh}px) calc(50% - ${hw}px) round 0px 0px ${10 * s}px ${10 * s}px)`;
 }
-const OPEN_CLIP = "inset(0px -140px -160px -140px round 0px 0px 0px 0px)";   // room for the shadow
+const OPEN_CLIP = "inset(0px 0px 0px 0px round 0px 0px 30px 30px)";   // the panel's own corners
+const SHADOW = ["0 34px 70px -24px rgb(0 0 0 / 0), 0 16px 36px rgb(0 0 0 / 0)", "0 34px 70px -24px rgb(0 0 0 / .6), 0 16px 36px rgb(0 0 0 / .3)"];
 
 export function openSignup(kind = "mac", from = document.activeElement) {
   if (!dlg) build();
@@ -148,6 +149,7 @@ export function openSignup(kind = "mac", from = document.activeElement) {
     lenis?.stop();
     if (!reduced() && panel.animate) {
       panel.animate([{ clipPath: housingClip() }, { clipPath: OPEN_CLIP }], { duration: 590, easing: SPRING_OPEN });
+      dlg.animate([{ boxShadow: SHADOW[0] }, { boxShadow: SHADOW[1] }], { duration: 360, delay: 200, easing: SETTLE, fill: "backwards" });   // the shadow lands once the panel is out
       body.animate([{ opacity: 0, transform: "scaleX(.6)", filter: "blur(8px)" }, { opacity: 1, transform: "none", filter: "none" }],
         { duration: 300, delay: 60, easing: SETTLE, fill: "backwards" });
       dlg.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 240, easing: SETTLE, pseudoElement: "::backdrop" });
@@ -163,6 +165,7 @@ export function close() {
   body.animate([{ opacity: 1, transform: "none", filter: "none" }, { opacity: 0, transform: "scaleX(.3)", filter: "blur(4px)" }],
     { duration: 180, easing: SETTLE, fill: "forwards" });
   dlg.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 320, easing: SETTLE, fill: "forwards", pseudoElement: "::backdrop" });
+  dlg.animate([{ boxShadow: SHADOW[1] }, { boxShadow: SHADOW[0] }], { duration: 160, easing: SETTLE, fill: "forwards" });
   closing = panel.animate([{ clipPath: OPEN_CLIP }, { clipPath: housingClip() }], { duration: 400, delay: 60, easing: "cubic-bezier(.3,0,.1,1)", fill: "forwards" });
   closing.onfinish = () => { closing = null; dlg.close(); };
 }

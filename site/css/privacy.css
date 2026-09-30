@@ -174,6 +174,7 @@ html[data-motion="full"] .s--privacy .pv-route{opacity:.5}
 .s--privacy .pv-os__go{grid-column:9 / -1;align-self:end;display:flex;flex-direction:column;align-items:flex-start;gap:14px;padding-bottom:.4em}
 .s--privacy .pv-os__meta{margin:0;max-width:36ch;font:400 12px/1.6 var(--f-mono);color:var(--fg-2);text-wrap:pretty}
 .s--privacy .pv-os__meta code{font-size:1em;color:var(--fg)}
+.s--privacy .pv-os__url{display:block;margin-top:4px;color:var(--fg);white-space:nowrap}
 
 /* the star button: the diagram's chip grammar at CTA size; hover FILLS the star like a meter */
 .s--privacy .pv-gh{--c:var(--amber);display:inline-flex;align-items:center;gap:12px;height:48px;padding:0 8px 0 18px;

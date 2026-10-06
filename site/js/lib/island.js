@@ -46,7 +46,7 @@ export function derive(data, { burnRate = true, labels = null, warn = WARN } = {
   const weekly = metric(wk, "weekly", "Weekly", "lav", L.weekly);
   const models = (data.models || []).map((m) => metric(m, "m:" + m.name, m.name, "amber"));
   const top = models.reduce((a, m) => (a == null || (m.pct ?? -1) > (a.pct ?? -1) ? m : a), null);
-  const right = top && (top.pct ?? -1) > (weekly.pct ?? -1) ? top : weekly;
+  const right = weekly; // the app's default pair: session + weekly (its menu can add or swap in the model)
 
   // Session burn-rate forecast (session only).
   let forecast = null;

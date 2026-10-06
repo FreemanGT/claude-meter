@@ -224,7 +224,7 @@ function refresh(island) {
 
 function about(island) {
   const card = el("div", "cm-about", { role: "dialog", "aria-modal": "true", "aria-label": "About Claude Meter", tabindex: "-1" });
-  card.innerHTML = `<img src="/assets/icon-256.png" alt="" width="64" height="64"><p class="cm-about__name">Claude Meter</p><p class="cm-about__ver">Version 1.2 (3)</p><p class="cm-about__by">© 2026 Yiftach Freeman. Not affiliated with Anthropic.</p><button type="button" class="cm-about__ok">OK</button>`;
+  card.innerHTML = `<img src="/assets/icon-256.png" alt="" width="64" height="64"><p class="cm-about__name">Claude Meter</p><p class="cm-about__ver">Version 1.3 (4)</p><p class="cm-about__by">© 2026 Yiftach Freeman. Not affiliated with Anthropic.</p><button type="button" class="cm-about__ok">OK</button>`;
   document.body.append(card);
   const back = island?.el?.querySelector(".island__hit");
   const close = () => { card.remove(); document.removeEventListener("keydown", onKey, true); document.removeEventListener("pointerdown", onOut, true); back && back.focus({ preventScroll: true }); };

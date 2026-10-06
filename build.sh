@@ -39,6 +39,15 @@ if [ "$IDENTITY" != "-" ]; then TIMESTAMP=(--timestamp); fi
 codesign --force --options runtime ${TIMESTAMP[@]+"${TIMESTAMP[@]}"} --sign "$IDENTITY" "$APP"
 echo "Built $APP"
 
+# The DMG's ticket doesn't travel with the app users drag out of it ("Notary Ticket Missing"
+# in syspolicy_check), so the app gets its own.
+if [ "$MODE" = "release" ]; then
+    ZIP="$(mktemp -d)/ClaudeMeter.zip"
+    ditto -c -k --keepParent "$APP" "$ZIP"
+    xcrun notarytool submit "$ZIP" --keychain-profile "${NOTARY_PROFILE:-claude-meter}" --wait
+    xcrun stapler staple "$APP"
+fi
+
 [ "$MODE" = "dmg" ] || [ "$MODE" = "release" ] || exit 0
 
 DMG="dist/ClaudeMeter.dmg"

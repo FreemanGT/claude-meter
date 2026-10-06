@@ -11,12 +11,10 @@ const base = () => ({
   models: [{ name: "Opus", pct: 62, reset: "Sat 1:05 PM" }],
 });
 
-// right wing, both ways (+ the strict > tie)
+// right wing: weekly, even when a model limit is higher (1.3 dropped the swap)
 let v = derive(base());
-assert.equal(v.right.name, "Opus"); assert.equal(v.right.tone, "amber");
-let d = base(); d.models[0].pct = 30; v = derive(d);
 assert.equal(v.right.key, "weekly"); assert.equal(v.right.tone, "lav");
-d = base(); d.models[0].pct = 38; assert.equal(derive(d).right.key, "weekly", "tie → weekly");
+let d;
 
 // 85 vs 85.1: red + bold together
 d = base(); d.session.pct = 85; v = derive(d); assert.equal(v.session.tone, "teal"); assert.equal(v.session.hot, false);
@@ -59,7 +57,7 @@ d.session.forecast = null; assert.equal(derive(d).notePinned, null);
 assert.deepEqual(derive(base()).rows.map((r) => r.showReset), [true, true, false]);
 
 // aria label mirrors collapsedLabel
-assert.equal(derive(base()).aria, "Claude usage, session 46 percent, Opus 62 percent");
+assert.equal(derive(base()).aria, "Claude usage, session 46 percent, weekly 38 percent");
 d = base(); d.models = []; assert.equal(derive(d).aria, "Claude usage, session 46 percent, weekly 38 percent");
 
 // format.js extras

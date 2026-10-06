@@ -36,7 +36,7 @@
       </details>
       <details class="faq__item" data-key="Read-only">
         <summary><span class="faq__pct" aria-hidden="true">40%</span><span class="faq__q">Will macOS ask for my keychain password?</span><span class="faq__bar" aria-hidden="true"><span class="faq__ghost"></span><span class="faq__fill"></span></span></summary>
-        <div class="faq__a"><p>Usually not. Claude Meter reads the sign‑in Claude Code already saved (the macOS Keychain first, then ~/.claude/.credentials.json) and never writes to it; a refreshed token lives in memory only. If a prompt asks to let “security” use “Claude Code-credentials”, that’s Apple’s own keychain tool fetching it for Claude Meter. Enter your Mac password and choose Always Allow.</p></div>
+        <div class="faq__a"><p>Usually not. Claude Meter reads the sign‑in Claude Code already saved (the macOS Keychain first, then ~/.claude/.credentials.json). When it renews an expired sign‑in, it saves the new one back there the way Claude Code does, so the claude in your Terminal stays signed in. If a prompt asks to let “security” use “Claude Code-credentials”, that’s Apple’s own keychain tool fetching it for Claude Meter. Enter your Mac password and choose Always Allow.</p></div>
       </details>
       <details class="faq__item" data-key="3 hosts">
         <summary><span class="faq__pct" aria-hidden="true">50%</span><span class="faq__q">Who does it talk to?</span><span class="faq__bar" aria-hidden="true"><span class="faq__ghost"></span><span class="faq__fill"></span></span></summary>
@@ -52,7 +52,7 @@
       </details>
       <details class="faq__item" data-key="1 menu">
         <summary><span class="faq__pct" aria-hidden="true">80%</span><span class="faq__q">How do I quit it, or&nbsp;change settings?</span><span class="faq__bar" aria-hidden="true"><span class="faq__ghost"></span><span class="faq__fill"></span></span></summary>
-        <div class="faq__a"><p>There’s no Dock icon, so right‑click the island, or click the menu bar item if you’ve turned it on. Appearance, percentages, burn‑rate estimates, notifications, the menu bar item, launch at login and Quit all live there. To uninstall, quit it and drag it from Applications to the Trash.</p></div>
+        <div class="faq__a"><p>There’s no Dock icon, so right‑click the island, or click the menu bar item if you’ve turned it on. Appearance, which limits show (session, weekly, the model limit, any mix), percentages, burn‑rate estimates, notifications, the menu bar item, launch at login and Quit all live there. To uninstall, quit it and drag it from Applications to the Trash.</p></div>
       </details>
       <details class="faq__item" data-key="Indie">
         <summary><span class="faq__pct" aria-hidden="true">90%</span><span class="faq__q">Is this made by Anthropic?</span><span class="faq__bar" aria-hidden="true"><span class="faq__ghost"></span><span class="faq__fill"></span></span></summary>

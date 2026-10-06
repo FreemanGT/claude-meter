@@ -5,7 +5,7 @@
 - Website: https://claudemeter.vercel.app/
 - Download: https://claudemeter.vercel.app/ClaudeMeter.dmg (the site asks for an email for update notices, then the download starts)
 - Source code: https://github.com/FreemanGT/claude-meter (open source, MIT licence)
-- Version: 1.2 (build 3) · Price: free · © 2026 Yiftach Freeman
+- Version: 1.3 (build 4) · Price: free · © 2026 Yiftach Freeman
 - Signed with an Apple Developer ID and notarized by Apple.
 - Windows: not available yet. The website has a waitlist (name and email); one email when it ships.
 - Independent project. Not affiliated with or endorsed by Anthropic. Claude is a trademark of Anthropic, PBC.
@@ -18,20 +18,20 @@
 
 ## How it looks
 
-- Collapsed: two readings either side of the notch. Session on the left (teal); on the right the weekly limit (lavender), or the tightest per-model limit (amber) when that one is higher. Percentages by default, or small tick bars.
+- Collapsed: readings either side of the notch. By default session on the left (teal) and the weekly limit on the right (lavender). The menu's Show limits picks any mix of Session, Weekly and the highest per-model limit (amber, e.g. Fable): one, two, or all three. Percentages by default, or small tick bars.
 - Peek (hover about 0.2 s): three rings (Session, Weekly, top model) with reset countdowns such as "resets in 2h 13m" and a session forecast line.
 - Pinned (click): a table with a 6-hour sparkline, a bar (the session bar marks where it will land by reset), percentage and reset time, plus the plan name (e.g. "Max 20x") and when it last refreshed.
 - Values above 85% turn red and bold. When a limit hits 100% a red note says e.g. "Opus limit reached · resets Sat 1:05 PM".
 - Burn-rate forecast (session only): "hits the cap in 1h 12m" (amber; red if under an hour) or "on track — resets first".
 - Macs without a notch, or a MacBook running lid-closed on an external display: a compact pill at the top centre. With the lid open the island stays on the built-in screen. Hides itself in fullscreen apps. No Dock icon.
-- Optional menu-bar item: session and weekly (all models), as percentages or 1–5 blocks, red and bold above 85%. Clicking it opens the same menu as right-clicking the island.
+- Optional menu-bar item: the same limits as the island (session and weekly by default), as percentages or 1–5 blocks, red and bold above 85%. Clicking it opens the same menu as right-clicking the island.
 - Appearance: Solid (pure black, fused to the notch), Frosted (heavy blur under a dark scrim), Liquid Glass (a thin glass sheet on macOS 26 with a rim lit from the pointer).
 - Motion: panes squeeze in and out, digits roll, rings and bars draw from zero on open, and the island shrinks into the camera housing on launch, in full-screen apps and on Quit.
 - First launch opens pinned with the hint "Hover to peek · click to pin · right-click for settings & Quit".
 
 ## Settings (right-click menu)
 
-Live usage rows, Refresh now, Open usage on claude.ai, Appearance (Solid / Frosted / Liquid Glass), Show percentages, Burn-rate estimates, Usage notifications, Menu bar item, Launch at login, About, Quit.
+Live usage rows, Refresh now, Open usage on claude.ai, Appearance (Solid / Frosted / Liquid Glass), Show limits (Session / Weekly / model limit, any mix), Show percentages, Burn-rate estimates, Usage notifications, Menu bar item, Launch at login, About, Quit.
 
 ## Notifications (opt-in)
 
@@ -44,7 +44,7 @@ Refreshes every 5 minutes and when you hover, never faster than every 3 minutes 
 ## Privacy and data
 
 - Reads the sign-in Claude Code already saved on the Mac: the macOS Keychain item "Claude Code-credentials" via Apple's built-in `security` tool, falling back to ~/.claude/.credentials.json.
-- Read-only: it never writes or changes those credentials. Short-lived access tokens are refreshed in memory only.
+- When it renews an expired access token, it saves the new sign-in back to the same keychain item and file, the way Claude Code does (only if Claude Code hasn't already replaced it), so the terminal `claude` stays signed in. It never writes anything else there.
 - Network: api.anthropic.com (usage), platform.claude.com (token refresh), and once a day https://claudemeter.vercel.app/version.json to check for updates.
 - No analytics, no account, no server of its own.
 

@@ -173,7 +173,8 @@ extension UsageModel.Status {
         switch self {
         case .ok, .loading: nil
         case .stale(let reason): "stale · \(reason)"
-        case .unauthorized: "session expired — open Claude Code to refresh"
+        // The desktop app never renews this sign-in; only the terminal CLI does.
+        case .unauthorized: "signed out — run claude in Terminal, then /login"
         case .noCredentials(let message): message
         case .rateLimited(let until): "rate limited · retrying \(Format.clock(until))"
         case .throttled(let seconds): "just refreshed · updating in \(seconds)s"

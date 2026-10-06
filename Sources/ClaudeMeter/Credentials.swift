@@ -7,6 +7,8 @@ enum Credentials {
         let scopes: [String]
         let expiresAt: Date?
         let planName: String?
+        /// The OAuth client that minted the grant; refreshing under any other one is a 400.
+        var clientID: String? = nil
         var expired: Bool { (expiresAt ?? .distantFuture) < Date() }
     }
 
@@ -27,6 +29,11 @@ enum Credentials {
 
     private static let clientID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
     private static let tokenURL = URL(string: "https://platform.claude.com/v1/oauth/token")!
+    private static let service = "Claude Code-credentials"
+    private static let security = URL(fileURLWithPath: "/usr/bin/security")
+    private static var fileURL: URL {
+        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/.credentials.json")
+    }
 
     private static let http: URLSession = {
         let config = URLSessionConfiguration.ephemeral
@@ -55,8 +62,8 @@ enum Credentials {
 
     private static func keychainRead() -> Result<Data, CredError> {
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/security")
-        process.arguments = ["find-generic-password", "-s", "Claude Code-credentials", "-w"]
+        process.executableURL = security
+        process.arguments = ["find-generic-password", "-s", service, "-w"]
         let stdout = Pipe()
         process.standardOutput = stdout
         process.standardError = Pipe()
@@ -85,9 +92,7 @@ enum Credentials {
     }
 
     private static func fileRead() -> Data? {
-        let url = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".claude/.credentials.json")
-        return try? Data(contentsOf: url)
+        try? Data(contentsOf: fileURL)
     }
 
     private static func parse(_ data: Data) -> Result<Creds, CredError> {
@@ -114,16 +119,13 @@ enum Credentials {
             planName: planName(
                 tier: oauth["rateLimitTier"] as? String,
                 type: oauth["subscriptionType"] as? String
-            )
+            ),
+            clientID: oauth["clientId"] as? String
         ))
     }
 
     /// Trade the stored refresh token for a fresh access token — the same `grant_type=refresh_token`
-    /// call Claude Code makes. Deliberately read-only: the result is held in memory by the caller and
-    /// never written back to the keychain. Claude Code owns that item, and a second writer is exactly
-    /// what truncated it on 2026-08-31.
-    /// ponytail: assumes the endpoint does not rotate refresh tokens — concurrent `claude` processes
-    /// share one grant, so it can't. If that ever changes it costs one re-login, and we log it.
+    /// call Claude Code makes — then hand the result back to Claude Code's store (see `writeBack`).
     static func refresh(_ creds: Creds) async -> Result<Creds, CredError> {
         guard let refreshToken = creds.refreshToken else {
             return .failure(CredError(message: "no refresh token", unauthorized: true))
@@ -136,7 +138,7 @@ enum Credentials {
         var body: [String: Any] = [
             "grant_type": "refresh_token",
             "refresh_token": refreshToken,
-            "client_id": clientID,
+            "client_id": creds.clientID ?? clientID,
         ]
         if !creds.scopes.isEmpty { body["scope"] = creds.scopes.joined(separator: " ") }
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
@@ -150,31 +152,106 @@ enum Credentials {
         }
 
         let code = (response as? HTTPURLResponse)?.statusCode ?? 0
-        guard code == 200,
-              let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-              let token = json["access_token"] as? String, !token.isEmpty
-        else {
-            // 400/401 mean the grant itself is gone (revoked, or past its ~90 day life).
+        let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        guard code == 200, let json, let token = json["access_token"] as? String, !token.isEmpty else {
+            // The OAuth error code (invalid_grant, invalid_client, ...) carries no secret.
+            NSLog("ClaudeMeter: refresh HTTP %d %@", code, json?["error"] as? String ?? "")
+            // 400/401 mean the grant itself is gone: spent by a rotation, revoked, or expired.
             if code == 400 || code == 401 {
                 return .failure(CredError(message: "refresh rejected", unauthorized: true))
             }
             return .failure(CredError(message: "refresh HTTP \(code)", transient: true))
         }
 
-        let rotated = json["refresh_token"] as? String
-        if let rotated, rotated != refreshToken {
-            // Claude Code still holds the old grant in its keychain item, which we don't write.
-            NSLog("ClaudeMeter: refresh token rotated — Claude Code may need to sign in again")
-        }
+        let now = Date()
         let lifetime = (json["expires_in"] as? NSNumber)?.doubleValue ?? 3600
-        return .success(Creds(
+        let fresh = Creds(
             accessToken: token,
-            refreshToken: rotated ?? refreshToken,
+            refreshToken: json["refresh_token"] as? String ?? refreshToken,
             scopes: (json["scope"] as? String).map { $0.split(separator: " ").map(String.init) } ?? creds.scopes,
             // A minute of slack so we renew before the usage call starts 401ing.
-            expiresAt: Date().addingTimeInterval(max(60, lifetime - 60)),
-            planName: creds.planName
-        ))
+            expiresAt: now.addingTimeInterval(max(60, lifetime - 60)),
+            planName: creds.planName,
+            clientID: creds.clientID
+        )
+        // Claude Code's own field names and units (ms since epoch).
+        var update: [String: Any] = [
+            "accessToken": token,
+            "refreshToken": fresh.refreshToken ?? refreshToken,
+            "expiresAt": ((now.timeIntervalSince1970 + lifetime) * 1000).rounded(),
+            "scopes": fresh.scopes,
+        ]
+        if let life = (json["refresh_token_expires_in"] as? NSNumber)?.doubleValue {
+            update["refreshTokenExpiresAt"] = ((now.timeIntervalSince1970 + life) * 1000).rounded()
+        }
+        writeBack(spent: refreshToken, update: update)
+        return .success(fresh)
+    }
+
+    /// Refresh tokens are single-use: the call above killed the one it posted. Unless the new grant
+    /// lands where Claude Code keeps it, the terminal `claude` is signed out and this app loses its
+    /// only grant on the next restart — what broke 1.2. The rule is Claude Code's own compare-and-swap
+    /// between its processes: only replace a blob that parses and still holds the grant we spent;
+    /// anything else is a newer write, and it wins.
+    private static func writeBack(spent: String, update: [String: Any]) {
+        let newGrant = update["refreshToken"] as? String
+        if case .success(let data) = keychainRead(), let merged = merge(data, spent: spent, update: update) {
+            let written = keychainWrite(merged)
+            let readBack = (try? keychainRead().get()).flatMap { try? parse($0).get() }?.refreshToken
+            NSLog("ClaudeMeter: keychain write-back %@", written && readBack == newGrant ? "ok" : "FAILED")
+        }
+        // Claude Code falls back to this file when it can't use the keychain.
+        if let data = fileRead(), let merged = merge(data, spent: spent, update: update) {
+            do {
+                try merged.write(to: fileURL, options: .atomic)
+                try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: fileURL.path)
+            } catch {
+                NSLog("ClaudeMeter: file write-back FAILED")
+            }
+        }
+    }
+
+    /// The blob with `update` merged into `claudeAiOauth`, or nil when it doesn't parse or a newer
+    /// grant already replaced the one we spent. Every other key survives untouched.
+    static func merge(_ data: Data, spent: String, update: [String: Any]) -> Data? {
+        guard var json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              var oauth = json["claudeAiOauth"] as? [String: Any],
+              let stored = oauth["refreshToken"] as? String, stored.isEmpty || stored == spent
+        else { return nil }
+        oauth.merge(update) { _, new in new }
+        json["claudeAiOauth"] = oauth
+        return try? JSONSerialization.data(withJSONObject: json)
+    }
+
+    /// Exactly how Claude Code writes the item, so `security` stays its only accessor and the
+    /// write never prompts.
+    private static func keychainWrite(_ data: Data) -> Bool {
+        let user = ProcessInfo.processInfo.environment["USER"] ?? NSUserName()
+        let account = user.range(of: #"^[a-zA-Z0-9._-]+$"#, options: .regularExpression) != nil
+            ? user : "claude-code-user"
+        let hex = data.map { String(format: "%02x", $0) }.joined()
+        let line = "add-generic-password -U -a \"\(account)\" -s \"\(service)\" -X \"\(hex)\"\n"
+        // `security -i` silently truncates a long line (the ~2 KB blob of 2026-09-01). Past Claude
+        // Code's own 4032-byte cutoff, pass it on argv the way Claude Code does.
+        let interactive = line.utf8.count <= 4032
+        let process = Process()
+        process.executableURL = security
+        process.arguments = interactive
+            ? ["-i"] : ["add-generic-password", "-U", "-a", account, "-s", service, "-X", hex]
+        let stdin = Pipe()
+        if interactive { process.standardInput = stdin }
+        process.standardOutput = Pipe()
+        process.standardError = Pipe()
+        do { try process.run() } catch { return false }
+        if interactive {
+            stdin.fileHandleForWriting.write(Data(line.utf8))
+            try? stdin.fileHandleForWriting.close()
+        }
+        let killer = DispatchWorkItem { process.terminate() }
+        DispatchQueue.global().asyncAfter(deadline: .now() + 10, execute: killer)
+        process.waitUntilExit()
+        killer.cancel()
+        return process.terminationStatus == 0
     }
 
     // "claude_max_20x" -> "Max 20x"

@@ -171,6 +171,25 @@ if let index = CommandLine.arguments.firstIndex(of: "--snapshot") {
     exit(0)
 }
 
+// Live check of the renewal path on this Mac: one real refresh, then re-read Claude Code's store
+// to confirm the rotated grant landed there. Prints no secrets.
+if CommandLine.arguments.contains("--refresh-check") {
+    Task {
+        guard case .success(let before) = Credentials.read() else { print("no credentials"); exit(1) }
+        switch await Credentials.refresh(before) {
+        case .failure(let error):
+            print("refresh failed: \(error.message)")
+            exit(1)
+        case .success(let fresh):
+            let after = try? Credentials.read().get()
+            let landed = after?.accessToken == fresh.accessToken && after?.refreshToken == fresh.refreshToken
+            print(landed ? "refresh ok, written back" : "refresh ok, write-back FAILED")
+            exit(landed ? 0 : 1)
+        }
+    }
+    dispatchMain()
+}
+
 // Live check of alert delivery, run from the installed app's binary (needs the bundle identity):
 // a denied app's alerts vanish without any error, so say what macOS reports, then post one.
 if CommandLine.arguments.contains("--notify-test") {

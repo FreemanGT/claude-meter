@@ -162,11 +162,18 @@ final class UsageModel: ObservableObject {
         guard let grant = choice.refreshFrom else {
             return .failure(readError ?? Credentials.CredError(message: Credentials.signInHint))
         }
-        switch await Credentials.refresh(grant) {
+        var result = await Credentials.refresh(grant)
+        // Grants rotate, so only the newest works. If a keychain write-back failed, that's ours.
+        if case .failure(let error) = result, error.unauthorized,
+           let held, held.refreshToken != grant.refreshToken {
+            result = await Credentials.refresh(held)
+        }
+        switch result {
         case .success(let creds):
             held = creds
             return .success(creds)
         case .failure(let error):
+            if error.unauthorized { held = nil }  // spent or revoked: stop offering it
             return .failure(error)
         }
     }
@@ -534,6 +541,22 @@ func runSelfTest() {
           "valid blob with no claudeAiOauth really is a missing sign-in")
     let good = #"{"claudeAiOauth":{"accessToken":"t","refreshToken":"r","scopes":["user:profile"],"expiresAt":4102444800000,"rateLimitTier":"default_claude_max_20x"}}"#
     check(Credentials.parseForTests(Data(good.utf8)) == .ok, "well-formed blob parses")
+
+    // MARK: write-back compare-and-swap
+
+    let update: [String: Any] = ["accessToken": "t2", "refreshToken": "r2", "expiresAt": 1.0]
+    let stored = #"{"claudeAiOauth":{"accessToken":"t","refreshToken":"r","clientId":"c"},"mcpOAuth":{"x":1}}"#
+    let merged = Credentials.merge(Data(stored.utf8), spent: "r", update: update)
+        .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+    let mergedOAuth = merged?["claudeAiOauth"] as? [String: Any]
+    check(mergedOAuth?["refreshToken"] as? String == "r2" && mergedOAuth?["accessToken"] as? String == "t2",
+          "write-back replaces the spent grant")
+    check(mergedOAuth?["clientId"] as? String == "c" && merged?["mcpOAuth"] != nil,
+          "write-back keeps every key it doesn't own")
+    check(Credentials.merge(Data(stored.utf8), spent: "other", update: update) == nil,
+          "a newer grant in the store wins: no write")
+    check(Credentials.merge(Data(truncated.utf8), spent: "r", update: update) == nil,
+          "never write over a blob that doesn't parse")
 
     // MARK: credential selection
 

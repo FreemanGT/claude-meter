@@ -10,6 +10,7 @@ struct IslandView: View {
     @EnvironmentObject private var display: DisplayState
     @AppStorage(Appearance.key) private var appearanceRaw = Appearance.stored().rawValue
     @AppStorage("showPercent") private var showPercent = false
+    @AppStorage("alwaysWeekly") private var alwaysWeekly = false
     @AppStorage("burnRate") private var burnRate = true
     @AppStorage(DisplayState.welcomedKey) private var welcomed = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -301,10 +302,10 @@ struct IslandView: View {
     }
 
     /// The weekly slot shows whichever weekly limit binds first: a model capped at 100% while
-    /// the overall week sits at 60% must not look calm.
+    /// the overall week sits at 60% must not look calm. "Always show weekly" opts out.
     private var weeklyMetric: (name: String, win: UsageModel.Window?, color: Color) {
         let weekly = model.snapshot?.weeklyAll
-        if let top = model.snapshot?.topScoped, top.win.pct > weekly?.pct ?? -1 {
+        if !alwaysWeekly, let top = model.snapshot?.topScoped, top.win.pct > weekly?.pct ?? -1 {
             return (top.name, top.win, Theme.amber)
         }
         return ("weekly", weekly, Theme.purple)
@@ -710,6 +711,7 @@ struct MenuContent: View {
     @EnvironmentObject private var model: UsageModel
     @AppStorage(Appearance.key) private var appearanceRaw = Appearance.stored().rawValue
     @AppStorage("showPercent") private var showPercent = false
+    @AppStorage("alwaysWeekly") private var alwaysWeekly = false
     @AppStorage("burnRate") private var burnRate = true
     @AppStorage(Notifier.enabledKey) private var notifications = false
     @AppStorage(StatusItemController.enabledKey) private var menuBarItem = false
@@ -736,6 +738,7 @@ struct MenuContent: View {
             ForEach(Appearance.allCases) { Text($0.label).tag($0.rawValue) }
         }
         Toggle("Show percentages", isOn: $showPercent)
+        Toggle("Always show weekly", isOn: $alwaysWeekly)
         Toggle("Burn-rate estimates", isOn: $burnRate)
         Toggle("Usage notifications", isOn: notificationsBinding)
         Toggle("Menu bar item", isOn: $menuBarItem)

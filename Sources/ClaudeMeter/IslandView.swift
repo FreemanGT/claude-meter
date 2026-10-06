@@ -10,7 +10,9 @@ struct IslandView: View {
     @EnvironmentObject private var display: DisplayState
     @AppStorage(Appearance.key) private var appearanceRaw = Appearance.stored().rawValue
     @AppStorage("showPercent") private var showPercent = false
-    @AppStorage("alwaysWeekly") private var alwaysWeekly = false
+    @AppStorage(Glance.session.key) private var showSession = true
+    @AppStorage(Glance.weekly.key) private var showWeekly = true
+    @AppStorage(Glance.model.key) private var showModel = false
     @AppStorage("burnRate") private var burnRate = true
     @AppStorage(DisplayState.welcomedKey) private var welcomed = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -78,6 +80,7 @@ struct IslandView: View {
             .onTapGesture { togglePin() }
             .contextMenu { MenuContent() }
             .animation(motion(.smooth(duration: 0.25)), value: showPercent)
+            .animation(motion(.smooth(duration: 0.25)), value: glances)
             // Rows and notes coming and going resize the panel smoothly instead of snapping.
             .animation(motion(.smooth(duration: 0.4)), value: burnRate)
             .animation(motion(.smooth(duration: 0.4)), value: noteText)
@@ -90,10 +93,22 @@ struct IslandView: View {
         if open { return max(Theme.peekWidth, display.notchSize.width + 240) }
         guard display.hasNotch else {
             // No cutout to straddle, so the metrics sit together instead of at the edges:
-            // two metrics + the divider and its gaps + 14pt margins.
-            return (showPercent ? 34 : Theme.tick.width) * 2 + 21 + 28
+            // the metrics + a divider and its gaps between each + 14pt margins.
+            let count = CGFloat(glances.count)
+            return (showPercent ? 34 : Theme.tick.width) * count + 21 * (count - 1) + 28
         }
-        return display.notchSize.width + 2 * Theme.wing(percent: showPercent)
+        return display.notchSize.width + 2 * wing
+    }
+
+    /// One metric per wing; a third doubles the right lane, and the left grows with it so
+    /// the island stays centred on the cutout.
+    private var wing: CGFloat {
+        let one = Theme.wing(percent: showPercent)
+        return one + CGFloat(max(0, glances.count - 2)) * (one - Theme.collapsedTopRadius)
+    }
+
+    private var glances: [Glance] {
+        Glance.pick(session: showSession, weekly: showWeekly, model: showModel)
     }
 
     private var shape: NotchShape {
@@ -281,34 +296,39 @@ struct IslandView: View {
 
     // MARK: - Collapsed
 
-    private var collapsedView: some View {
-        // Each metric is centred between the panel wall and the cutout, not inside the
-        // nominal wing — otherwise it sits 6pt from one edge and 12pt from the other.
-        let lane = Theme.wing(percent: showPercent) - wall
-        return HStack(spacing: display.hasNotch ? 0 : 10) {
-            collapsedMetric(model.snapshot?.session, Theme.teal)
-                .frame(width: display.hasNotch ? lane : nil)
-                .overlay(alignment: .bottom) { attentionDot }
-            if display.hasNotch {
+    @ViewBuilder private var collapsedView: some View {
+        let shown = glances
+        if display.hasNotch {
+            // The first metric left of the cutout, the rest right of it.
+            HStack(spacing: 0) {
+                lane(shown.prefix(1)).overlay(alignment: .bottom) { attentionDot }
                 Spacer(minLength: 0)
-            } else {
-                // Without a cutout between them the two readings run together.
-                Capsule().fill(track).frame(width: 1, height: 10)
+                lane(shown.dropFirst())
             }
-            collapsedMetric(weeklyMetric.win, weeklyMetric.color)
-                .frame(width: display.hasNotch ? lane : nil)
+            .padding(.horizontal, wall)
+        } else {
+            HStack(spacing: 10) {
+                ForEach(Array(shown.enumerated()), id: \.element) { index, glance in
+                    // Without a cutout between them the readings run together.
+                    if index > 0 { Capsule().fill(track).frame(width: 1, height: 10) }
+                    collapsedMetric(glance)
+                        .overlay(alignment: .bottom) { if index == 0 { attentionDot } }
+                }
+            }
         }
-        .padding(.horizontal, display.hasNotch ? wall : 0)
     }
 
-    /// The weekly slot shows whichever weekly limit binds first: a model capped at 100% while
-    /// the overall week sits at 60% must not look calm. "Always show weekly" opts out.
-    private var weeklyMetric: (name: String, win: UsageModel.Window?, color: Color) {
-        let weekly = model.snapshot?.weeklyAll
-        if !alwaysWeekly, let top = model.snapshot?.topScoped, top.win.pct > weekly?.pct ?? -1 {
-            return (top.name, top.win, Theme.amber)
+    // Each lane is centred between the panel wall and the cutout, not inside the nominal
+    // wing — otherwise it sits 6pt from one edge and 12pt from the other.
+    private func lane(_ glances: ArraySlice<Glance>) -> some View {
+        HStack(spacing: 0) {
+            ForEach(glances, id: \.self) { collapsedMetric($0).frame(maxWidth: .infinity) }
         }
-        return ("weekly", weekly, Theme.purple)
+        .frame(width: wing - wall)
+    }
+
+    private func collapsedMetric(_ glance: Glance) -> some View {
+        collapsedMetric(glance.reading(model.snapshot).win, glance.color)
     }
 
     @ViewBuilder private func collapsedMetric(_ win: UsageModel.Window?, _ base: Color) -> some View {
@@ -633,10 +653,10 @@ struct IslandView: View {
     // MARK: - Accessibility
 
     private var collapsedLabel: String {
-        let session = model.snapshot?.session.map { "session \(Int($0.pct.rounded())) percent" }
-        let right = weeklyMetric
-        let weekly = right.win.map { "\(right.name) \(Int($0.pct.rounded())) percent" }
-        let metrics = [session, weekly].compactMap { $0 }
+        let metrics = glances.compactMap { glance in
+            let reading = glance.reading(model.snapshot)
+            return reading.win.map { "\(reading.name) \(Int($0.pct.rounded())) percent" }
+        }
         guard !metrics.isEmpty else { return "Claude usage, \(statusLine)" }
         return "Claude usage, " + metrics.joined(separator: ", ")
     }
@@ -703,6 +723,48 @@ private struct Sparkline: View {
     }
 }
 
+// MARK: - Glances
+
+/// The limits the collapsed island and the menu bar item show: any mix, always in this order.
+enum Glance: String, CaseIterable {
+    case session, weekly, model
+
+    var key: String { "show" + rawValue.capitalized }
+
+    static let defaults: [String: Bool] = [session.key: true, weekly.key: true, model.key: false]
+
+    static func pick(session: Bool, weekly: Bool, model: Bool) -> [Glance] {
+        let on = [Glance.session: session, .weekly: weekly, .model: model]
+        let picked = allCases.filter { on[$0] == true }
+        return picked.isEmpty ? [.session] : picked
+    }
+
+    static func stored(_ defaults: UserDefaults = .standard) -> [Glance] {
+        pick(
+            session: defaults.bool(forKey: session.key),
+            weekly: defaults.bool(forKey: weekly.key),
+            model: defaults.bool(forKey: model.key)
+        )
+    }
+
+    var color: Color {
+        switch self {
+        case .session: Theme.teal
+        case .weekly: Theme.purple
+        case .model: Theme.amber
+        }
+    }
+
+    /// The model glance follows whichever per-model weekly limit is highest (today, Fable).
+    func reading(_ snapshot: UsageModel.Snapshot?) -> (name: String, win: UsageModel.Window?) {
+        switch self {
+        case .session: ("session", snapshot?.session)
+        case .weekly: ("weekly", snapshot?.weeklyAll)
+        case .model: (snapshot?.topScoped?.name ?? "model", snapshot?.topScoped?.win)
+        }
+    }
+}
+
 // MARK: - Menu
 
 // One definition, two surfaces: the island's context menu and the status item's
@@ -711,7 +773,9 @@ struct MenuContent: View {
     @EnvironmentObject private var model: UsageModel
     @AppStorage(Appearance.key) private var appearanceRaw = Appearance.stored().rawValue
     @AppStorage("showPercent") private var showPercent = false
-    @AppStorage("alwaysWeekly") private var alwaysWeekly = false
+    @AppStorage(Glance.session.key) private var showSession = true
+    @AppStorage(Glance.weekly.key) private var showWeekly = true
+    @AppStorage(Glance.model.key) private var showModel = false
     @AppStorage("burnRate") private var burnRate = true
     @AppStorage(Notifier.enabledKey) private var notifications = false
     @AppStorage(StatusItemController.enabledKey) private var menuBarItem = false
@@ -737,8 +801,14 @@ struct MenuContent: View {
         Picker("Appearance", selection: $appearanceRaw) {
             ForEach(Appearance.allCases) { Text($0.label).tag($0.rawValue) }
         }
+        Menu("Show limits") {
+            // The last one on stays on: an island with nothing in it reads as broken.
+            let last = [showSession, showWeekly, showModel].filter { $0 }.count == 1
+            Toggle("Session", isOn: $showSession).disabled(last && showSession)
+            Toggle("Weekly", isOn: $showWeekly).disabled(last && showWeekly)
+            Toggle(model.snapshot?.topScoped?.name ?? "Model", isOn: $showModel).disabled(last && showModel)
+        }
         Toggle("Show percentages", isOn: $showPercent)
-        Toggle("Always show weekly", isOn: $alwaysWeekly)
         Toggle("Burn-rate estimates", isOn: $burnRate)
         Toggle("Usage notifications", isOn: notificationsBinding)
         Toggle("Menu bar item", isOn: $menuBarItem)

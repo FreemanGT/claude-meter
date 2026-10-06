@@ -69,12 +69,10 @@ final class StatusItemController {
         }
 
         let title = NSMutableAttributedString()
-        title.append(part(snapshot?.session, NSColor(Theme.teal)))
-        title.append(NSAttributedString(
-            string: "  ",
-            attributes: [.foregroundColor: NSColor.tertiaryLabelColor]
-        ))
-        title.append(part(snapshot?.weeklyAll, NSColor(Theme.purple)))
+        for (index, glance) in Glance.stored().enumerated() {
+            if index > 0 { title.append(NSAttributedString(string: "  ")) }
+            title.append(part(glance.reading(snapshot).win, NSColor(glance.color)))
+        }
         button.attributedTitle = title
         let tip = [status.problem, tooltip(snapshot)].compactMap { $0 }.joined(separator: " — ")
         button.toolTip = tip

@@ -207,7 +207,7 @@ if CommandLine.arguments.contains("--notify-test") {
 }
 
 // Percentages by default: the tick marks read as decoration until you know what they are.
-UserDefaults.standard.register(defaults: ["showPercent": true])
+UserDefaults.standard.register(defaults: Glance.defaults.merging(["showPercent": true]) { $1 })
 
 let delegate = AppDelegate()
 app.delegate = delegate

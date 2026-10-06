@@ -24,6 +24,7 @@ enum SnapshotRenderer {
         var appearance = Appearance.black
         var desk = Desk.neutral
         var welcome = false
+        var glances: [Glance] = [.session, .weekly]
     }
 
     /// What sits behind the island. Translucent modes have to survive the bright one —
@@ -62,6 +63,10 @@ enum SnapshotRenderer {
         Scene(name: "peek-limit", mock: "limit", mode: .peek),
         Scene(name: "pinned-limit", mock: "limit", mode: .pinned),
         Scene(name: "collapsed-limit", mock: "limit", mode: .collapsed),
+        Scene(name: "collapsed-three", mock: "ok30", mode: .collapsed, glances: Glance.allCases),
+        Scene(name: "collapsed-three-ticks", mock: "ok30", mode: .collapsed, percent: false, glances: Glance.allCases),
+        Scene(name: "collapsed-model-only", mock: "ok30", mode: .collapsed, glances: [.model]),
+        Scene(name: "collapsed-nonotch-three", mock: "ok30", mode: .collapsed, notch: false, glances: Glance.allCases),
         // Materials, worst case first. NSVisualEffectView draws nothing offscreen, so a
         // frosted frame here shows the scrim alone — the real panel is strictly darker
         // than this, which makes it a conservative legibility test.
@@ -96,6 +101,7 @@ enum SnapshotRenderer {
             store.set(true, forKey: "burnRate")
             store.set(scene.appearance.rawValue, forKey: Appearance.key)
             store.set(!scene.welcome, forKey: DisplayState.welcomedKey)
+            for glance in Glance.allCases { store.set(scene.glances.contains(glance), forKey: glance.key) }
 
             let model = UsageModel()
             model.startMock(named: scene.mock)

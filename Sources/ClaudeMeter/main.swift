@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UserNotifications
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -19,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             replaceOtherCopies()
             warnIfNotInstalled()
             model.start()
+            Notifier.shared.requestAuthorization(atLaunch: true)
         }
         // Nothing else tells a stranger this panel does anything; open it once with a hint.
         if !UserDefaults.standard.bool(forKey: DisplayState.welcomedKey) { display.pinned = true }
@@ -167,6 +169,22 @@ if let index = CommandLine.arguments.firstIndex(of: "--snapshot") {
         : FileManager.default.currentDirectoryPath + "/snapshots"
     SnapshotRenderer.run(into: directory)
     exit(0)
+}
+
+// Live check of alert delivery, run from the installed app's binary (needs the bundle identity):
+// a denied app's alerts vanish without any error, so say what macOS reports, then post one.
+if CommandLine.arguments.contains("--notify-test") {
+    UNUserNotificationCenter.current().getNotificationSettings { settings in
+        let allowed = settings.authorizationStatus == .authorized
+        print(allowed ? "notifications allowed" : "notifications NOT allowed (status \(settings.authorizationStatus.rawValue))")
+        let content = UNMutableNotificationContent()
+        content.title = "Claude Meter"
+        content.body = "Test alert"
+        UNUserNotificationCenter.current().add(
+            UNNotificationRequest(identifier: "notify-test", content: content, trigger: nil)
+        ) { _ in exit(allowed ? 0 : 1) }
+    }
+    dispatchMain()
 }
 
 // Percentages by default: the tick marks read as decoration until you know what they are.

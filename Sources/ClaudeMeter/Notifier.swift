@@ -2,8 +2,7 @@ import AppKit
 import UserNotifications
 
 // Threshold alerts for every usage window: the 5-hour session at 50/80/95, weekly and
-// per-model limits at 80/95. Opt-in: authorization is requested the first time the user
-// enables it, never at launch.
+// per-model limits at 80/95. Opt-in: nothing is asked of macOS until the user enables it.
 @MainActor
 final class Notifier {
     static let shared = Notifier()
@@ -17,17 +16,33 @@ final class Notifier {
     // case for --selftest / --snapshot runs straight out of .build.
     private var available: Bool { Bundle.main.bundleIdentifier != nil }
 
-    func requestAuthorization() {
-        guard available else { return }
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
-            if let error { NSLog("ClaudeMeter notification auth failed: %@", String(describing: error)) }
-            guard !granted else { return }
-            // Denied earlier: macOS won't ask again, so don't leave a toggle on that does nothing.
+    /// The toggle only records intent; macOS holds the real switch. A fresh install or re-signed
+    /// build can start out denied, and the user can switch us off in System Settings — either
+    /// way every alert is dropped without an error while the toggle reads on. So this runs when
+    /// the user opts in and again at each launch while opted in.
+    func requestAuthorization(atLaunch: Bool = false) {
+        guard enabled, available else { return }
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            let status = settings.authorizationStatus
             DispatchQueue.main.async {
-                UserDefaults.standard.set(false, forKey: Notifier.enabledKey)
-                let id = Bundle.main.bundleIdentifier ?? ""
-                if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=\(id)") {
-                    NSWorkspace.shared.open(url)
+                switch status {
+                case .notDetermined:
+                    UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
+                        if let error { NSLog("ClaudeMeter notification auth failed: %@", String(describing: error)) }
+                        // Said no at the prompt: don't leave a toggle on that does nothing.
+                        if !granted { DispatchQueue.main.async { UserDefaults.standard.set(false, forKey: Notifier.enabledKey) } }
+                    }
+                case .denied where atLaunch:
+                    UserDefaults.standard.set(false, forKey: Notifier.enabledKey)
+                case .denied:
+                    // macOS won't ask twice; only System Settings can grant it. The toggle stays on so
+                    // allowing it there works straight away; the next launch turns it off if they don't.
+                    let id = Bundle.main.bundleIdentifier ?? ""
+                    if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=\(id)") {
+                        NSWorkspace.shared.open(url)
+                    }
+                default:
+                    break
                 }
             }
         }

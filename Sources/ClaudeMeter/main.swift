@@ -115,7 +115,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             display.hasNotch = false
         }
         // Native fullscreen: the notch cutout reports 0 and the menu bar is auto-hidden.
-        // ponytail: users with a permanently hidden menu bar on non-notch screens never see the island; revisit if that setup matters.
+        // Users with a permanently hidden menu bar on non-notch screens never see the island; revisit if that setup matters.
         let fullscreen = screen.safeAreaInsets.top == 0 && (lastNotchHeight > 0 || screen.menuBarHeight == 0)
         if fullscreen {
             if window.isVisible { shrink { [weak self] in self?.window?.orderOut(nil) } }

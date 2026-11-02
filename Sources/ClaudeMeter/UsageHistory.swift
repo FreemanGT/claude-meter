@@ -5,7 +5,7 @@ import Foundation
 // Drives the burn-rate projection and the sparklines, and is persisted so a relaunch
 // keeps the trend instead of starting blind.
 //
-// ponytail: flat dictionary + linear scans. 288 samples per key makes O(n) free; swap for
+// Flat dictionary + linear scans. 288 samples per key makes O(n) free; swap for
 // a ring buffer only if the sample cap ever grows past a few thousand.
 struct UsageHistory: Codable, Equatable, Sendable {
     struct Sample: Codable, Equatable, Sendable {

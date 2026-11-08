@@ -5,7 +5,7 @@
 - Website: https://claudemeter.vercel.app/
 - Download: https://claudemeter.vercel.app/ClaudeMeter.dmg (the site asks for an email for update notices, then the download starts)
 - Source code: https://github.com/FreemanGT/claude-meter (open source, MIT licence)
-- Version: 1.4 (build 5) · Price: free · © 2026 Yiftach Freeman
+- Version: 1.4.1 (build 6) · Price: free · © 2026 Yiftach Freeman
 - Signed with an Apple Developer ID and notarized by Apple.
 - Windows: not available yet. The website has a waitlist (name and email); one email when it ships.
 - Independent project. Not affiliated with or endorsed by Anthropic. Claude is a trademark of Anthropic, PBC.

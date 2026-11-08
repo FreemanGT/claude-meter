@@ -165,7 +165,7 @@ final class UsageModel: ObservableObject {
     /// Re-reads the sign-ins and the Claude app's account, and switches what's shown if needed.
     /// Two small files and a directory listing, so it runs before every fetch.
     private func syncAccount() async {
-        let (found, app) = await Task.detached { (Credentials.logins(), ClaudeApp.accountUUID()) }.value
+        let (found, app) = await Task.detached { (await Credentials.resolvedLogins(), ClaudeApp.accountUUID()) }.value
         logins = found
         appAccount = app
         let login = Self.choose(found, app: app, pinned: UserDefaults.standard.string(forKey: Self.accountKey))
@@ -309,7 +309,7 @@ final class UsageModel: ObservableObject {
     /// valid. Two things make it unusable: it expires within hours of Claude Code last running, and
     /// the shared blob has been seen truncated mid-write when an MCP server re-authorizes. So keep
     /// the last good credentials in memory and mint our own access token from them when needed.
-    /// One per sign-in, keyed by `Login.id`.
+    /// One per sign-in, keyed by its keychain item (stable even before its account is known).
     private var held: [String: Credentials.Creds] = [:]
 
     private func usableCredentials(_ login: Credentials.Login) async -> Result<Credentials.Creds, Credentials.CredError> {
@@ -318,11 +318,11 @@ final class UsageModel: ObservableObject {
         switch await Task.detached(operation: { Credentials.read(login) }).value {
         case .success(let creds):
             keychain = creds
-            if !creds.expired { held[login.id] = creds }
+            if !creds.expired { held[login.service] = creds }
         case .failure(let error):
             readError = error
         }
-        let choice = Self.pick(keychain: keychain, held: held[login.id])
+        let choice = Self.pick(keychain: keychain, held: held[login.service])
         if let usable = choice.use { return .success(usable) }
         guard let grant = choice.refreshFrom else {
             return .failure(readError ?? Credentials.CredError(message: Credentials.signInHint))
@@ -330,15 +330,15 @@ final class UsageModel: ObservableObject {
         var result = await Credentials.refresh(grant, for: login)
         // Grants rotate, so only the newest works. If a keychain write-back failed, that's ours.
         if case .failure(let error) = result, error.unauthorized,
-           let mine = held[login.id], mine.refreshToken != grant.refreshToken {
+           let mine = held[login.service], mine.refreshToken != grant.refreshToken {
             result = await Credentials.refresh(mine, for: login)
         }
         switch result {
         case .success(let creds):
-            held[login.id] = creds
+            held[login.service] = creds
             return .success(creds)
         case .failure(let error):
-            if error.unauthorized { held[login.id] = nil }  // spent or revoked: stop offering it
+            if error.unauthorized { held[login.service] = nil }  // spent or revoked: stop offering it
             return .failure(error)
         }
     }
@@ -443,7 +443,7 @@ final class UsageModel: ObservableObject {
                     status = .stale("bad response")
                 }
             case 401:
-                held[login.id] = nil
+                held[login.service] = nil
                 status = .unauthorized
             case 429:
                 let advised = http?.value(forHTTPHeaderField: "Retry-After").flatMap(Self.parseRetryAfter)

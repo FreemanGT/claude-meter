@@ -46,28 +46,115 @@ enum Credentials {
     private static let security = URL(fileURLWithPath: "/usr/bin/security")
     private static var home: URL { FileManager.default.homeDirectoryForCurrentUser }
 
-    /// The sign-in a plain `claude` uses: no CLAUDE_CONFIG_DIR, so no hash on the item's name.
+    /// The sign-in a plain `claude` uses: no CLAUDE_CONFIG_DIR, so no hash on the item's name. Its
+    /// account is deliberately not taken from ~/.claude.json: Claude Code sessions inside the Claude
+    /// app rewrite `oauthAccount` there to the app's account while the keychain keeps the terminal
+    /// login. On 2026-11-08 it named yiftach41 over freemansseo's token, so the meter showed one
+    /// account's numbers under the other's name and dropped the real one as a duplicate.
     static var primary: Login {
-        let account = profileAccount(home.appendingPathComponent(".claude.json"))
-        return Login(service: service, directory: home.appendingPathComponent(".claude"),
-                     accountUUID: account?.uuid, email: account?.email)
+        Login(service: service, directory: home.appendingPathComponent(".claude"), accountUUID: nil, email: nil)
     }
 
-    /// Every Claude Code sign-in we can put a name to, the default one first. Extra ones are found
-    /// as dot-folders in the home folder with "claude" in the name (`~/.claude-work`) and a signed-in
-    /// `.claude.json`; a config folder anywhere else isn't looked for. One entry per account.
+    /// Every Claude Code sign-in that may exist, the default one first, each carrying only what its
+    /// files say about its account; `resolvedLogins` asks the API. Extra ones are dot-folders in the
+    /// home folder with "claude" in the name (`~/.claude-work`) and a signed-in `.claude.json`; a
+    /// config folder anywhere else isn't looked for. Only processes started with that folder write
+    /// there, so its hint is sound.
     static func logins() -> [Login] {
         var found = [primary]
         let names = (try? FileManager.default.contentsOfDirectory(atPath: home.path)) ?? []
         for name in names.sorted() where name.hasPrefix(".") && name.lowercased().contains("claude") {
             let directory = home.appendingPathComponent(name, isDirectory: true)
-            guard let account = profileAccount(directory.appendingPathComponent(".claude.json")),
-                  !found.contains(where: { $0.accountUUID == account.uuid })
-            else { continue }
+            guard let account = profileAccount(directory.appendingPathComponent(".claude.json")) else { continue }
             found.append(Login(service: serviceName(forConfigDir: directory.path), directory: directory,
                                accountUUID: account.uuid, email: account.email))
         }
         return found
+    }
+
+    // MARK: - Whose sign-in is it
+
+    /// The account behind one keychain item, remembered against a fingerprint of the grant it held.
+    /// A new grant (a fresh sign-in, or Claude Code renewing it) means asking again.
+    private struct Identity: Codable {
+        var grant: String
+        let uuid: String
+        let email: String?
+    }
+
+    private static let identitiesKey = "loginIdentities"
+    private static let profileURL = URL(string: "https://api.anthropic.com/api/oauth/profile")!
+
+    /// `logins()` with each account as the API reports it for that sign-in's own token, one entry per
+    /// account. Reads every keychain item and, when one changed since last time, makes one call for
+    /// it; blocking, so run it off the main actor.
+    static func resolvedLogins() async -> [Login] {
+        var cache = loadIdentities()
+        var resolved: [Login] = []
+        for candidate in logins() {
+            let identity = await identity(of: candidate, cache: &cache)
+            let uuid = identity?.uuid ?? candidate.accountUUID
+            if let uuid, resolved.contains(where: { $0.accountUUID == uuid }) { continue }
+            resolved.append(Login(service: candidate.service, directory: candidate.directory,
+                                  accountUUID: uuid, email: identity?.email ?? candidate.email))
+        }
+        saveIdentities(cache)
+        return resolved
+    }
+
+    private static func identity(of login: Login, cache: inout [String: Identity]) async -> Identity? {
+        guard case .success(let creds) = read(login) else { return cache[login.service] }
+        let grant = fingerprint(creds)
+        if let known = cache[login.service], known.grant == grant { return known }
+        // Expired, offline, or refused: the last answer is still very likely right, since a keychain
+        // item only changes hands when someone signs in to it again.
+        guard !creds.expired, let account = await profile(creds.accessToken) else { return cache[login.service] }
+        let found = Identity(grant: grant, uuid: account.uuid, email: account.email)
+        cache[login.service] = found
+        return found
+    }
+
+    /// Claude Code's own "who am I" call (GET /api/oauth/profile with the sign-in's token).
+    private static func profile(_ accessToken: String) async -> (uuid: String, email: String?)? {
+        var request = URLRequest(url: profileURL)
+        request.timeoutInterval = 15
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("claude-cli/2.1.175 (external, cli)", forHTTPHeaderField: "User-Agent")
+        guard let (data, response) = try? await http.data(for: request),
+              (response as? HTTPURLResponse)?.statusCode == 200,
+              let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let account = json["account"] as? [String: Any],
+              let uuid = account["uuid"] as? String, !uuid.isEmpty
+        else { return nil }
+        return (uuid, account["email"] as? String)
+    }
+
+    /// Our own renewal rotates the grant of an account we already know: carry the answer over
+    /// instead of asking again.
+    private static func renewed(_ login: Login, from old: Creds, to new: Creds) {
+        var cache = loadIdentities()
+        guard var known = cache[login.service], known.grant == fingerprint(old) else { return }
+        known.grant = fingerprint(new)
+        cache[login.service] = known
+        saveIdentities(cache)
+    }
+
+    /// Enough of a SHA-256 of the refresh token to tell grants apart; the token itself never leaves
+    /// the keychain.
+    private static func fingerprint(_ creds: Creds) -> String {
+        let secret = creds.refreshToken ?? creds.accessToken
+        return SHA256.hash(data: Data(secret.utf8)).prefix(8).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private static func loadIdentities() -> [String: Identity] {
+        guard let data = UserDefaults.standard.data(forKey: identitiesKey) else { return [:] }
+        return (try? JSONDecoder().decode([String: Identity].self, from: data)) ?? [:]
+    }
+
+    private static func saveIdentities(_ cache: [String: Identity]) {
+        guard let data = try? JSONEncoder().encode(cache) else { return }
+        UserDefaults.standard.set(data, forKey: identitiesKey)
     }
 
     /// Claude Code's own rule: "Claude Code-credentials-" + the first 8 hex digits of the SHA-256
@@ -244,6 +331,7 @@ enum Credentials {
             update["refreshTokenExpiresAt"] = ((now.timeIntervalSince1970 + life) * 1000).rounded()
         }
         writeBack(spent: refreshToken, update: update, to: login)
+        renewed(login, from: creds, to: fresh)
         return .success(fresh)
     }
 

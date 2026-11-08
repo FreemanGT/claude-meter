@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import Network
 
 @MainActor
@@ -28,6 +28,8 @@ final class UsageModel: ObservableObject {
         var scoped: [Scoped]
         var plan: String?
         var fetchedAt: Date
+        /// The account's email, set only when there's more than one sign-in to tell apart.
+        var account: String? = nil
         var topScoped: Scoped? { scoped.max { $0.win.pct < $1.win.pct } }
 
         /// Every reported window in display order: session, weekly, then per-model.
@@ -58,9 +60,22 @@ final class UsageModel: ObservableObject {
 
     @Published private(set) var snapshot: Snapshot?
     @Published private(set) var status: Status = .loading
-    @Published private(set) var history = UsageHistory.load()
+    @Published private(set) var history = UsageHistory()
     /// Newer version published on the website, if any.
     @Published private(set) var updateAvailable: String?
+
+    /// Every Claude Code sign-in on this Mac, the default one first.
+    @Published private(set) var logins: [Credentials.Login] = []
+    /// The sign-in being shown; nil while the Claude app is on an account none of them is for.
+    @Published private(set) var shown: Credentials.Login?
+    @Published private(set) var appAccount: String?
+    @Published private(set) var missingAppAccount = false
+
+    /// UserDefaults: a sign-in's id picked in the menu, or `followApp`.
+    nonisolated static let accountKey = "account"
+    nonisolated static let followApp = "follow"
+    nonisolated static let missingMessage =
+        "The Claude app's account isn't signed in to Claude Code — right-click to add it"
 
     static let siteURL = URL(string: "https://claudemeter.vercel.app")!
 
@@ -79,6 +94,7 @@ final class UsageModel: ObservableObject {
     }()
 
     private var pollTask: Task<Void, Never>?
+    private var watchTask: Task<Void, Never>?
     private var pendingRefresh: Task<Void, Never>?
     private let pathMonitor = NWPathMonitor()
     private var online = true
@@ -97,6 +113,154 @@ final class UsageModel: ObservableObject {
                 guard let delay = self?.nextPollDelay() else { return }
                 try? await Task.sleep(for: .seconds(delay))
             }
+        }
+        // Switching accounts in the Claude app rewrites its settings file; follow within seconds
+        // rather than at the next poll. While its account has no sign-in, also keep looking for
+        // the one being added in Terminal.
+        watchTask = Task { [weak self] in
+            var seen = ClaudeApp.modified()
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(5))
+                guard let self else { return }
+                let modified = ClaudeApp.modified()
+                guard modified != seen || missingAppAccount else { continue }
+                seen = modified
+                await followAccount()
+            }
+        }
+    }
+
+    // MARK: - Accounts
+
+    /// What belongs to one account, set aside while another is shown: its numbers, its trend, and
+    /// its poll state. The poll floor and backoff are per account, so switching back and forth
+    /// can't poll one account faster than the floor allows.
+    private struct Parked {
+        var snapshot: Snapshot?
+        var status: Status
+        var history: UsageHistory
+        var lastAttempt: Date
+        var backoff: TimeInterval
+        var rateLimitedUntil: Date?
+        var credentialsFailedAt: Date?
+    }
+
+    private var parked: [String: Parked] = [:]
+    private var activeKey: String?
+    private var historyKey: String?
+
+    /// Which sign-in to show. One picked in the menu wins while it still exists; otherwise the
+    /// Claude app's account, or the plain `claude` sign-in when there is no Claude app. Nil means
+    /// the app is on an account Claude Code isn't signed in to: say so rather than show another
+    /// account's numbers as if they were this one's.
+    nonisolated static func choose(_ logins: [Credentials.Login], app: String?, pinned: String?) -> Credentials.Login? {
+        if let pinned, let login = logins.first(where: { $0.id == pinned }) { return login }
+        guard let app else { return logins.first }
+        if let login = logins.first(where: { $0.accountUUID == app }) { return login }
+        // A lone sign-in with no account on file may well be the app's: better tried than blanked.
+        if logins.count == 1, logins[0].accountUUID == nil { return logins[0] }
+        return nil
+    }
+
+    /// Re-reads the sign-ins and the Claude app's account, and switches what's shown if needed.
+    /// Two small files and a directory listing, so it runs before every fetch.
+    private func syncAccount() async {
+        let (found, app) = await Task.detached { (Credentials.logins(), ClaudeApp.accountUUID()) }.value
+        logins = found
+        appAccount = app
+        let login = Self.choose(found, app: app, pinned: UserDefaults.standard.string(forKey: Self.accountKey))
+        missingAppAccount = login == nil
+        show(login, key: login?.id ?? "app:" + (app ?? ""))
+    }
+
+    private func followAccount() async {
+        let before = activeKey
+        await syncAccount()
+        if activeKey != before { await fetch() }
+    }
+
+    private func show(_ login: Credentials.Login?, key: String) {
+        shown = login
+        guard key != activeKey else { return }
+        if let activeKey {
+            parked[activeKey] = Parked(
+                snapshot: snapshot, status: status, history: history, lastAttempt: lastAttempt,
+                backoff: backoff, rateLimitedUntil: rateLimitedUntil, credentialsFailedAt: credentialsFailedAt
+            )
+        }
+        historyKey = login.map { login in
+            login.accountUUID.map(UsageHistory.storeKey(account:)) ?? UsageHistory.legacyStoreKey
+        }
+        let next = parked.removeValue(forKey: key) ?? Parked(
+            snapshot: nil, status: .loading, history: storedHistory(for: login),
+            lastAttempt: .distantPast, backoff: Self.baseBackoff, rateLimitedUntil: nil, credentialsFailedAt: nil
+        )
+        activeKey = key
+        snapshot = next.snapshot
+        // A countdown parked with its account would come back frozen; its numbers are still good.
+        if case .throttled = next.status { status = .ok } else { status = next.status }
+        history = next.history
+        lastAttempt = next.lastAttempt
+        backoff = next.backoff
+        rateLimitedUntil = next.rateLimitedUntil
+        credentialsFailedAt = next.credentialsFailedAt
+        pendingRefresh?.cancel()
+        pendingRefresh = nil
+        NSLog("ClaudeMeter showing %@", login?.service ?? "nothing: no sign-in for the Claude app's account")
+    }
+
+    private func storedHistory(for login: Credentials.Login?) -> UsageHistory {
+        guard let login, let historyKey else { return UsageHistory() }
+        if let stored = UsageHistory.load(historyKey) { return stored }
+        // 1.3 kept a single history, and it was the default sign-in's.
+        if login.service == Credentials.service, let legacy = UsageHistory.load(UsageHistory.legacyStoreKey) {
+            return legacy
+        }
+        return UsageHistory()
+    }
+
+    /// Picked in the menu: an id from `logins`, or `followApp`.
+    func pickAccount(_ id: String) {
+        UserDefaults.standard.set(id, forKey: Self.accountKey)
+        Task { await followAccount() }
+    }
+
+    /// Runs Claude Code's own `claude auth login` in Terminal. With no login: against a fresh config
+    /// folder, so the Claude app's account gets a keychain item of its own and the existing sign-in
+    /// is left alone. With one: against that sign-in's own folder, since a plain `claude` would only
+    /// ever renew the default one. The login happens entirely in Claude Code; the watcher above
+    /// notices it land.
+    func signIn(again login: Credentials.Login? = nil) {
+        func quote(_ text: String) -> String { "'" + text.replacingOccurrences(of: "'", with: #"'\''"#) + "'" }
+        let folder: String?
+        if let login {
+            folder = login.service == Credentials.service ? nil : login.directory.path
+        } else {
+            folder = Credentials.newConfigDir().path
+        }
+        let intro = login.map { "Claude Meter: sign Claude Code in to \($0.email ?? "this account") again." }
+            ?? "Claude Meter: sign Claude Code in to the account the Claude app is using."
+        let script = """
+        #!/bin/zsh
+        \(folder.map { "export CLAUDE_CONFIG_DIR=" + quote($0) } ?? "unset CLAUDE_CONFIG_DIR")
+        clear
+        echo \(quote(intro))
+        echo "Your other Claude Code sign-ins stay as they are."
+        echo
+        if ! command -v claude >/dev/null; then
+          echo "Claude Code isn't installed. Get it at https://claude.com/product/claude-code"
+          exit 1
+        fi
+        claude auth login --claudeai && echo && echo "Done. Claude Meter picks it up in a few seconds; you can close this window."
+
+        """
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("Claude Meter - Sign In.command")
+        do {
+            try Data(script.utf8).write(to: url, options: .atomic)
+            try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: url.path)
+            NSWorkspace.shared.open(url)
+        } catch {
+            NSLog("ClaudeMeter: add-account script failed: %@", String(describing: error))
         }
     }
 
@@ -145,35 +309,36 @@ final class UsageModel: ObservableObject {
     /// valid. Two things make it unusable: it expires within hours of Claude Code last running, and
     /// the shared blob has been seen truncated mid-write when an MCP server re-authorizes. So keep
     /// the last good credentials in memory and mint our own access token from them when needed.
-    private var held: Credentials.Creds?
+    /// One per sign-in, keyed by `Login.id`.
+    private var held: [String: Credentials.Creds] = [:]
 
-    private func usableCredentials() async -> Result<Credentials.Creds, Credentials.CredError> {
+    private func usableCredentials(_ login: Credentials.Login) async -> Result<Credentials.Creds, Credentials.CredError> {
         var keychain: Credentials.Creds?
         var readError: Credentials.CredError?
-        switch await Task.detached(operation: { Credentials.read() }).value {
+        switch await Task.detached(operation: { Credentials.read(login) }).value {
         case .success(let creds):
             keychain = creds
-            if !creds.expired { held = creds }
+            if !creds.expired { held[login.id] = creds }
         case .failure(let error):
             readError = error
         }
-        let choice = Self.pick(keychain: keychain, held: held)
+        let choice = Self.pick(keychain: keychain, held: held[login.id])
         if let usable = choice.use { return .success(usable) }
         guard let grant = choice.refreshFrom else {
             return .failure(readError ?? Credentials.CredError(message: Credentials.signInHint))
         }
-        var result = await Credentials.refresh(grant)
+        var result = await Credentials.refresh(grant, for: login)
         // Grants rotate, so only the newest works. If a keychain write-back failed, that's ours.
         if case .failure(let error) = result, error.unauthorized,
-           let held, held.refreshToken != grant.refreshToken {
-            result = await Credentials.refresh(held)
+           let mine = held[login.id], mine.refreshToken != grant.refreshToken {
+            result = await Credentials.refresh(mine, for: login)
         }
         switch result {
         case .success(let creds):
-            held = creds
+            held[login.id] = creds
             return .success(creds)
         case .failure(let error):
-            if error.unauthorized { held = nil }  // spent or revoked: stop offering it
+            if error.unauthorized { held[login.id] = nil }  // spent or revoked: stop offering it
             return .failure(error)
         }
     }
@@ -192,6 +357,11 @@ final class UsageModel: ObservableObject {
 
     private func fetch(manual: Bool = false) async {
         guard !mocking else { return }
+        await syncAccount()
+        guard let login = shown, let key = activeKey else {
+            status = .noCredentials(Self.missingMessage)
+            return
+        }
         let now = Date()
         // A click usually means "I just fixed it" (signed in, allowed the keychain), so it
         // must never be answered from the negative cache.
@@ -226,7 +396,10 @@ final class UsageModel: ObservableObject {
 
         if let failedAt = credentialsFailedAt, now.timeIntervalSince(failedAt) < 1800 { return }
         let creds: Credentials.Creds
-        switch await usableCredentials() {
+        let usable = await usableCredentials(login)
+        // Switched accounts while the keychain was read: this result belongs to the other one.
+        guard activeKey == key else { return }
+        switch usable {
         case .failure(let error):
             if error.unauthorized {
                 status = .unauthorized
@@ -255,20 +428,22 @@ final class UsageModel: ObservableObject {
 
         do {
             let (data, response) = try await Self.http.data(for: request)
+            guard activeKey == key else { return }
             let http = response as? HTTPURLResponse
             switch http?.statusCode ?? 0 {
             case 200:
-                if let snap = Self.decode(data, plan: creds.planName) {
+                if var snap = Self.decode(data, plan: creds.planName) {
+                    snap.account = logins.count > 1 ? login.email : nil
                     snapshot = snap
                     status = .ok
                     backoff = Self.baseBackoff
                     rateLimitedUntil = nil
-                    record(snap)
+                    record(snap, account: key)
                 } else {
                     status = .stale("bad response")
                 }
             case 401:
-                held = nil
+                held[login.id] = nil
                 status = .unauthorized
             case 429:
                 let advised = http?.value(forHTTPHeaderField: "Retry-After").flatMap(Self.parseRetryAfter)
@@ -281,6 +456,7 @@ final class UsageModel: ObservableObject {
                 status = .stale("HTTP \(code)")
             }
         } catch {
+            guard activeKey == key else { return }
             status = .stale("offline")
             // Never reached the server, so it mustn't cost the floor — otherwise the fetch
             // fired on reconnect or wake is swallowed and stale numbers linger for minutes.
@@ -295,10 +471,10 @@ final class UsageModel: ObservableObject {
         .notConnectedToInternet, .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed,
     ]
 
-    private func record(_ snap: Snapshot) {
+    private func record(_ snap: Snapshot, account: String) {
         let resets = history.record(snap.readings)
-        history.save()
-        Notifier.shared.usageChanged(snap.metrics, resets: resets)
+        if let historyKey { history.save(historyKey) }
+        Notifier.shared.usageChanged(snap.metrics, resets: resets, account: account)
     }
 
     // MARK: - Updates
@@ -466,6 +642,12 @@ final class UsageModel: ObservableObject {
         case "unauthorized": let s = snap(42); return (s, .unauthorized, trend(s, ratePerHour: 9))
         case "nocreds":
             return (nil, .noCredentials(Credentials.signInHint), UsageHistory())
+        case "missing":
+            return (nil, .noCredentials(missingMessage), UsageHistory())
+        case "account":
+            var s = snap(42)
+            s.account = "yiftach41@gmail.com"
+            return (s, .ok, trend(s, ratePerHour: 9))
         case "ratelimited":
             let s = snap(42)
             return (s, .rateLimited(until: Date().addingTimeInterval(600)), trend(s, ratePerHour: 9))
@@ -584,6 +766,31 @@ func runSelfTest() {
           "no keychain read: refresh from the last grant we saw")
     let nothing = UsageModel.pick(keychain: nil, held: nil)
     check(nothing.use == nil && nothing.refreshFrom == nil, "nothing to use and nothing to refresh")
+
+    // MARK: accounts
+
+    // Expected names computed independently: sha256(path).hexdigest()[:8], as Claude Code does.
+    check(Credentials.serviceName(forConfigDir: "/Users/freemansmain/.claude-yiftach41")
+          == "Claude Code-credentials-1b9a5af7", "keychain item name for a CLAUDE_CONFIG_DIR sign-in")
+    check(Credentials.serviceName(forConfigDir: "/Users/freemansmain/.claude")
+          == "Claude Code-credentials-a572acdc", "an explicit ~/.claude still gets a hashed name")
+
+    func login(_ account: String?, _ service: String) -> Credentials.Login {
+        Credentials.Login(service: service, directory: URL(fileURLWithPath: "/tmp/\(service)"),
+                          accountUUID: account, email: account.map { "\($0)@example.com" })
+    }
+    let plain = login("a", "Claude Code-credentials"), extra = login("b", "Claude Code-credentials-12345678")
+    check(UsageModel.choose([plain, extra], app: "b", pinned: nil) == extra, "follows the Claude app's account")
+    check(UsageModel.choose([plain, extra], app: "a", pinned: UsageModel.followApp) == plain,
+          "'follow' in the menu means follow")
+    check(UsageModel.choose([plain, extra], app: "b", pinned: "a") == plain, "a pick in the menu beats the app")
+    check(UsageModel.choose([plain, extra], app: "b", pinned: "gone") == extra,
+          "a pick whose sign-in is gone falls back to following")
+    check(UsageModel.choose([plain], app: "z", pinned: nil) == nil,
+          "the app on an account with no sign-in shows nothing, not another account's numbers")
+    check(UsageModel.choose([plain, extra], app: nil, pinned: nil) == plain, "no Claude app: the plain claude sign-in")
+    let unnamed = login(nil, "Claude Code-credentials")
+    check(UsageModel.choose([unnamed], app: "z", pinned: nil) == unnamed, "a lone unnamed sign-in is still tried")
 
     // A sub-1 reading is a real sub-1 percentage, not a 0-1 fraction to rescale.
     let small = """

@@ -237,7 +237,7 @@ struct IslandView: View {
 
     private var header: some View {
         HStack(spacing: 0) {
-            Text(model.snapshot?.plan ?? "")
+            Text(headerLabel)
                 .frame(maxWidth: .infinity, alignment: .leading)
             if display.hasNotch {
                 // The cutout, plus 8pt of air so the tags never touch its edges.
@@ -257,6 +257,13 @@ struct IslandView: View {
         .truncationMode(.tail)
         .frame(height: display.hasNotch ? display.notchSize.height : nil)
         .padding(.top, display.hasNotch ? 0 : Theme.edge)
+    }
+
+    /// The plan, led by whose account it is once there's more than one to tell apart.
+    private var headerLabel: String {
+        guard let snapshot = model.snapshot else { return "" }
+        let who = snapshot.account.map { String($0.prefix { $0 != "@" }) }
+        return [who, snapshot.plan].compactMap { $0 }.joined(separator: " · ")
     }
 
     private func noteRow(_ text: String) -> some View {
@@ -567,8 +574,9 @@ struct IslandView: View {
     private var statusLine: String {
         if let note = noteText { return note }
         guard let snapshot = model.snapshot else { return "Reading your Claude Code sign-in…" }
+        let account = snapshot.account.map { "\($0), " } ?? ""
         let plan = snapshot.plan.map { "Claude \($0), " } ?? ""
-        return plan + "refreshed \(Format.ago(snapshot.fetchedAt))"
+        return account + plan + "refreshed \(Format.ago(snapshot.fetchedAt))"
     }
 
     private var showsEmptyState: Bool { model.snapshot == nil }
@@ -779,8 +787,12 @@ struct MenuContent: View {
     @AppStorage("burnRate") private var burnRate = true
     @AppStorage(Notifier.enabledKey) private var notifications = false
     @AppStorage(StatusItemController.enabledKey) private var menuBarItem = false
+    @AppStorage(UsageModel.accountKey) private var account = UsageModel.followApp
 
     var body: some View {
+        if model.logins.count > 1, let email = model.shown?.email {
+            Text(email)
+        }
         // The numbers themselves, so the menu-bar item is useful without the island.
         if let snapshot = model.snapshot {
             ForEach(snapshot.metrics) { metric in
@@ -792,8 +804,21 @@ struct MenuContent: View {
         if let version = model.updateAvailable {
             Button("Update available — v\(version)…") { NSWorkspace.shared.open(UsageModel.siteURL) }
         }
-        if case .noCredentials = model.status {
+        if model.missingAppAccount {
+            Button("Sign in the Claude app's account…") { model.signIn() }
+        } else if model.status == .unauthorized, let login = model.shown {
+            Button("Sign in again…") { model.signIn(again: login) }
+        } else if case .noCredentials = model.status {
             Button("Get Claude Code…") { NSWorkspace.shared.open(Self.claudeCodeURL) }
+        }
+        // Only once there's a choice to make: one sign-in and an app on the same account has none.
+        if model.logins.count > 1 || model.missingAppAccount {
+            Picker("Account", selection: accountBinding) {
+                Text(followLabel).tag(UsageModel.followApp)
+                ForEach(model.logins) { login in
+                    Text(login.email ?? login.directory.lastPathComponent).tag(login.id)
+                }
+            }
         }
         Button("Refresh now") { model.refreshNow() }
         Button("Open usage on claude.ai") { NSWorkspace.shared.open(Self.usageURL) }
@@ -825,6 +850,19 @@ struct MenuContent: View {
 
     private static let usageURL = URL(string: "https://claude.ai/settings/usage")!
     private static let claudeCodeURL = URL(string: "https://claude.com/product/claude-code")!
+
+    private var followLabel: String {
+        let email = model.logins.first { $0.accountUUID != nil && $0.accountUUID == model.appAccount }?.email
+        return "Follow the Claude app" + (email.map { " (\($0))" } ?? "")
+    }
+
+    // A pick whose sign-in has since gone reads as "follow", which is what the model falls back to.
+    private var accountBinding: Binding<String> {
+        Binding(
+            get: { model.logins.contains { $0.id == account } ? account : UsageModel.followApp },
+            set: { model.pickAccount($0) }
+        )
+    }
 
     // Ask for permission when the user opts in, never at launch.
     private var notificationsBinding: Binding<Bool> {

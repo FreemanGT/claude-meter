@@ -10,7 +10,7 @@
           <span class="pv-never"><span class="pv-never__in"><em class="pv-never__em">Never</em> <span class="mark pv-mark">writes.</span></span></span>
         </span>
       </h2>
-      <p class="pv-lead" data-reveal="lines">Claude Meter uses the sign&#8209;in Claude Code already saved on your Mac. It reads it from the macOS Keychain, through Apple’s own security tool, or from <span class="pv-nw"><code>~/.claude/.credentials.json</code>,</span> and never changes it. Short&#8209;lived tokens are refreshed in memory, never written back.</p>
+      <p class="pv-lead" data-reveal="lines">Claude Meter uses the sign&#8209;in Claude Code already saved on your Mac. It reads it from the macOS Keychain, through Apple’s own security tool, or from <span class="pv-nw"><code>~/.claude/.credentials.json</code>,</span> and when it renews an expired one, saves it back there the way Claude Code does. To follow the Claude app’s account it reads only the account ID in the app’s settings, never the app’s own sign&#8209;in.</p>
     </div>
 
     <figure class="pv-net" aria-labelledby="pv-net-cap">
@@ -153,6 +153,6 @@
       <p class="pv-site__txt" data-reveal="lines">The Mac download asks for your email; the Windows waitlist asks for your name too. Both go to the maker’s Google Sheet with your OS and the page that sent you here, never shared or sold. A Mac email only ever gets Claude Meter updates; the waitlist gets one email when Windows ships, nothing else. Your browser remembers the email so you don’t retype it, and asks GitHub for the star count every few hours at most.</p>
     </div>
 
-    <p class="pv-fine">Works with Claude Pro and Max sign&#8209;ins from Claude Code. API&#8209;key (Console) logins and a custom <code>CLAUDE_CONFIG_DIR</code> aren’t supported.</p>
+    <p class="pv-fine">Works with Claude Pro and Max sign&#8209;ins from Claude Code, including a second account in its own <code>CLAUDE_CONFIG_DIR</code>. API&#8209;key (Console) logins aren’t supported.</p>
   </div>
 </section>

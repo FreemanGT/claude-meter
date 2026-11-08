@@ -111,18 +111,20 @@ struct UsageHistory: Codable, Equatable, Sendable {
 
     // MARK: - Persistence
 
-    private static let storeKey = "usageHistory"
+    /// Where 1.3 kept the one account's history. Each account now has its own key, and the
+    /// default sign-in inherits this one so updating doesn't wipe its trend.
+    static let legacyStoreKey = "usageHistory"
 
-    static func load(_ defaults: UserDefaults = .standard) -> UsageHistory {
-        guard let data = defaults.data(forKey: storeKey),
-              let decoded = try? JSONDecoder().decode(UsageHistory.self, from: data)
-        else { return UsageHistory() }
-        return decoded
+    static func storeKey(account: String) -> String { "usageHistory.\(account)" }
+
+    static func load(_ key: String, _ defaults: UserDefaults = .standard) -> UsageHistory? {
+        guard let data = defaults.data(forKey: key) else { return nil }
+        return try? JSONDecoder().decode(UsageHistory.self, from: data)
     }
 
-    func save(_ defaults: UserDefaults = .standard) {
+    func save(_ key: String, _ defaults: UserDefaults = .standard) {
         guard let data = try? JSONEncoder().encode(self) else { return }
-        defaults.set(data, forKey: Self.storeKey)
+        defaults.set(data, forKey: key)
     }
 }
 

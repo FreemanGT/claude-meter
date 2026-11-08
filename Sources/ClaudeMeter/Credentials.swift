@@ -1,6 +1,19 @@
+import CryptoKit
 import Foundation
 
 enum Credentials {
+    /// One Claude Code sign-in on this Mac. The default one lives in ~/.claude. Each extra one is
+    /// a folder Claude Code was started in with CLAUDE_CONFIG_DIR: its token sits in a keychain
+    /// item of its own, named after a hash of that folder, and its account in `<folder>/.claude.json`.
+    struct Login: Sendable, Equatable, Identifiable {
+        let service: String
+        let directory: URL
+        let accountUUID: String?
+        let email: String?
+        var id: String { accountUUID ?? service }
+        var fileURL: URL { directory.appendingPathComponent(".credentials.json") }
+    }
+
     struct Creds: Sendable {
         let accessToken: String
         let refreshToken: String?
@@ -29,10 +42,56 @@ enum Credentials {
 
     private static let clientID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
     private static let tokenURL = URL(string: "https://platform.claude.com/v1/oauth/token")!
-    private static let service = "Claude Code-credentials"
+    static let service = "Claude Code-credentials"
     private static let security = URL(fileURLWithPath: "/usr/bin/security")
-    private static var fileURL: URL {
-        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/.credentials.json")
+    private static var home: URL { FileManager.default.homeDirectoryForCurrentUser }
+
+    /// The sign-in a plain `claude` uses: no CLAUDE_CONFIG_DIR, so no hash on the item's name.
+    static var primary: Login {
+        let account = profileAccount(home.appendingPathComponent(".claude.json"))
+        return Login(service: service, directory: home.appendingPathComponent(".claude"),
+                     accountUUID: account?.uuid, email: account?.email)
+    }
+
+    /// Every Claude Code sign-in we can put a name to, the default one first. Extra ones are found
+    /// as dot-folders in the home folder with "claude" in the name (`~/.claude-work`) and a signed-in
+    /// `.claude.json`; a config folder anywhere else isn't looked for. One entry per account.
+    static func logins() -> [Login] {
+        var found = [primary]
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: home.path)) ?? []
+        for name in names.sorted() where name.hasPrefix(".") && name.lowercased().contains("claude") {
+            let directory = home.appendingPathComponent(name, isDirectory: true)
+            guard let account = profileAccount(directory.appendingPathComponent(".claude.json")),
+                  !found.contains(where: { $0.accountUUID == account.uuid })
+            else { continue }
+            found.append(Login(service: serviceName(forConfigDir: directory.path), directory: directory,
+                               accountUUID: account.uuid, email: account.email))
+        }
+        return found
+    }
+
+    /// Claude Code's own rule: "Claude Code-credentials-" + the first 8 hex digits of the SHA-256
+    /// of the CLAUDE_CONFIG_DIR value, NFC-normalized (read out of its 2.1.317 bundle).
+    static func serviceName(forConfigDir path: String) -> String {
+        let digest = SHA256.hash(data: Data(path.precomposedStringWithCanonicalMapping.utf8))
+        return service + "-" + digest.prefix(4).map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// Where an added sign-in goes: the first `~/.claude-N` not already signed in to an account.
+    static func newConfigDir() -> URL {
+        var n = 2
+        while profileAccount(home.appendingPathComponent(".claude-\(n)/.claude.json")) != nil { n += 1 }
+        return home.appendingPathComponent(".claude-\(n)")
+    }
+
+    /// The account Claude Code last signed in to with this profile; nil when it never has.
+    private static func profileAccount(_ url: URL) -> (uuid: String, email: String?)? {
+        guard let data = try? Data(contentsOf: url),
+              let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let account = json["oauthAccount"] as? [String: Any],
+              let uuid = account["accountUuid"] as? String, !uuid.isEmpty
+        else { return nil }
+        return (uuid, account["emailAddress"] as? String)
     }
 
     private static let http: URLSession = {
@@ -46,21 +105,21 @@ enum Credentials {
     // writes this item through the `security` CLI, so that binary is already on the item's ACL
     // and the read is silent. SecItemCopyMatching from our team ID would ask for the login
     // password — and again after every Claude Code re-login, which recreates the item.
-    static func read() -> Result<Creds, CredError> {
-        let primary: Result<Creds, CredError>
-        switch keychainRead() {
-        case .success(let data): primary = parse(data)
-        case .failure(let error): primary = .failure(error)
+    static func read(_ login: Login) -> Result<Creds, CredError> {
+        let fromKeychain: Result<Creds, CredError>
+        switch keychainRead(login.service) {
+        case .success(let data): fromKeychain = parse(data)
+        case .failure(let error): fromKeychain = .failure(error)
         }
-        if case .success = primary { return primary }
+        if case .success = fromKeychain { return fromKeychain }
         // Claude Code writes both stores together. On 2026-09-01 the keychain copy landed
         // truncated mid-string while the file copy was intact, so a blob that won't parse is
         // as good a reason to fall back as a keychain that won't answer.
-        if let data = fileRead(), case .success(let creds) = parse(data) { return .success(creds) }
-        return primary
+        if let data = fileRead(login.fileURL), case .success(let creds) = parse(data) { return .success(creds) }
+        return fromKeychain
     }
 
-    private static func keychainRead() -> Result<Data, CredError> {
+    private static func keychainRead(_ service: String) -> Result<Data, CredError> {
         let process = Process()
         process.executableURL = security
         process.arguments = ["find-generic-password", "-s", service, "-w"]
@@ -91,8 +150,8 @@ enum Credentials {
         return .success(data)
     }
 
-    private static func fileRead() -> Data? {
-        try? Data(contentsOf: fileURL)
+    private static func fileRead(_ url: URL) -> Data? {
+        try? Data(contentsOf: url)
     }
 
     private static func parse(_ data: Data) -> Result<Creds, CredError> {
@@ -126,7 +185,7 @@ enum Credentials {
 
     /// Trade the stored refresh token for a fresh access token — the same `grant_type=refresh_token`
     /// call Claude Code makes — then hand the result back to Claude Code's store (see `writeBack`).
-    static func refresh(_ creds: Creds) async -> Result<Creds, CredError> {
+    static func refresh(_ creds: Creds, for login: Login) async -> Result<Creds, CredError> {
         guard let refreshToken = creds.refreshToken else {
             return .failure(CredError(message: "no refresh token", unauthorized: true))
         }
@@ -184,7 +243,7 @@ enum Credentials {
         if let life = (json["refresh_token_expires_in"] as? NSNumber)?.doubleValue {
             update["refreshTokenExpiresAt"] = ((now.timeIntervalSince1970 + life) * 1000).rounded()
         }
-        writeBack(spent: refreshToken, update: update)
+        writeBack(spent: refreshToken, update: update, to: login)
         return .success(fresh)
     }
 
@@ -193,15 +252,17 @@ enum Credentials {
     /// only grant on the next restart — what broke 1.2. The rule is Claude Code's own compare-and-swap
     /// between its processes: only replace a blob that parses and still holds the grant we spent;
     /// anything else is a newer write, and it wins.
-    private static func writeBack(spent: String, update: [String: Any]) {
+    private static func writeBack(spent: String, update: [String: Any], to login: Login) {
         let newGrant = update["refreshToken"] as? String
-        if case .success(let data) = keychainRead(), let merged = merge(data, spent: spent, update: update) {
-            let written = keychainWrite(merged)
-            let readBack = (try? keychainRead().get()).flatMap { try? parse($0).get() }?.refreshToken
+        if case .success(let data) = keychainRead(login.service),
+           let merged = merge(data, spent: spent, update: update) {
+            let written = keychainWrite(merged, service: login.service)
+            let readBack = (try? keychainRead(login.service).get()).flatMap { try? parse($0).get() }?.refreshToken
             NSLog("ClaudeMeter: keychain write-back %@", written && readBack == newGrant ? "ok" : "FAILED")
         }
         // Claude Code falls back to this file when it can't use the keychain.
-        if let data = fileRead(), let merged = merge(data, spent: spent, update: update) {
+        let fileURL = login.fileURL
+        if let data = fileRead(fileURL), let merged = merge(data, spent: spent, update: update) {
             do {
                 try merged.write(to: fileURL, options: .atomic)
                 try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: fileURL.path)
@@ -225,7 +286,7 @@ enum Credentials {
 
     /// Exactly how Claude Code writes the item, so `security` stays its only accessor and the
     /// write never prompts.
-    private static func keychainWrite(_ data: Data) -> Bool {
+    private static func keychainWrite(_ data: Data, service: String) -> Bool {
         let user = ProcessInfo.processInfo.environment["USER"] ?? NSUserName()
         let account = user.range(of: #"^[a-zA-Z0-9._-]+$"#, options: .regularExpression) != nil
             ? user : "claude-code-user"
@@ -265,6 +326,30 @@ enum Credentials {
             }
         }
         return type?.capitalized
+    }
+}
+
+/// The account the Claude desktop app is signed in to. The app records it as `lastKnownAccountUuid`
+/// in its settings file, which holds no secrets. The app's own sign-in stays out of reach on purpose:
+/// following it means showing the Claude Code sign-in for the same account.
+enum ClaudeApp {
+    static var configURL: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/Claude/config.json")
+    }
+
+    /// Nil when the app isn't installed or has never been signed in.
+    static func accountUUID() -> String? {
+        guard let data = try? Data(contentsOf: configURL),
+              let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let uuid = json["lastKnownAccountUuid"] as? String, !uuid.isEmpty
+        else { return nil }
+        return uuid
+    }
+
+    /// Cheap enough to check every few seconds; the file is only parsed when this changes.
+    static func modified() -> Date? {
+        (try? FileManager.default.attributesOfItem(atPath: configURL.path))?[.modificationDate] as? Date
     }
 }
 

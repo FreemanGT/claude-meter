@@ -5,7 +5,7 @@
 - Website: https://claudemeter.vercel.app/
 - Download: https://claudemeter.vercel.app/ClaudeMeter.dmg (the site asks for an email for update notices, then the download starts)
 - Source code: https://github.com/FreemanGT/claude-meter (open source, MIT licence)
-- Version: 1.3 (build 4) · Price: free · © 2026 Yiftach Freeman
+- Version: 1.4 (build 5) · Price: free · © 2026 Yiftach Freeman
 - Signed with an Apple Developer ID and notarized by Apple.
 - Windows: not available yet. The website has a waitlist (name and email); one email when it ships.
 - Independent project. Not affiliated with or endorsed by Anthropic. Claude is a trademark of Anthropic, PBC.
@@ -14,7 +14,8 @@
 
 - macOS 14.4 or later, Apple Silicon or Intel.
 - Claude Code installed and signed in with a Claude Pro or Max subscription.
-- Not supported: Claude Code signed in with an API key (Console), or a custom CLAUDE_CONFIG_DIR.
+- Not supported: Claude Code signed in with an API key (Console).
+- Two Claude accounts: it shows whichever account the Claude desktop app is on. Each account needs its own Claude Code sign-in; a second one lives in its own CLAUDE_CONFIG_DIR folder (for example ~/.claude-work), and the menu item "Sign in the Claude app's account…" runs `claude auth login` for it in Terminal.
 
 ## How it looks
 
@@ -43,7 +44,8 @@ Refreshes every 5 minutes and when you hover, never faster than every 3 minutes 
 
 ## Privacy and data
 
-- Reads the sign-in Claude Code already saved on the Mac: the macOS Keychain item "Claude Code-credentials" via Apple's built-in `security` tool, falling back to ~/.claude/.credentials.json.
+- Reads the sign-in Claude Code already saved on the Mac: the macOS Keychain item "Claude Code-credentials" via Apple's built-in `security` tool, falling back to ~/.claude/.credentials.json. A second sign-in made with CLAUDE_CONFIG_DIR has its own item, "Claude Code-credentials-<hash>", and its own .credentials.json.
+- To know which account to show, it reads the account ID the Claude desktop app keeps in ~/Library/Application Support/Claude/config.json. It never reads the app's own sign-in.
 - When it renews an expired access token, it saves the new sign-in back to the same keychain item and file, the way Claude Code does (only if Claude Code hasn't already replaced it), so the terminal `claude` stays signed in. It never writes anything else there.
 - Network: api.anthropic.com (usage), platform.claude.com (token refresh), and once a day https://claudemeter.vercel.app/version.json to check for updates.
 - No analytics, no account, no server of its own.

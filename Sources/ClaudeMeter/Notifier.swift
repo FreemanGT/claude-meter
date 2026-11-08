@@ -49,14 +49,17 @@ final class Notifier {
     }
 
     /// Called after every successful fetch. Arming happens even while disabled, so
-    /// switching notifications on mid-session doesn't fire a backlog.
-    func usageChanged(_ metrics: [UsageModel.Metric], resets: Set<String>) {
+    /// switching notifications on mid-session doesn't fire a backlog. Tracked per account:
+    /// switching from a busy account to a quiet one is not a reset, nor a quiet one to a busy
+    /// one a crossing.
+    func usageChanged(_ metrics: [UsageModel.Metric], resets: Set<String>, account: String) {
         for metric in metrics {
             let session = metric.key == UsageHistory.sessionKey
-            var tracker = trackers[metric.key]
+            let trackerKey = account + "\n" + metric.key
+            var tracker = trackers[trackerKey]
                 ?? ThresholdTracker(levels: session ? ThresholdTracker.sessionLevels : ThresholdTracker.weeklyLevels)
             let events = tracker.update(pct: metric.win.pct, didReset: resets.contains(metric.key))
-            trackers[metric.key] = tracker
+            trackers[trackerKey] = tracker
 
             let name = session ? "Session" : metric.key == UsageHistory.weeklyKey ? "Weekly limit" : "\(metric.name) limit"
             for event in events {

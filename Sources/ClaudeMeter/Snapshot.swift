@@ -55,6 +55,8 @@ enum SnapshotRenderer {
         Scene(name: "pinned-warn", mock: "ok90", mode: .pinned),
         Scene(name: "pinned-6models", mock: "models", mode: .pinned),
         Scene(name: "pinned-nocreds", mock: "nocreds", mode: .pinned),
+        Scene(name: "pinned-missing", mock: "missing", mode: .pinned),
+        Scene(name: "pinned-account", mock: "account", mode: .pinned),
         Scene(name: "pinned-unauthorized", mock: "unauthorized", mode: .pinned),
         Scene(name: "pinned-ratelimited", mock: "ratelimited", mode: .pinned),
         Scene(name: "pinned-throttled", mock: "throttled", mode: .pinned),

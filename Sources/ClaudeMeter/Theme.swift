@@ -144,13 +144,16 @@ enum Format {
         return hours > 0 ? "\(hours)h \(minutes)m" : "\(minutes)m"
     }
 
+    /// A countdown while it's close enough to read at a glance (every 5-hour session); past that,
+    /// the day and time, so nobody has to work out which day "36h 31m" lands on.
     /// " " (not "") for a missing date, so table rows keep their height.
-    static func reset(_ date: Date?) -> String {
+    static func reset(_ date: Date?, now: Date = Date()) -> String {
         guard let date else { return " " }
-        let seconds = date.timeIntervalSinceNow
+        let seconds = date.timeIntervalSince(now)
         if seconds <= 0 { return "resetting…" }
-        if seconds < 48 * 3600 { return "resets in \(duration(seconds))" }
-        // FormatStyle, not a hardcoded pattern: 12h locales must not see "Thu 14:30".
+        if seconds < 6 * 3600 { return "resets in \(duration(seconds))" }
+        // The weekday even for today or tomorrow: "resets tomorrow 11:59 AM" overflows the table's
+        // reset column. FormatStyle, not a hardcoded pattern: 12h locales must not see "Thu 14:30".
         return "resets \(date.formatted(.dateTime.weekday(.abbreviated).hour().minute()))"
     }
 

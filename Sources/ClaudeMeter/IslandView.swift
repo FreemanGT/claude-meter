@@ -511,10 +511,11 @@ struct IslandView: View {
                 .animation(motion(.smooth(duration: 0.5)), value: row.win?.pct)
                 .foregroundStyle(Theme.text)
                 .frame(width: 38, alignment: .trailing)
+            // Fits "resets Tue 11:59 AM", the longest a 12-hour clock writes; the bar takes the rest.
             Text(showReset ? Format.reset(row.win?.resetsAt) : " ")
                 .font(Theme.font(.caption))
                 .foregroundStyle(secondary)
-                .frame(width: 96, alignment: .trailing)
+                .frame(width: 112, alignment: .trailing)
                 .lineLimit(1)
         }
         .accessibilityElement(children: .ignore)

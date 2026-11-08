@@ -14,7 +14,7 @@ const weekdayTime = (d) =>
 
 /**
  * fmtReset(seconds | Date | "Sat 1:05 PM")
- *  <48h → "resets in 2h 13m" · ≥48h → "resets Sat 1:05 PM" · ≤0 → "resetting…"
+ *  <6h → "resets in 2h 13m" · ≥6h → "resets Sat 1:05 PM" · ≤0 → "resetting…" (same rule as the app)
  * A string is treated as an already-formatted weekday time (demo data).
  */
 export function fmtReset(v) {
@@ -22,7 +22,7 @@ export function fmtReset(v) {
   if (typeof v === "string") return `resets ${v}`;
   const sec = v instanceof Date ? (v.getTime() - Date.now()) / 1000 : v;
   if (sec <= 0) return "resetting…";
-  if (sec < 48 * 3600) return `resets in ${fmtDur(sec)}`;
+  if (sec < 6 * 3600) return `resets in ${fmtDur(sec)}`;
   const d = v instanceof Date ? v : new Date(Date.now() + sec * 1000);
   return `resets ${weekdayTime(d)}`;
 }

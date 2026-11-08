@@ -647,6 +647,11 @@ final class UsageModel: ObservableObject {
         case "account":
             var s = snap(42)
             s.account = "yiftach41@gmail.com"
+            // A weekly reset tomorrow at 11:59, the case that used to read "resets in 36h 31m".
+            let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date())!
+            let noon = Calendar.current.date(bySettingHour: 11, minute: 59, second: 0, of: tomorrow)
+            s.weeklyAll?.resetsAt = noon
+            s.scoped = s.scoped.map { Scoped(name: $0.name, win: Window(pct: $0.win.pct, resetsAt: noon)) }
             return (s, .ok, trend(s, ratePerHour: 9))
         case "ratelimited":
             let s = snap(42)
@@ -791,6 +796,20 @@ func runSelfTest() {
     check(UsageModel.choose([plain, extra], app: nil, pinned: nil) == plain, "no Claude app: the plain claude sign-in")
     let unnamed = login(nil, "Claude Code-credentials")
     check(UsageModel.choose([unnamed], app: "z", pinned: nil) == unnamed, "a lone unnamed sign-in is still tried")
+
+    // MARK: reset wording
+
+    let morning = Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: Date())!
+    check(Format.reset(morning.addingTimeInterval(2 * 3600 + 31 * 60), now: morning) == "resets in 2h 31m",
+          "a session-sized wait is a countdown")
+    let weekday = { (date: Date) in date.formatted(.dateTime.weekday(.abbreviated)) }
+    let tomorrowReset = morning.addingTimeInterval(27 * 3600)
+    check(Format.reset(tomorrowReset, now: morning).hasPrefix("resets \(weekday(tomorrowReset)) "),
+          "a weekly reset tomorrow names the day instead of counting 27h")
+    let laterToday = morning.addingTimeInterval(10 * 3600)
+    check(Format.reset(laterToday, now: morning).hasPrefix("resets \(weekday(laterToday)) "),
+          "past 6h it's a day and time even today")
+    check(Format.reset(morning.addingTimeInterval(-60), now: morning) == "resetting…", "past is resetting")
 
     // A sub-1 reading is a real sub-1 percentage, not a 0-1 fraction to rescale.
     let small = """

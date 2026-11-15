@@ -555,6 +555,7 @@ struct IslandView: View {
             return "\(hit.name) limit reached" + (hit.win.resetsAt.map { " · " + Format.reset($0) } ?? "")
         }
         guard pinned else { return nil }
+        if let ending = signInEndingText { return ending }
         return projectionText(UsageHistory.sessionKey, model.snapshot?.session).map { "Session \($0)" }
     }
 
@@ -562,10 +563,17 @@ struct IslandView: View {
         model.snapshot?.metrics.first { $0.win.pct >= 100 }
     }
 
+    /// Days ahead, so the meter doesn't just go red one morning when the sign-in runs out.
+    private var signInEndingText: String? {
+        model.signInDaysLeft.map { "sign-in ends in \($0 == 1 ? "1 day" : "\($0) days") — right-click › Sign in again" }
+    }
+
     private var noteTint: Color {
         switch model.status {
         case .ok, .loading:
-            limitReached != nil ? Theme.red : projectionTint(UsageHistory.sessionKey, model.snapshot?.session)
+            limitReached != nil ? Theme.red
+                : pinned && signInEndingText != nil ? Theme.amber
+                : projectionTint(UsageHistory.sessionKey, model.snapshot?.session)
         case .stale, .throttled: tertiary
         case .rateLimited: Theme.amber
         case .unauthorized, .noCredentials: Theme.red
@@ -809,6 +817,10 @@ struct MenuContent: View {
             Button("Sign in the Claude app's account…") { model.signIn() }
         } else if model.status == .unauthorized, let login = model.shown {
             Button("Sign in again…") { model.signIn(again: login) }
+        } else if let days = model.signInDaysLeft, let login = model.shown {
+            Button("Sign-in ends in \(days == 1 ? "1 day" : "\(days) days") — Sign in again…") {
+                model.signIn(again: login)
+            }
         } else if case .noCredentials = model.status {
             Button("Get Claude Code…") { NSWorkspace.shared.open(Self.claudeCodeURL) }
         }

@@ -70,6 +70,14 @@ final class UsageModel: ObservableObject {
     @Published private(set) var shown: Credentials.Login?
     @Published private(set) var appAccount: String?
     @Published private(set) var missingAppAccount = false
+    /// When the shown sign-in stops renewing, from the last credentials that worked.
+    @Published private(set) var signInEnds: Date?
+
+    /// Days left on the shown sign-in, inside the 3-day window Claude Code itself warns in.
+    var signInDaysLeft: Int? {
+        guard let left = signInEnds?.timeIntervalSinceNow, left > 0, left <= 3 * 86400 else { return nil }
+        return Int((left / 86400).rounded(.up))
+    }
 
     /// UserDefaults: a sign-in's id picked in the menu, or `followApp`.
     nonisolated static let accountKey = "account"
@@ -122,6 +130,7 @@ final class UsageModel: ObservableObject {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(5))
                 guard let self else { return }
+                await checkSignIn()
                 let modified = ClaudeApp.modified()
                 guard modified != seen || missingAppAccount else { continue }
                 seen = modified
@@ -143,6 +152,7 @@ final class UsageModel: ObservableObject {
         var backoff: TimeInterval
         var rateLimitedUntil: Date?
         var credentialsFailedAt: Date?
+        var signInEnds: Date?
     }
 
     private var parked: [String: Parked] = [:]
@@ -185,7 +195,8 @@ final class UsageModel: ObservableObject {
         if let activeKey {
             parked[activeKey] = Parked(
                 snapshot: snapshot, status: status, history: history, lastAttempt: lastAttempt,
-                backoff: backoff, rateLimitedUntil: rateLimitedUntil, credentialsFailedAt: credentialsFailedAt
+                backoff: backoff, rateLimitedUntil: rateLimitedUntil, credentialsFailedAt: credentialsFailedAt,
+                signInEnds: signInEnds
             )
         }
         historyKey = login.map { login in
@@ -204,6 +215,8 @@ final class UsageModel: ObservableObject {
         backoff = next.backoff
         rateLimitedUntil = next.rateLimitedUntil
         credentialsFailedAt = next.credentialsFailedAt
+        signInEnds = next.signInEnds
+        awaitingSignIn = nil  // it was for the account just left
         pendingRefresh?.cancel()
         pendingRefresh = nil
         NSLog("ClaudeMeter showing %@", login?.service ?? "nothing: no sign-in for the Claude app's account")
@@ -262,6 +275,31 @@ final class UsageModel: ObservableObject {
         } catch {
             NSLog("ClaudeMeter: add-account script failed: %@", String(describing: error))
         }
+        // A new account is found by the Claude-app watcher; a renewed one is the same item with a
+        // new grant in it, so note the grant on file now and look for a different one.
+        if let login {
+            Task { [weak self] in
+                let grant = await Task.detached { (try? Credentials.read(login).get()).map(Credentials.fingerprint) }.value
+                self?.awaitingSignIn = (login.service, Date(), grant)
+            }
+        }
+    }
+
+    /// Set by "Sign in again…": which sign-in, when, and the grant it held then (nil: none).
+    private var awaitingSignIn: (service: String, since: Date, grant: String?)?
+
+    /// While a sign-in is under way in Terminal, look for its grant every few seconds, so the meter
+    /// comes back the moment Claude Code saves it rather than at the next poll. Gives up after 15
+    /// minutes; the regular poll still finds it after that.
+    private func checkSignIn() async {
+        guard let waiting = awaitingSignIn else { return }
+        guard let login = shown, login.service == waiting.service,
+              Date().timeIntervalSince(waiting.since) < 900
+        else { awaitingSignIn = nil; return }
+        let grant = await Task.detached { (try? Credentials.read(login).get()).map(Credentials.fingerprint) }.value
+        guard let grant, grant != waiting.grant, awaitingSignIn?.since == waiting.since else { return }
+        awaitingSignIn = nil
+        await fetch(manual: true)
     }
 
     func refreshOnWake() {
@@ -403,6 +441,9 @@ final class UsageModel: ObservableObject {
         case .failure(let error):
             if error.unauthorized {
                 status = .unauthorized
+                // Stopped at the keychain or the token endpoint, never the usage endpoint the floor
+                // guards, so a click or a fresh sign-in can try again straight away.
+                lastAttempt = previousAttempt
             } else if error.transient {
                 // With numbers on screen this is a footnote; with nothing, it's the whole story,
                 // so say what to do about it — but never negative-cache it for half an hour.
@@ -417,6 +458,7 @@ final class UsageModel: ObservableObject {
         case .success(let value):
             credentialsFailedAt = nil
             creds = value
+            signInEnds = value.signInEnds
         }
 
         var request = URLRequest(url: URL(string: "https://api.anthropic.com/api/oauth/usage")!)
@@ -595,6 +637,7 @@ final class UsageModel: ObservableObject {
         snapshot = mock.snapshot
         status = mock.status
         history = mock.history
+        if name == "ending" { signInEnds = Date().addingTimeInterval(2 * 86400 - 3600) }
     }
 
     /// Built without touching UserDefaults so snapshots never clobber real history.
@@ -640,6 +683,9 @@ final class UsageModel: ObservableObject {
             return (s, .ok, trend(s, ratePerHour: 9))
         case "stale": let s = snap(42); return (s, .stale("offline"), trend(s, ratePerHour: 9))
         case "unauthorized": let s = snap(42); return (s, .unauthorized, trend(s, ratePerHour: 9))
+        // The state of 2026-11-16: the sign-in ended and Claude Code blanked it, with no numbers yet.
+        case "signedout": return (nil, .unauthorized, UsageHistory())
+        case "ending": let s = snap(42); return (s, .ok, trend(s, ratePerHour: 9))
         case "nocreds":
             return (nil, .noCredentials(Credentials.signInHint), UsageHistory())
         case "missing":
@@ -724,10 +770,23 @@ func runSelfTest() {
     check(Credentials.parseForTests(Data(truncated.utf8)) == .transient,
           "truncated credentials blob is transient, not a missing sign-in")
     let mcpOnly = #"{"mcpOAuth":{"slack":{"serverUrl":"https://mcp.slack.com/mcp"}}}"#
-    check(Credentials.parseForTests(Data(mcpOnly.utf8)) == .noSignIn,
-          "valid blob with no claudeAiOauth really is a missing sign-in")
+    check(Credentials.parseForTests(Data(mcpOnly.utf8)) == .signedOut,
+          "valid blob with only MCP sign-ins: Claude Code is there, signed out")
+    check(Credentials.parseForTests(Data("{}".utf8)) == .noSignIn, "empty blob: never signed in")
+    // The exact shape of 2026-11-16: tokens blanked in place after the sign-in ended. It used to
+    // read "Only MCP credentials found" with a "Get Claude Code…" button and no way to sign in again.
+    let blanked = #"{"claudeAiOauth":{"accessToken":"","refreshToken":"","expiresAt":0,"refreshTokenExpiresAt":1794684849013,"scopes":["user:profile"],"subscriptionType":"max"},"organizationUuid":"o","mcpOAuth":{"x":1}}"#
+    check(Credentials.parseForTests(Data(blanked.utf8)) == .signedOut, "blanked sign-in reads as signed out")
+    let ended = #"{"claudeAiOauth":{"accessToken":"t","refreshToken":"r","expiresAt":1000,"refreshTokenExpiresAt":2000}}"#
+    check(Credentials.parseForTests(Data(ended.utf8)) == .signedOut,
+          "expired token and ended grant: signed out, without posting a refresh to be refused")
+    let renewable = #"{"claudeAiOauth":{"accessToken":"t","refreshToken":"r","expiresAt":1000,"refreshTokenExpiresAt":4102444800000}}"#
+    check(Credentials.parseForTests(Data(renewable.utf8)) == .ok, "expired token with a live grant is renewable")
+    check(Credentials.signInEndsForTests(Data(renewable.utf8)) == Date(timeIntervalSince1970: 4102444800),
+          "refreshTokenExpiresAt read as the sign-in's end")
     let good = #"{"claudeAiOauth":{"accessToken":"t","refreshToken":"r","scopes":["user:profile"],"expiresAt":4102444800000,"rateLimitTier":"default_claude_max_20x"}}"#
     check(Credentials.parseForTests(Data(good.utf8)) == .ok, "well-formed blob parses")
+    check(Credentials.signInEndsForTests(Data(good.utf8)) == nil, "no refreshTokenExpiresAt: no end date")
 
     // MARK: write-back compare-and-swap
 

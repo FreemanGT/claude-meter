@@ -22,6 +22,9 @@ enum Credentials {
         let planName: String?
         /// The OAuth client that minted the grant; refreshing under any other one is a 400.
         var clientID: String? = nil
+        /// When the grant itself stops renewing (`refreshTokenExpiresAt`); past it, only a new
+        /// sign-in brings the meter back. Claude Code warns about it 3 days ahead.
+        var signInEnds: Date? = nil
         var expired: Bool { (expiresAt ?? .distantFuture) < Date() }
     }
 
@@ -39,6 +42,7 @@ enum Credentials {
     // Refreshing with them is the same call the CLI makes with the same stored grant —
     // this is not a sign-in flow of our own.
     static let signInHint = "Sign in to Claude Code (Pro or Max): run claude, then /login"
+    static let signedOut = "signed out of Claude Code"
 
     private static let clientID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
     private static let tokenURL = URL(string: "https://platform.claude.com/v1/oauth/token")!
@@ -142,7 +146,7 @@ enum Credentials {
 
     /// Enough of a SHA-256 of the refresh token to tell grants apart; the token itself never leaves
     /// the keychain.
-    private static func fingerprint(_ creds: Creds) -> String {
+    static func fingerprint(_ creds: Creds) -> String {
         let secret = creds.refreshToken ?? creds.accessToken
         return SHA256.hash(data: Data(secret.utf8)).prefix(8).map { String(format: "%02x", $0) }.joined()
     }
@@ -251,12 +255,20 @@ enum Credentials {
         guard let oauth = json["claudeAiOauth"] as? [String: Any],
               let token = oauth["accessToken"] as? String, !token.isEmpty
         else {
-            if json["mcpOAuth"] != nil {
-                return .failure(CredError(message: "Only MCP credentials found — sign in to Claude Code again"))
+            // Claude Code is installed and has used this item, so the fix is signing in again, not
+            // getting Claude Code. Seen 2026-11-16: every token blanked in place (expiresAt 0) two
+            // days after the sign-in's refreshTokenExpiresAt, next to 20 intact MCP sign-ins.
+            if json["claudeAiOauth"] != nil || json["mcpOAuth"] != nil {
+                return .failure(CredError(message: signedOut, unauthorized: true))
             }
             return .failure(CredError(message: signInHint))
         }
         let expiresAt = (oauth["expiresAt"] as? Double).map { Date(timeIntervalSince1970: $0 / 1000) }
+        let signInEnds = (oauth["refreshTokenExpiresAt"] as? Double).map { Date(timeIntervalSince1970: $0 / 1000) }
+        // Both spent: no token to use and no grant to renew with, so don't post one to be refused.
+        if let signInEnds, signInEnds < Date(), (expiresAt ?? .distantFuture) < Date() {
+            return .failure(CredError(message: "sign-in ended — " + signedOut, unauthorized: true))
+        }
         return .success(Creds(
             accessToken: token,
             refreshToken: oauth["refreshToken"] as? String,
@@ -266,7 +278,8 @@ enum Credentials {
                 tier: oauth["rateLimitTier"] as? String,
                 type: oauth["subscriptionType"] as? String
             ),
-            clientID: oauth["clientId"] as? String
+            clientID: oauth["clientId"] as? String,
+            signInEnds: signInEnds
         ))
     }
 
@@ -311,6 +324,7 @@ enum Credentials {
 
         let now = Date()
         let lifetime = (json["expires_in"] as? NSNumber)?.doubleValue ?? 3600
+        let grantLife = (json["refresh_token_expires_in"] as? NSNumber)?.doubleValue
         let fresh = Creds(
             accessToken: token,
             refreshToken: json["refresh_token"] as? String ?? refreshToken,
@@ -318,7 +332,8 @@ enum Credentials {
             // A minute of slack so we renew before the usage call starts 401ing.
             expiresAt: now.addingTimeInterval(max(60, lifetime - 60)),
             planName: creds.planName,
-            clientID: creds.clientID
+            clientID: creds.clientID,
+            signInEnds: grantLife.map { now.addingTimeInterval($0) } ?? creds.signInEnds
         )
         // Claude Code's own field names and units (ms since epoch).
         var update: [String: Any] = [
@@ -327,8 +342,8 @@ enum Credentials {
             "expiresAt": ((now.timeIntervalSince1970 + lifetime) * 1000).rounded(),
             "scopes": fresh.scopes,
         ]
-        if let life = (json["refresh_token_expires_in"] as? NSNumber)?.doubleValue {
-            update["refreshTokenExpiresAt"] = ((now.timeIntervalSince1970 + life) * 1000).rounded()
+        if let grantLife {
+            update["refreshTokenExpiresAt"] = ((now.timeIntervalSince1970 + grantLife) * 1000).rounded()
         }
         writeBack(spent: refreshToken, update: update, to: login)
         renewed(login, from: creds, to: fresh)
@@ -442,13 +457,17 @@ enum ClaudeApp {
 }
 
 extension Credentials {
-    /// Test seam: --selftest cares which of the three outcomes a blob produces, not the strings.
-    enum ParseOutcome { case ok, transient, noSignIn }
+    /// Test seam: --selftest cares which of the outcomes a blob produces, not the strings.
+    enum ParseOutcome { case ok, transient, signedOut, noSignIn }
 
     static func parseForTests(_ data: Data) -> ParseOutcome {
         switch parse(data) {
         case .success: return .ok
-        case .failure(let error): return error.transient ? .transient : .noSignIn
+        case .failure(let error): return error.transient ? .transient : error.unauthorized ? .signedOut : .noSignIn
         }
+    }
+
+    static func signInEndsForTests(_ data: Data) -> Date? {
+        try? parse(data).get().signInEnds
     }
 }

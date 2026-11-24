@@ -821,7 +821,10 @@ struct MenuContent: View {
             Button("Sign-in ends in \(days == 1 ? "1 day" : "\(days) days") — Sign in again…") {
                 model.signIn(again: login)
             }
-        } else if case .noCredentials = model.status {
+        } else if model.credentialIssue == .denied {
+            // macOS asks again, naming Claude Meter; Always Allow keeps it for this app only.
+            Button("Allow Keychain access…") { model.allowKeychain() }
+        } else if model.credentialIssue == .missing {
             Button("Get Claude Code…") { NSWorkspace.shared.open(Self.claudeCodeURL) }
         }
         // Only once there's a choice to make: one sign-in and an app on the same account has none.

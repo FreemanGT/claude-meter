@@ -10,7 +10,7 @@
           <span class="pv-never"><span class="pv-never__in"><em class="pv-never__em">Never</em> <span class="mark pv-mark">writes.</span></span></span>
         </span>
       </h2>
-      <p class="pv-lead" data-reveal="lines">Claude Meter uses the sign&#8209;in Claude Code already saved on your Mac. It reads it from the macOS Keychain, through Apple’s own security tool, or from <span class="pv-nw"><code>~/.claude/.credentials.json</code>,</span> and when it renews an expired one, saves it back there the way Claude Code does. To follow the Claude app’s account it reads only the account ID in the app’s settings, never the app’s own sign&#8209;in.</p>
+      <p class="pv-lead" data-reveal="lines">Claude Meter uses the sign&#8209;in Claude Code already saved on your Mac. It only reads it, from the macOS Keychain or from <span class="pv-nw"><code>~/.claude/.credentials.json</code>,</span> and never renews or rewrites it: Claude Code does that itself. To follow the Claude app’s account it reads only the account ID in the app’s settings, never the app’s own sign&#8209;in.</p>
     </div>
 
     <figure class="pv-net" aria-labelledby="pv-net-cap">
@@ -47,7 +47,7 @@
         <p class="pv-lbl" style="--x:700;--y:8"><span class="pv-lbl__n">02</span>The app talks to</p>
         <ul class="pv-hosts" role="list">
           <li class="pv-host pv-pin pv-host--usage" style="--x:700;--y:64"><span class="pv-chip"><i class="pv-dot"></i>api.anthropic.com</span><span class="pv-desc">your usage numbers</span></li>
-          <li class="pv-host pv-pin pv-host--token" style="--x:700;--y:152"><span class="pv-chip"><i class="pv-dot"></i>platform.claude.com</span><span class="pv-desc">token refresh, kept in memory</span></li>
+          <li class="pv-host pv-pin pv-host--token" style="--x:700;--y:152"><span class="pv-chip"><i class="pv-dot"></i>api.anthropic.com<wbr>/profile</span><span class="pv-desc">whose sign&#8209;in it is, once per new sign&#8209;in</span></li>
           <li class="pv-host pv-pin pv-host--version" style="--x:700;--y:240"><span class="pv-chip"><i class="pv-dot"></i>claudemeter.vercel.app<wbr>/version.json</span><span class="pv-desc">once a day: is there an update?</span></li>
           <li class="pv-host pv-pin pv-host--else" style="--x:700;--y:328"><span class="pv-chip"><i class="pv-dot"></i>anything&nbsp;else</span><span class="pv-desc">nobody. that’s the list.</span></li>
         </ul>
@@ -86,7 +86,7 @@
         <p class="pv-lbl" style="--x:84;--y:282"><span class="pv-lbl__n">02</span>The app talks to</p>
         <ul class="pv-hosts" role="list">
           <li class="pv-host pv-pin pv-host--usage" style="--x:84;--y:350"><span class="pv-chip"><i class="pv-dot"></i>api.anthropic.com</span><span class="pv-desc">your usage numbers</span></li>
-          <li class="pv-host pv-pin pv-host--token" style="--x:84;--y:460"><span class="pv-chip"><i class="pv-dot"></i>platform.claude.com</span><span class="pv-desc">token refresh, kept in memory</span></li>
+          <li class="pv-host pv-pin pv-host--token" style="--x:84;--y:460"><span class="pv-chip"><i class="pv-dot"></i>api.anthropic.com<wbr>/profile</span><span class="pv-desc">whose sign&#8209;in it is, once per new sign&#8209;in</span></li>
           <li class="pv-host pv-pin pv-host--version" style="--x:84;--y:570"><span class="pv-chip"><i class="pv-dot"></i>claudemeter.vercel.app<wbr>/version.json</span><span class="pv-desc">once a day: is there an update?</span></li>
           <li class="pv-host pv-pin pv-host--else" style="--x:84;--y:680"><span class="pv-chip"><i class="pv-dot"></i>anything&nbsp;else</span><span class="pv-desc">nobody. that’s the list.</span></li>
         </ul>
@@ -102,7 +102,7 @@
         </ul>
       </div>
 
-      <figcaption id="pv-net-cap" class="pv-net__cap">Sped up here. For real: a usage check every 5 minutes (never faster than 3), a token refresh only when one expires, an update check once a day.</figcaption>
+      <figcaption id="pv-net-cap" class="pv-net__cap">Sped up here. For real: a usage check every 5 minutes (never faster than 3), an account check only when Claude Code saves a new sign&#8209;in, an update check once a day.</figcaption>
     </figure>
 
     <div class="pv-os">

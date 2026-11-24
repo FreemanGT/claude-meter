@@ -23,6 +23,16 @@ done
 # Universal: Intel Macs on 14.4+ can run it too (they get the no-notch pill).
 swift build -c release --arch arm64 --arch x86_64 ${FLAGS[@]+"${FLAGS[@]}"}
 
+# The Claude Code sign-in is only read (Credentials.swift). Refuse a binary that could renew it at
+# the sign-in server, write or delete a Keychain item, or ask through the `security` tool, whose
+# question doesn't name this app and whose Always Allow opens the item to every program.
+FORBIDDEN='oauth/token|refresh_token|grant_type|generic-password|/usr/bin/security'
+if strings -a .build/release/ClaudeMeter | grep -E -q "$FORBIDDEN"; then
+    echo "build.sh: the binary holds a string it must not: $(strings -a .build/release/ClaudeMeter | grep -E -o "$FORBIDDEN" | sort -u | tr '\n' ' ')" >&2
+    exit 1
+fi
+.build/release/ClaudeMeter --selftest
+
 APP="build/Claude Meter.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"

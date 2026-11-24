@@ -179,8 +179,8 @@ if CommandLine.arguments.contains("--accounts") {
         let chosen = UsageModel.choose(logins, app: app, pinned: UserDefaults.standard.string(forKey: UsageModel.accountKey))
         for login in logins {
             let state: String
-            switch Credentials.read(login) {
-            case .success(let creds): state = creds.expired ? "token expired, renewable" : "token valid"
+            switch Credentials.Reader.shared.read(login).result {
+            case .success: state = "token valid"
             case .failure(let error): state = error.message
             }
             print("\(login == chosen ? "*" : " ") \(login.email ?? "unknown account")  [\(login.service)]  \(state)")
@@ -189,30 +189,6 @@ if CommandLine.arguments.contains("--accounts") {
         print("Claude app is on: \(appEmail ?? "no Claude app account found")")
         if chosen == nil { print("Showing nothing: \(UsageModel.missingMessage)") }
         exit(0)
-    }
-    dispatchMain()
-}
-
-// Live check of the renewal path on this Mac: one real refresh, then re-read Claude Code's store
-// to confirm the rotated grant landed there. Prints no secrets. `--refresh-check <email>` picks
-// a sign-in other than the default one.
-if let index = CommandLine.arguments.firstIndex(of: "--refresh-check") {
-    let email = index + 1 < CommandLine.arguments.count ? CommandLine.arguments[index + 1] : nil
-    Task {
-        var picked: Credentials.Login? = Credentials.primary
-        if let email { picked = await Credentials.resolvedLogins().first { $0.email == email } }
-        guard let login = picked else { print("no Claude Code sign-in for \(email ?? "")"); exit(1) }
-        guard case .success(let before) = Credentials.read(login) else { print("no credentials"); exit(1) }
-        switch await Credentials.refresh(before, for: login) {
-        case .failure(let error):
-            print("refresh failed: \(error.message)")
-            exit(1)
-        case .success(let fresh):
-            let after = try? Credentials.read(login).get()
-            let landed = after?.accessToken == fresh.accessToken && after?.refreshToken == fresh.refreshToken
-            print(landed ? "refresh ok, written back" : "refresh ok, write-back FAILED")
-            exit(landed ? 0 : 1)
-        }
     }
     dispatchMain()
 }

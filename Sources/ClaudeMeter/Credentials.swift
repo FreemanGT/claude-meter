@@ -1,5 +1,11 @@
 import CryptoKit
 import Foundation
+import Security
+
+// The Claude Code sign-in is only ever read here. Claude Meter never renews it, never writes or
+// deletes a Keychain item or a credentials file, never calls the sign-in server and never reads
+// the refresh token: Claude Code renews its own sign-in. `build.sh` fails when the binary holds
+// the strings that would do any of that.
 
 enum Credentials {
     /// One Claude Code sign-in on this Mac. The default one lives in ~/.claude. Each extra one is
@@ -16,54 +22,56 @@ enum Credentials {
 
     struct Creds: Sendable {
         let accessToken: String
-        let refreshToken: String?
         let scopes: [String]
         let expiresAt: Date?
         let planName: String?
-        /// The OAuth client that minted the grant; refreshing under any other one is a 400.
-        var clientID: String? = nil
         /// When the grant itself stops renewing (`refreshTokenExpiresAt`); past it, only a new
         /// sign-in brings the meter back. Claude Code warns about it 3 days ahead.
         var signInEnds: Date? = nil
-        var expired: Bool { (expiresAt ?? .distantFuture) < Date() }
+        /// A minute early, so a token about to run out isn't sent.
+        func expired(at now: Date = Date()) -> Bool { (expiresAt ?? .distantFuture) < now.addingTimeInterval(60) }
     }
 
-    struct CredError: Error, Sendable {
+    struct CredError: Error, Sendable, Equatable {
+        enum Kind: Sendable, Equatable {
+            /// No sign-in here at all: Claude Code isn't installed or never signed in.
+            case missing
+            /// The sign-in is dead (signed out, ended, or refused by Anthropic); only signing in again fixes it.
+            case signedOut
+            /// The token ran out. Claude Code renews it the next time it runs.
+            case expired
+            /// The item doesn't parse (seen truncated mid-write); Claude Code's next write fixes it.
+            case unreadable
+            /// The person said no to the Keychain question. Not asked again until they say so.
+            case denied
+            /// The Keychain is locked or busy with another question; tried again later.
+            case busy
+        }
+        let kind: Kind
         let message: String
-        /// Don't negative-cache this for 30 minutes — it's a blip, not a missing sign-in.
-        var transient = false
-        /// Blip that clears in seconds (a consent prompt still on screen), so skip the poll floor.
-        var retrySoon = false
-        /// The sign-in itself is dead; only Claude Code can fix it.
-        var unauthorized = false
     }
 
-    // Claude Code's own public OAuth client and token endpoint, read out of its bundle.
-    // Refreshing with them is the same call the CLI makes with the same stored grant —
-    // this is not a sign-in flow of our own.
     static let signInHint = "Sign in to Claude Code (Pro or Max): run claude, then /login"
     static let signedOut = "signed out of Claude Code"
-
-    private static let clientID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
-    private static let tokenURL = URL(string: "https://platform.claude.com/v1/oauth/token")!
+    static let expiredMessage = "sign-in expired — run claude to renew it"
+    static let deniedMessage = "Keychain access declined — right-click → Allow Keychain access"
     static let service = "Claude Code-credentials"
-    private static let security = URL(fileURLWithPath: "/usr/bin/security")
     private static var home: URL { FileManager.default.homeDirectoryForCurrentUser }
 
     /// The sign-in a plain `claude` uses: no CLAUDE_CONFIG_DIR, so no hash on the item's name. Its
     /// account is deliberately not taken from ~/.claude.json: Claude Code sessions inside the Claude
     /// app rewrite `oauthAccount` there to the app's account while the keychain keeps the terminal
-    /// login. On 2026-11-08 it named yiftach41 over freemansseo's token, so the meter showed one
+    /// login. On 2026-11-08 it named one account over another's token, so the meter showed one
     /// account's numbers under the other's name and dropped the real one as a duplicate.
     static var primary: Login {
         Login(service: service, directory: home.appendingPathComponent(".claude"), accountUUID: nil, email: nil)
     }
 
     /// Every Claude Code sign-in that may exist, the default one first, each carrying only what its
-    /// files say about its account; `resolvedLogins` asks the API. Extra ones are dot-folders in the
-    /// home folder with "claude" in the name (`~/.claude-work`) and a signed-in `.claude.json`; a
-    /// config folder anywhere else isn't looked for. Only processes started with that folder write
-    /// there, so its hint is sound.
+    /// files say about its account; `resolvedLogins` fills in the default one's. Extra ones are
+    /// dot-folders in the home folder with "claude" in the name (`~/.claude-work`) and a signed-in
+    /// `.claude.json`; a config folder anywhere else isn't looked for. Only processes started with
+    /// that folder write there, so its hint is sound.
     static func logins() -> [Login] {
         var found = [primary]
         let names = (try? FileManager.default.contentsOfDirectory(atPath: home.path)) ?? []
@@ -78,54 +86,62 @@ enum Credentials {
 
     // MARK: - Whose sign-in is it
 
-    /// The account behind one keychain item, remembered against a fingerprint of the grant it held.
-    /// A new grant (a fresh sign-in, or Claude Code renewing it) means asking again.
-    private struct Identity: Codable {
-        var grant: String
+    /// The account behind the default keychain item, tied to the item's change date. Claude Code
+    /// changes the item when it renews or signs in again, and only then is the question asked again.
+    /// Kept in the preferences: an account ID, an email and a date, nothing taken from a token.
+    private struct Owner: Codable {
+        let changed: Date
         let uuid: String
         let email: String?
     }
 
-    private static let identitiesKey = "loginIdentities"
+    private static let ownersKey = "loginOwners"
+    /// 1.4 kept a hash of each refresh token here. No longer needed or kept.
+    static let legacyIdentitiesKey = "loginIdentities"
     private static let profileURL = URL(string: "https://api.anthropic.com/api/oauth/profile")!
 
-    /// `logins()` with each account as the API reports it for that sign-in's own token, one entry per
-    /// account. Reads every keychain item and, when one changed since last time, makes one call for
-    /// it; blocking, so run it off the main actor.
-    static func resolvedLogins() async -> [Login] {
-        var cache = loadIdentities()
+    /// `logins()` with the default sign-in's account as the API reports it for its own token, one
+    /// entry per account. Lists keychain items without opening them; opens the default one only when
+    /// Claude Code has saved a sign-in there since its account was last asked for, and that opening
+    /// is remembered for the usage read that follows. Blocking, so run it off the main actor.
+    static func resolvedLogins(reader: Reader = .shared) async -> [Login] {
+        var owners = loadOwners()
         var resolved: [Login] = []
         for candidate in logins() {
-            let identity = await identity(of: candidate, cache: &cache)
-            let uuid = identity?.uuid ?? candidate.accountUUID
+            var uuid = candidate.accountUUID, email = candidate.email
+            if candidate.service == service, let owner = await owner(of: candidate, owners: &owners, reader: reader) {
+                uuid = owner.uuid
+                email = owner.email
+            }
             if let uuid, resolved.contains(where: { $0.accountUUID == uuid }) { continue }
             resolved.append(Login(service: candidate.service, directory: candidate.directory,
-                                  accountUUID: uuid, email: identity?.email ?? candidate.email))
+                                  accountUUID: uuid, email: email))
         }
-        saveIdentities(cache)
+        saveOwners(owners)
         return resolved
     }
 
-    private static func identity(of login: Login, cache: inout [String: Identity]) async -> Identity? {
-        guard case .success(let creds) = read(login) else { return cache[login.service] }
-        let grant = fingerprint(creds)
-        if let known = cache[login.service], known.grant == grant { return known }
-        // Expired, offline, or refused: the last answer is still very likely right, since a keychain
-        // item only changes hands when someone signs in to it again.
-        guard !creds.expired, let account = await profile(creds.accessToken) else { return cache[login.service] }
-        let found = Identity(grant: grant, uuid: account.uuid, email: account.email)
-        cache[login.service] = found
+    private static func owner(of login: Login, owners: inout [String: Owner], reader: Reader) async -> Owner? {
+        let known = owners[login.service]
+        guard let changed = reader.newestChange(login.service) else { return known }
+        if let known, known.changed == changed { return known }
+        let reading = reader.read(login)
+        // Expired, declined, offline, or refused: the last answer is still very likely right, since
+        // a keychain item only changes hands when someone signs in to it again.
+        guard case .success(let creds) = reading.result, let seen = reading.seen,
+              let account = await profile(creds.accessToken)
+        else { return known }
+        let found = Owner(changed: seen, uuid: account.uuid, email: account.email)
+        owners[login.service] = found
         return found
     }
 
     /// Claude Code's own "who am I" call (GET /api/oauth/profile with the sign-in's token).
     private static func profile(_ accessToken: String) async -> (uuid: String, email: String?)? {
-        var request = URLRequest(url: profileURL)
-        request.timeoutInterval = 15
+        var request = Net.request(profileURL)
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("claude-cli/2.1.175 (external, cli)", forHTTPHeaderField: "User-Agent")
-        guard let (data, response) = try? await http.data(for: request),
+        guard let (data, response) = try? await Net.session.data(for: request),
               (response as? HTTPURLResponse)?.statusCode == 200,
               let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               let account = json["account"] as? [String: Any],
@@ -134,31 +150,14 @@ enum Credentials {
         return (uuid, account["email"] as? String)
     }
 
-    /// Our own renewal rotates the grant of an account we already know: carry the answer over
-    /// instead of asking again.
-    private static func renewed(_ login: Login, from old: Creds, to new: Creds) {
-        var cache = loadIdentities()
-        guard var known = cache[login.service], known.grant == fingerprint(old) else { return }
-        known.grant = fingerprint(new)
-        cache[login.service] = known
-        saveIdentities(cache)
+    private static func loadOwners() -> [String: Owner] {
+        guard let data = UserDefaults.standard.data(forKey: ownersKey) else { return [:] }
+        return (try? JSONDecoder().decode([String: Owner].self, from: data)) ?? [:]
     }
 
-    /// Enough of a SHA-256 of the refresh token to tell grants apart; the token itself never leaves
-    /// the keychain.
-    static func fingerprint(_ creds: Creds) -> String {
-        let secret = creds.refreshToken ?? creds.accessToken
-        return SHA256.hash(data: Data(secret.utf8)).prefix(8).map { String(format: "%02x", $0) }.joined()
-    }
-
-    private static func loadIdentities() -> [String: Identity] {
-        guard let data = UserDefaults.standard.data(forKey: identitiesKey) else { return [:] }
-        return (try? JSONDecoder().decode([String: Identity].self, from: data)) ?? [:]
-    }
-
-    private static func saveIdentities(_ cache: [String: Identity]) {
-        guard let data = try? JSONEncoder().encode(cache) else { return }
-        UserDefaults.standard.set(data, forKey: identitiesKey)
+    private static func saveOwners(_ owners: [String: Owner]) {
+        guard let data = try? JSONEncoder().encode(owners) else { return }
+        UserDefaults.standard.set(data, forKey: ownersKey)
     }
 
     /// Claude Code's own rule: "Claude Code-credentials-" + the first 8 hex digits of the SHA-256
@@ -185,72 +184,13 @@ enum Credentials {
         return (uuid, account["emailAddress"] as? String)
     }
 
-    private static let http: URLSession = {
-        let config = URLSessionConfiguration.ephemeral
-        config.timeoutIntervalForRequest = 15
-        return URLSession(configuration: config)
-    }()
+    // MARK: - Reading a sign-in
 
-    // Reads the Claude Code OAuth token. Runs off the main actor (blocking subprocess).
-    // Deliberately shells out to /usr/bin/security, even with a Developer ID: Claude Code itself
-    // writes this item through the `security` CLI, so that binary is already on the item's ACL
-    // and the read is silent. SecItemCopyMatching from our team ID would ask for the login
-    // password — and again after every Claude Code re-login, which recreates the item.
-    static func read(_ login: Login) -> Result<Creds, CredError> {
-        let fromKeychain: Result<Creds, CredError>
-        switch keychainRead(login.service) {
-        case .success(let data): fromKeychain = parse(data)
-        case .failure(let error): fromKeychain = .failure(error)
-        }
-        if case .success = fromKeychain { return fromKeychain }
-        // Claude Code writes both stores together. On 2026-09-01 the keychain copy landed
-        // truncated mid-string while the file copy was intact, so a blob that won't parse is
-        // as good a reason to fall back as a keychain that won't answer.
-        if let data = fileRead(login.fileURL), case .success(let creds) = parse(data) { return .success(creds) }
-        return fromKeychain
-    }
-
-    private static func keychainRead(_ service: String) -> Result<Data, CredError> {
-        let process = Process()
-        process.executableURL = security
-        process.arguments = ["find-generic-password", "-s", service, "-w"]
-        let stdout = Pipe()
-        process.standardOutput = stdout
-        process.standardError = Pipe()
-        do { try process.run() } catch {
-            return .failure(CredError(message: "keychain busy", transient: true, retrySoon: true))
-        }
-
-        // The keychain consent prompt can block forever; kill after a minute. Not sooner:
-        // someone typing their login password to answer it must not have it yanked away.
-        let started = Date()
-        let killer = DispatchWorkItem { process.terminate() }
-        DispatchQueue.global().asyncAfter(deadline: .now() + 60, execute: killer)
-        let data = stdout.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        killer.cancel()
-
-        guard process.terminationStatus == 0, !data.isEmpty else {
-            // A kill-timer death (e.g. consent prompt still on screen) is transient —
-            // don't let it get negative-cached as "no credentials" for 30 minutes.
-            if Date().timeIntervalSince(started) >= 59.5 {
-                return .failure(CredError(message: "keychain busy", transient: true, retrySoon: true))
-            }
-            return .failure(CredError(message: signInHint))
-        }
-        return .success(data)
-    }
-
-    private static func fileRead(_ url: URL) -> Data? {
-        try? Data(contentsOf: url)
-    }
-
-    private static func parse(_ data: Data) -> Result<Creds, CredError> {
+    static func parse(_ data: Data) -> Result<Creds, CredError> {
         guard let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
             // Claude Code rewrites this blob whenever an MCP server re-authorizes, and it has
-            // been observed truncated mid-write. Transient so the last good token keeps serving.
-            return .failure(CredError(message: "credentials unreadable — sign in to Claude Code again",
-                                      transient: true))
+            // been observed truncated mid-write.
+            return .failure(CredError(kind: .unreadable, message: "credentials unreadable — sign in to Claude Code again"))
         }
         guard let oauth = json["claudeAiOauth"] as? [String: Any],
               let token = oauth["accessToken"] as? String, !token.isEmpty
@@ -259,163 +199,28 @@ enum Credentials {
             // getting Claude Code. Seen 2026-11-16: every token blanked in place (expiresAt 0) two
             // days after the sign-in's refreshTokenExpiresAt, next to 20 intact MCP sign-ins.
             if json["claudeAiOauth"] != nil || json["mcpOAuth"] != nil {
-                return .failure(CredError(message: signedOut, unauthorized: true))
+                return .failure(CredError(kind: .signedOut, message: signedOut))
             }
-            return .failure(CredError(message: signInHint))
+            return .failure(CredError(kind: .missing, message: signInHint))
         }
         let expiresAt = (oauth["expiresAt"] as? Double).map { Date(timeIntervalSince1970: $0 / 1000) }
         let signInEnds = (oauth["refreshTokenExpiresAt"] as? Double).map { Date(timeIntervalSince1970: $0 / 1000) }
-        // Both spent: no token to use and no grant to renew with, so don't post one to be refused.
-        if let signInEnds, signInEnds < Date(), (expiresAt ?? .distantFuture) < Date() {
-            return .failure(CredError(message: "sign-in ended — " + signedOut, unauthorized: true))
-        }
-        return .success(Creds(
+        let creds = Creds(
             accessToken: token,
-            refreshToken: oauth["refreshToken"] as? String,
             scopes: oauth["scopes"] as? [String] ?? [],
             expiresAt: expiresAt,
             planName: planName(
                 tier: oauth["rateLimitTier"] as? String,
                 type: oauth["subscriptionType"] as? String
             ),
-            clientID: oauth["clientId"] as? String,
             signInEnds: signInEnds
-        ))
-    }
-
-    /// Trade the stored refresh token for a fresh access token — the same `grant_type=refresh_token`
-    /// call Claude Code makes — then hand the result back to Claude Code's store (see `writeBack`).
-    static func refresh(_ creds: Creds, for login: Login) async -> Result<Creds, CredError> {
-        guard let refreshToken = creds.refreshToken else {
-            return .failure(CredError(message: "no refresh token", unauthorized: true))
-        }
-        var request = URLRequest(url: tokenURL)
-        request.httpMethod = "POST"
-        request.timeoutInterval = 15
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("claude-cli/2.1.175 (external, cli)", forHTTPHeaderField: "User-Agent")
-        var body: [String: Any] = [
-            "grant_type": "refresh_token",
-            "refresh_token": refreshToken,
-            "client_id": creds.clientID ?? clientID,
-        ]
-        if !creds.scopes.isEmpty { body["scope"] = creds.scopes.joined(separator: " ") }
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-
-        let data: Data, response: URLResponse
-        do {
-            (data, response) = try await http.data(for: request)
-        } catch {
-            // Retry soon: the reconnect fetch shouldn't have to wait out the poll floor.
-            return .failure(CredError(message: "offline", transient: true, retrySoon: true))
-        }
-
-        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
-        let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
-        guard code == 200, let json, let token = json["access_token"] as? String, !token.isEmpty else {
-            // The OAuth error code (invalid_grant, invalid_client, ...) carries no secret.
-            NSLog("ClaudeMeter: refresh HTTP %d %@", code, json?["error"] as? String ?? "")
-            // 400/401 mean the grant itself is gone: spent by a rotation, revoked, or expired.
-            if code == 400 || code == 401 {
-                return .failure(CredError(message: "refresh rejected", unauthorized: true))
-            }
-            return .failure(CredError(message: "refresh HTTP \(code)", transient: true))
-        }
-
-        let now = Date()
-        let lifetime = (json["expires_in"] as? NSNumber)?.doubleValue ?? 3600
-        let grantLife = (json["refresh_token_expires_in"] as? NSNumber)?.doubleValue
-        let fresh = Creds(
-            accessToken: token,
-            refreshToken: json["refresh_token"] as? String ?? refreshToken,
-            scopes: (json["scope"] as? String).map { $0.split(separator: " ").map(String.init) } ?? creds.scopes,
-            // A minute of slack so we renew before the usage call starts 401ing.
-            expiresAt: now.addingTimeInterval(max(60, lifetime - 60)),
-            planName: creds.planName,
-            clientID: creds.clientID,
-            signInEnds: grantLife.map { now.addingTimeInterval($0) } ?? creds.signInEnds
         )
-        // Claude Code's own field names and units (ms since epoch).
-        var update: [String: Any] = [
-            "accessToken": token,
-            "refreshToken": fresh.refreshToken ?? refreshToken,
-            "expiresAt": ((now.timeIntervalSince1970 + lifetime) * 1000).rounded(),
-            "scopes": fresh.scopes,
-        ]
-        if let grantLife {
-            update["refreshTokenExpiresAt"] = ((now.timeIntervalSince1970 + grantLife) * 1000).rounded()
+        guard creds.expired() else { return .success(creds) }
+        // Both spent: Claude Code can't renew it either, so it takes a new sign-in.
+        if let signInEnds, signInEnds < Date() {
+            return .failure(CredError(kind: .signedOut, message: "sign-in ended — " + signedOut))
         }
-        writeBack(spent: refreshToken, update: update, to: login)
-        renewed(login, from: creds, to: fresh)
-        return .success(fresh)
-    }
-
-    /// Refresh tokens are single-use: the call above killed the one it posted. Unless the new grant
-    /// lands where Claude Code keeps it, the terminal `claude` is signed out and this app loses its
-    /// only grant on the next restart — what broke 1.2. The rule is Claude Code's own compare-and-swap
-    /// between its processes: only replace a blob that parses and still holds the grant we spent;
-    /// anything else is a newer write, and it wins.
-    private static func writeBack(spent: String, update: [String: Any], to login: Login) {
-        let newGrant = update["refreshToken"] as? String
-        if case .success(let data) = keychainRead(login.service),
-           let merged = merge(data, spent: spent, update: update) {
-            let written = keychainWrite(merged, service: login.service)
-            let readBack = (try? keychainRead(login.service).get()).flatMap { try? parse($0).get() }?.refreshToken
-            NSLog("ClaudeMeter: keychain write-back %@", written && readBack == newGrant ? "ok" : "FAILED")
-        }
-        // Claude Code falls back to this file when it can't use the keychain.
-        let fileURL = login.fileURL
-        if let data = fileRead(fileURL), let merged = merge(data, spent: spent, update: update) {
-            do {
-                try merged.write(to: fileURL, options: .atomic)
-                try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: fileURL.path)
-            } catch {
-                NSLog("ClaudeMeter: file write-back FAILED")
-            }
-        }
-    }
-
-    /// The blob with `update` merged into `claudeAiOauth`, or nil when it doesn't parse or a newer
-    /// grant already replaced the one we spent. Every other key survives untouched.
-    static func merge(_ data: Data, spent: String, update: [String: Any]) -> Data? {
-        guard var json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-              var oauth = json["claudeAiOauth"] as? [String: Any],
-              let stored = oauth["refreshToken"] as? String, stored.isEmpty || stored == spent
-        else { return nil }
-        oauth.merge(update) { _, new in new }
-        json["claudeAiOauth"] = oauth
-        return try? JSONSerialization.data(withJSONObject: json)
-    }
-
-    /// Exactly how Claude Code writes the item, so `security` stays its only accessor and the
-    /// write never prompts.
-    private static func keychainWrite(_ data: Data, service: String) -> Bool {
-        let user = ProcessInfo.processInfo.environment["USER"] ?? NSUserName()
-        let account = user.range(of: #"^[a-zA-Z0-9._-]+$"#, options: .regularExpression) != nil
-            ? user : "claude-code-user"
-        let hex = data.map { String(format: "%02x", $0) }.joined()
-        let line = "add-generic-password -U -a \"\(account)\" -s \"\(service)\" -X \"\(hex)\"\n"
-        // `security -i` silently truncates a long line (the ~2 KB blob of 2026-09-01). Past Claude
-        // Code's own 4032-byte cutoff, pass it on argv the way Claude Code does.
-        let interactive = line.utf8.count <= 4032
-        let process = Process()
-        process.executableURL = security
-        process.arguments = interactive
-            ? ["-i"] : ["add-generic-password", "-U", "-a", account, "-s", service, "-X", hex]
-        let stdin = Pipe()
-        if interactive { process.standardInput = stdin }
-        process.standardOutput = Pipe()
-        process.standardError = Pipe()
-        do { try process.run() } catch { return false }
-        if interactive {
-            stdin.fileHandleForWriting.write(Data(line.utf8))
-            try? stdin.fileHandleForWriting.close()
-        }
-        let killer = DispatchWorkItem { process.terminate() }
-        DispatchQueue.global().asyncAfter(deadline: .now() + 10, execute: killer)
-        process.waitUntilExit()
-        killer.cancel()
-        return process.terminationStatus == 0
+        return .failure(CredError(kind: .expired, message: expiredMessage))
     }
 
     // "claude_max_20x" -> "Max 20x"
@@ -429,6 +234,273 @@ enum Credentials {
             }
         }
         return type?.capitalized
+    }
+}
+
+// MARK: - The Keychain, read only
+
+extension Credentials {
+    /// One keychain item: a reference to open it by, and when it was last changed.
+    struct Item: Sendable {
+        let ref: Data
+        let changed: Date
+    }
+
+    /// Where sign-ins are read from. `keychain` is the real one; --selftest passes a fake.
+    struct Store: Sendable {
+        /// Items with that name, newest first. Listing doesn't open anything, so macOS doesn't
+        /// ask. Empty: there is no such item. nil: the Keychain can't be searched just now.
+        var list: @Sendable (_ service: String) -> [Item]?
+        /// Opens one item. This is the only step that can make macOS ask.
+        var open: @Sendable (_ ref: Data) -> (status: OSStatus, data: Data?)
+        var file: @Sendable (_ url: URL) -> Data?
+        var now: @Sendable () -> Date
+
+        static let keychain = Store(
+            list: { service in
+                let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
+                                            kSecAttrService as String: service,
+                                            kSecReturnAttributes as String: true,
+                                            kSecReturnPersistentRef as String: true,
+                                            kSecMatchLimit as String: kSecMatchLimitAll]
+                var out: AnyObject?
+                let status = SecItemCopyMatching(query as CFDictionary, &out)
+                if status == errSecItemNotFound { return [] }
+                guard status == errSecSuccess, let found = out as? [[String: Any]] else { return nil }
+                return found.compactMap { item -> Item? in
+                    guard let ref = item[kSecValuePersistentRef as String] as? Data else { return nil }
+                    return Item(ref: ref, changed: (item[kSecAttrModificationDate as String] as? Date) ?? .distantPast)
+                }.sorted { $0.changed > $1.changed }
+            },
+            open: { ref in
+                var out: AnyObject?
+                let query: [String: Any] = [kSecValuePersistentRef as String: ref, kSecReturnData as String: true]
+                let status = SecItemCopyMatching(query as CFDictionary, &out)
+                return (status, out as? Data)
+            },
+            file: { try? Data(contentsOf: $0) },
+            now: { Date() }
+        )
+    }
+
+    /// What one look for a sign-in found. `seen` is the change date of the newest keychain item it
+    /// was read from; nil when it came from the credentials file or there was no item.
+    struct Reading: Sendable {
+        let result: Result<Creds, CredError>
+        let seen: Date?
+    }
+
+    /// Reads sign-ins and remembers what it learned, so a keychain item is opened as rarely as
+    /// possible: opening is what makes macOS ask. All of it is in memory, except the names of items
+    /// the person said no to.
+    ///  - cache: a token once read, with the change date of the item it came from. Used while that
+    ///    date stays the same; when Claude Code saves a new sign-in the item is read again.
+    ///  - settled: an item found to hold nothing usable (expired, signed out, unreadable, refused
+    ///    by Anthropic), and its change date then. Not opened again until that date moves.
+    ///  - refused: items the person said no to. Not opened again until `allowAgain`. Kept across
+    ///    launches so starting the app again doesn't put the question back on screen.
+    ///  - retry: after the Keychain couldn't be opened (locked), when to try next; the wait doubles
+    ///    from a minute up to an hour.
+    /// Only one item is ever being opened at a time, so there is never more than one question on
+    /// screen; anyone else asking meanwhile gets the last good token or "busy".
+    final class Reader: @unchecked Sendable {
+        static let refusedKey = "keychainRefused"
+        static let shared = Reader(store: .keychain, refusedStore: (
+            load: { UserDefaults.standard.stringArray(forKey: refusedKey) ?? [] },
+            save: { UserDefaults.standard.set($0, forKey: refusedKey) }
+        ))
+
+        private let store: Store
+        private let refusedStore: (load: () -> [String], save: ([String]) -> Void)
+        private let lock = NSLock()
+        private let opening = NSLock()
+        private var cache: [String: (creds: Creds, seen: Date)] = [:]
+        private var settled: [String: (changed: Date, error: CredError)] = [:]
+        private var refused: Set<String>
+        private var retry: [String: (at: Date, wait: TimeInterval)] = [:]
+        /// Hashes of tokens Anthropic refused, so one read from the credentials file (which has
+        /// no change date to go by) isn't sent again. Memory only.
+        private var turnedDown: Set<String> = []
+
+        private static func hash(_ token: String) -> String {
+            SHA256.hash(data: Data(token.utf8)).map { String(format: "%02x", $0) }.joined()
+        }
+
+        init(store: Store, refusedStore: (load: () -> [String], save: ([String]) -> Void)) {
+            self.store = store
+            self.refusedStore = refusedStore
+            refused = Set(refusedStore.load())
+        }
+
+        private func locked<T>(_ body: () -> T) -> T { lock.lock(); defer { lock.unlock() }; return body() }
+
+        func isRefused(_ service: String) -> Bool { locked { refused.contains(service) } }
+
+        /// The newest item's change date, without opening anything; nil when there is none or the
+        /// Keychain can't be searched.
+        func newestChange(_ service: String) -> Date? { store.list(service)?.first?.changed }
+
+        /// The person asked to be asked again (after saying no, or after unlocking the Keychain).
+        func allowAgain(_ service: String) {
+            locked {
+                refused.remove(service)
+                refusedStore.save(refused.sorted())
+                retry[service] = nil
+                settled[service] = nil
+            }
+        }
+
+        /// Anthropic refused this token (401). It isn't sent again, and the item it came from stays
+        /// closed until Claude Code saves another sign-in there.
+        func rejected(_ service: String, token: String, seen: Date?) {
+            locked {
+                if turnedDown.count > 32 { turnedDown = [] }
+                turnedDown.insert(Self.hash(token))
+                if cache[service]?.creds.accessToken == token { cache[service] = nil }
+                if let seen { settled[service] = (seen, Self.refusedError) }
+            }
+        }
+
+        /// The sign-in for one login. `manual`: a click, which may retry a locked Keychain early,
+        /// but never reopens an item the person said no to.
+        func read(_ login: Login, manual: Bool = false) -> Reading {
+            let service = login.service
+            let now = store.now()
+            // "No" stands: nothing is opened, and the credentials file, which can hold the same
+            // sign-in, isn't used to get around it.
+            if isRefused(service) {
+                return Reading(result: .failure(CredError(kind: .denied, message: Credentials.deniedMessage)), seen: nil)
+            }
+            let listed = store.list(service)
+            let newest = listed?.first?.changed
+            let fromKeychain: Reading
+            if listed == nil {
+                fromKeychain = remembered(service, at: now)
+                    ?? Reading(result: .failure(CredError(kind: .busy, message: "Keychain locked")), seen: nil)
+            } else if let newest, let held = locked({ cache[service] }), held.seen == newest {
+                // The item hasn't changed since this token was read out of it: nothing new to find.
+                fromKeychain = held.creds.expired(at: now)
+                    ? Reading(result: .failure(CredError(kind: .expired, message: Credentials.expiredMessage)), seen: newest)
+                    : Reading(result: .success(held.creds), seen: newest)
+            } else if let newest, let known = locked({ settled[service] }), known.changed == newest {
+                fromKeychain = Reading(result: .failure(known.error), seen: newest)
+            } else if let newest, let items = listed {
+                fromKeychain = open(items, service: service, newest: newest, now: now, manual: manual)
+            } else {
+                fromKeychain = Reading(result: .failure(CredError(kind: .missing, message: Credentials.signInHint)), seen: nil)
+            }
+            if case .success(let creds) = fromKeychain.result {
+                if !wasTurnedDown(creds) { return fromKeychain }
+            } else if case .failure(let error) = fromKeychain.result, error.kind == .denied {
+                return fromKeychain
+            }
+            // Claude Code keeps the sign-in in this file when it can't use the keychain; only read.
+            if let data = store.file(login.fileURL), case .success(let creds) = Credentials.parse(data),
+               !wasTurnedDown(creds) {
+                return Reading(result: .success(creds), seen: nil)
+            }
+            if case .success = fromKeychain.result {
+                return Reading(result: .failure(Self.refusedError), seen: fromKeychain.seen)
+            }
+            return fromKeychain
+        }
+
+        private static let refusedError = CredError(kind: .signedOut, message: "sign-in refused — " + Credentials.signedOut)
+
+        private func wasTurnedDown(_ creds: Creds) -> Bool {
+            let key = Self.hash(creds.accessToken)
+            return locked { turnedDown.contains(key) }
+        }
+
+        private func remembered(_ service: String, at now: Date) -> Reading? {
+            locked {
+                guard let held = cache[service], !held.creds.expired(at: now) else { return nil }
+                return Reading(result: .success(held.creds), seen: held.seen)
+            }
+        }
+
+        private func open(_ items: [Item], service: String, newest: Date, now: Date, manual: Bool) -> Reading {
+            let waiting = locked { retry[service].map { $0.at > now } ?? false }
+            let busy = { self.remembered(service, at: now)
+                ?? Reading(result: .failure(CredError(kind: .busy, message: "waiting for the Keychain")), seen: nil) }
+            if waiting && !manual { return busy() }
+            // Another item is being opened (its question may be on screen): don't add a second.
+            guard opening.try() else { return busy() }
+            defer { opening.unlock() }
+
+            var firstError: CredError?
+            var denied = false, cantOpen = false
+            // Newest first, stopping at the first good one: one question from macOS, not one per item.
+            for item in items {
+                let (status, data) = store.open(item.ref)
+                if status == errSecUserCanceled || status == errSecAuthFailed { denied = true; break }
+                if status != errSecSuccess { cantOpen = status != errSecItemNotFound || cantOpen; continue }
+                guard let data else { continue }
+                switch Credentials.parse(data) {
+                case .success(let creds):
+                    locked {
+                        cache[service] = (creds, newest)
+                        settled[service] = nil
+                        retry[service] = nil
+                    }
+                    return Reading(result: .success(creds), seen: newest)
+                case .failure(let error):
+                    if firstError == nil { firstError = error }
+                }
+            }
+            if denied {
+                locked {
+                    cache[service] = nil
+                    refused.insert(service)
+                    refusedStore.save(refused.sorted())
+                }
+                return Reading(result: .failure(CredError(kind: .denied, message: Credentials.deniedMessage)), seen: newest)
+            }
+            if let firstError {
+                locked {
+                    cache[service] = nil
+                    settled[service] = (newest, firstError)
+                    retry[service] = nil
+                }
+                return Reading(result: .failure(firstError), seen: newest)
+            }
+            if cantOpen {
+                locked {
+                    let wait = min(3600, max(60, (retry[service]?.wait ?? 30) * 2))
+                    retry[service] = (now.addingTimeInterval(wait), wait)
+                }
+                return busy()
+            }
+            return Reading(result: .failure(CredError(kind: .missing, message: Credentials.signInHint)), seen: nil)
+        }
+    }
+}
+
+// MARK: - Network
+
+/// Every request goes through this session. It keeps nothing on disk: no cache, no cookies, no
+/// stored credentials. (The shared session keeps each request, headers included, in ~/Library/Caches.)
+enum Net {
+    static let session: URLSession = {
+        let config = URLSessionConfiguration.ephemeral
+        config.urlCache = nil
+        config.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        config.httpCookieStorage = nil
+        config.httpShouldSetCookies = false
+        config.httpCookieAcceptPolicy = .never
+        config.urlCredentialStorage = nil
+        config.waitsForConnectivity = false
+        config.timeoutIntervalForRequest = 15
+        return URLSession(configuration: config)
+    }()
+
+    // Wrong UA lands in an aggressively rate-limited bucket with persistent 429s.
+    static let userAgent = "claude-cli/2.1.175 (external, cli)"
+
+    static func request(_ url: URL) -> URLRequest {
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 15)
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+        return request
     }
 }
 
@@ -458,12 +530,18 @@ enum ClaudeApp {
 
 extension Credentials {
     /// Test seam: --selftest cares which of the outcomes a blob produces, not the strings.
-    enum ParseOutcome { case ok, transient, signedOut, noSignIn }
+    enum ParseOutcome { case ok, expired, unreadable, signedOut, noSignIn }
 
     static func parseForTests(_ data: Data) -> ParseOutcome {
         switch parse(data) {
         case .success: return .ok
-        case .failure(let error): return error.transient ? .transient : error.unauthorized ? .signedOut : .noSignIn
+        case .failure(let error):
+            switch error.kind {
+            case .expired: return .expired
+            case .unreadable: return .unreadable
+            case .signedOut: return .signedOut
+            default: return .noSignIn
+            }
         }
     }
 

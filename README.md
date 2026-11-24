@@ -26,15 +26,21 @@ folder with "claude" in its name (`~/.claude-work`).
 
 ## Privacy
 
-Claude Meter reads the sign-ins Claude Code already saved on your Mac (Keychain items
-`Claude Code-credentials` and, for an extra profile, `Claude Code-credentials-<hash>`, via Apple's
-`security` tool, falling back to each profile's `.credentials.json`). To know which account to show it
-reads the account ID the Claude app keeps in `~/Library/Application Support/Claude/config.json`; it
-never touches the app's own sign-in. When it renews an expired token it saves the new sign-in back
-where it came from, the way Claude Code does, so the terminal `claude` stays signed in; it writes
-nothing else. It talks to
-`api.anthropic.com` (usage), `platform.claude.com` (token refresh) and, once a day, this project's
-site for `version.json`. No analytics, no account, no server.
+Claude Meter only reads the sign-ins Claude Code already saved on your Mac: Keychain items
+`Claude Code-credentials` and, for an extra profile, `Claude Code-credentials-<hash>`, falling back to
+each profile's `.credentials.json`. It never renews a sign-in, never writes or deletes a Keychain item
+or file, and never sees the refresh token: Claude Code renews its own sign-in, and when the token has
+run out the meter says so until `claude` runs again.
+
+It reads the Keychain itself, so macOS names Claude Meter when it asks, and Always Allow lets only
+Claude Meter in (an "Always Allow" for Apple's `security` tool would let every program in). It opens an
+item only when Claude Code has saved a new sign-in there, and if you say no it doesn't ask again until
+you choose *Allow Keychain access* in the right-click menu. The token is kept in memory only.
+
+To know which account to show it reads the account ID the Claude app keeps in
+`~/Library/Application Support/Claude/config.json`; it never touches the app's own sign-in. It talks to
+`api.anthropic.com` (usage, and which account a sign-in belongs to) and, once a day, this project's site
+for `version.json`, through a connection that keeps nothing on disk. No analytics, no account, no server.
 
 ## Build from source
 

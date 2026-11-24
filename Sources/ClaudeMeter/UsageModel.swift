@@ -72,6 +72,8 @@ final class UsageModel: ObservableObject {
     @Published private(set) var missingAppAccount = false
     /// When the shown sign-in stops renewing, from the last credentials that worked.
     @Published private(set) var signInEnds: Date?
+    /// Why the shown sign-in can't be used right now; nil while it can.
+    @Published private(set) var credentialIssue: Credentials.CredError.Kind?
 
     /// Days left on the shown sign-in, inside the 3-day window Claude Code itself warns in.
     var signInDaysLeft: Int? {
@@ -92,15 +94,6 @@ final class UsageModel: ObservableObject {
     private static let interval: TimeInterval = 300
     private static let baseBackoff: TimeInterval = 600
 
-    // Ephemeral so a token-authorized response is never written to the shared disk cache.
-    private static let http: URLSession = {
-        let config = URLSessionConfiguration.ephemeral
-        config.waitsForConnectivity = false
-        config.requestCachePolicy = .reloadIgnoringLocalCacheData
-        config.timeoutIntervalForRequest = 15
-        return URLSession(configuration: config)
-    }()
-
     private var pollTask: Task<Void, Never>?
     private var watchTask: Task<Void, Never>?
     private var pendingRefresh: Task<Void, Never>?
@@ -111,8 +104,12 @@ final class UsageModel: ObservableObject {
     private var rateLimitedUntil: Date?
     private var credentialsFailedAt: Date?
     private var mocking = false
+    /// One fetch at a time: a hover, a wake and the poll landing together must not each read.
+    private var fetching = false
 
     func start() {
+        // 1.4 kept a hash of each refresh token in the preferences.
+        UserDefaults.standard.removeObject(forKey: Credentials.legacyIdentitiesKey)
         watchNetwork()
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
@@ -124,7 +121,8 @@ final class UsageModel: ObservableObject {
         }
         // Switching accounts in the Claude app rewrites its settings file; follow within seconds
         // rather than at the next poll. While its account has no sign-in, also keep looking for
-        // the one being added in Terminal.
+        // the one being added in Terminal. And while the shown sign-in can't be used, notice
+        // Claude Code saving a new one (a renewal or a new sign-in) without opening anything.
         watchTask = Task { [weak self] in
             var seen = ClaudeApp.modified()
             while !Task.isCancelled {
@@ -216,7 +214,8 @@ final class UsageModel: ObservableObject {
         rateLimitedUntil = next.rateLimitedUntil
         credentialsFailedAt = next.credentialsFailedAt
         signInEnds = next.signInEnds
-        awaitingSignIn = nil  // it was for the account just left
+        credentialIssue = nil
+        watching = nil  // it was for the account just left
         pendingRefresh?.cancel()
         pendingRefresh = nil
         NSLog("ClaudeMeter showing %@", login?.service ?? "nothing: no sign-in for the Claude app's account")
@@ -275,30 +274,46 @@ final class UsageModel: ObservableObject {
         } catch {
             NSLog("ClaudeMeter: add-account script failed: %@", String(describing: error))
         }
-        // A new account is found by the Claude-app watcher; a renewed one is the same item with a
-        // new grant in it, so note the grant on file now and look for a different one.
-        if let login {
-            Task { [weak self] in
-                let grant = await Task.detached { (try? Credentials.read(login).get()).map(Credentials.fingerprint) }.value
-                self?.awaitingSignIn = (login.service, Date(), grant)
-            }
+        // A new account is found by the Claude-app watcher; a renewed one is the same item saved
+        // again, so note when it last changed and look for a change.
+        if let login { watch(login) }
+    }
+
+    /// The person said no to the Keychain question earlier and now asks to be asked again.
+    func allowKeychain() {
+        guard let login = shown else { return }
+        Credentials.Reader.shared.allowAgain(login.service)
+        credentialIssue = nil
+        refreshNow()
+    }
+
+    /// The shown sign-in can't be used (or is being redone in Terminal): which one, and when its
+    /// keychain item and credentials file last changed then.
+    private var watching: (service: String, stamp: [Date?])?
+
+    /// When a sign-in's keychain item and credentials file last changed. Opens nothing, so macOS
+    /// never asks.
+    nonisolated private static func changeStamp(_ login: Credentials.Login) -> [Date?] {
+        let file = (try? FileManager.default.attributesOfItem(atPath: login.fileURL.path))?[.modificationDate] as? Date
+        return [Credentials.Reader.shared.newestChange(login.service), file]
+    }
+
+    private func watch(_ login: Credentials.Login) {
+        Task { [weak self] in
+            let stamp = await Task.detached { Self.changeStamp(login) }.value
+            guard let self, self.shown?.service == login.service else { return }
+            self.watching = (login.service, stamp)
         }
     }
 
-    /// Set by "Sign in again…": which sign-in, when, and the grant it held then (nil: none).
-    private var awaitingSignIn: (service: String, since: Date, grant: String?)?
-
-    /// While a sign-in is under way in Terminal, look for its grant every few seconds, so the meter
-    /// comes back the moment Claude Code saves it rather than at the next poll. Gives up after 15
-    /// minutes; the regular poll still finds it after that.
+    /// Every few seconds while the shown sign-in can't be used: the moment Claude Code saves a new
+    /// one, fetch, rather than wait for the next poll.
     private func checkSignIn() async {
-        guard let waiting = awaitingSignIn else { return }
-        guard let login = shown, login.service == waiting.service,
-              Date().timeIntervalSince(waiting.since) < 900
-        else { awaitingSignIn = nil; return }
-        let grant = await Task.detached { (try? Credentials.read(login).get()).map(Credentials.fingerprint) }.value
-        guard let grant, grant != waiting.grant, awaitingSignIn?.since == waiting.since else { return }
-        awaitingSignIn = nil
+        guard let waiting = watching else { return }
+        guard let login = shown, login.service == waiting.service else { watching = nil; return }
+        let stamp = await Task.detached { Self.changeStamp(login) }.value
+        guard stamp != waiting.stamp, watching?.service == waiting.service else { return }
+        watching = nil
         await fetch(manual: true)
     }
 
@@ -343,58 +358,18 @@ final class UsageModel: ObservableObject {
         pathMonitor.start(queue: DispatchQueue(label: "com.freeman.claudemeter.path"))
     }
 
-    /// Claude Code's keychain token is the freshest and costs nothing, so it wins whenever it is
-    /// valid. Two things make it unusable: it expires within hours of Claude Code last running, and
-    /// the shared blob has been seen truncated mid-write when an MCP server re-authorizes. So keep
-    /// the last good credentials in memory and mint our own access token from them when needed.
-    /// One per sign-in, keyed by its keychain item (stable even before its account is known).
-    private var held: [String: Credentials.Creds] = [:]
-
-    private func usableCredentials(_ login: Credentials.Login) async -> Result<Credentials.Creds, Credentials.CredError> {
-        var keychain: Credentials.Creds?
-        var readError: Credentials.CredError?
-        switch await Task.detached(operation: { Credentials.read(login) }).value {
-        case .success(let creds):
-            keychain = creds
-            if !creds.expired { held[login.service] = creds }
-        case .failure(let error):
-            readError = error
-        }
-        let choice = Self.pick(keychain: keychain, held: held[login.service])
-        if let usable = choice.use { return .success(usable) }
-        guard let grant = choice.refreshFrom else {
-            return .failure(readError ?? Credentials.CredError(message: Credentials.signInHint))
-        }
-        var result = await Credentials.refresh(grant, for: login)
-        // Grants rotate, so only the newest works. If a keychain write-back failed, that's ours.
-        if case .failure(let error) = result, error.unauthorized,
-           let mine = held[login.service], mine.refreshToken != grant.refreshToken {
-            result = await Credentials.refresh(mine, for: login)
-        }
-        switch result {
-        case .success(let creds):
-            held[login.service] = creds
-            return .success(creds)
-        case .failure(let error):
-            if error.unauthorized { held[login.service] = nil }  // spent or revoked: stop offering it
-            return .failure(error)
-        }
-    }
-
-    /// Pure half of `usableCredentials`, so --selftest can walk the branches with no keychain
-    /// and no network. An unexpired token is used as-is; otherwise we mint one from a grant,
-    /// preferring the keychain's because a fresh sign-in lands there and never in ours.
-    nonisolated static func pick(keychain: Credentials.Creds?, held: Credentials.Creds?)
-        -> (use: Credentials.Creds?, refreshFrom: Credentials.Creds?) {
-        if let keychain, !keychain.expired { return (keychain, nil) }
-        if let held, !held.expired { return (held, nil) }
-        return (nil, keychain ?? held)
+    /// The shown sign-in's token, read from Claude Code's keychain item or file. Never renewed
+    /// here: when it has expired, Claude Code renews it the next time it runs.
+    nonisolated private static func credentials(_ login: Credentials.Login, manual: Bool) async -> Credentials.Reading {
+        await Task.detached { Credentials.Reader.shared.read(login, manual: manual) }.value
     }
 
     // MARK: - Fetch
 
     private func fetch(manual: Bool = false) async {
-        guard !mocking else { return }
+        guard !mocking, !fetching else { return }
+        fetching = true
+        defer { fetching = false }
         await syncAccount()
         guard let login = shown, let key = activeKey else {
             status = .noCredentials(Self.missingMessage)
@@ -434,42 +409,43 @@ final class UsageModel: ObservableObject {
 
         if let failedAt = credentialsFailedAt, now.timeIntervalSince(failedAt) < 1800 { return }
         let creds: Credentials.Creds
-        let usable = await usableCredentials(login)
+        let reading = await Self.credentials(login, manual: manual)
         // Switched accounts while the keychain was read: this result belongs to the other one.
         guard activeKey == key else { return }
-        switch usable {
+        switch reading.result {
         case .failure(let error):
-            if error.unauthorized {
+            credentialIssue = error.kind
+            // Stopped at the keychain, never the usage endpoint the floor guards, so a click or a
+            // fresh sign-in can try again straight away.
+            lastAttempt = previousAttempt
+            switch error.kind {
+            case .signedOut:
                 status = .unauthorized
-                // Stopped at the keychain or the token endpoint, never the usage endpoint the floor
-                // guards, so a click or a fresh sign-in can try again straight away.
-                lastAttempt = previousAttempt
-            } else if error.transient {
-                // With numbers on screen this is a footnote; with nothing, it's the whole story,
-                // so say what to do about it — but never negative-cache it for half an hour.
-                status = snapshot == nil ? .noCredentials(error.message) : .stale(error.message)
-                // Don't burn the whole floor on a consent prompt still being on screen.
-                if error.retrySoon { lastAttempt = now.addingTimeInterval(20 - Self.floor) }
-            } else {
+            case .missing:
                 credentialsFailedAt = now
                 status = .noCredentials(error.message)
+            case .expired, .unreadable, .busy, .denied:
+                // With numbers on screen this is a footnote; with nothing, it's the whole story.
+                status = snapshot == nil ? .noCredentials(error.message) : .stale(error.message)
             }
+            // A "no" stands until the person asks again; anything else may be fixed by Claude Code
+            // saving a new sign-in, which the watcher notices without opening anything.
+            if error.kind != .denied { watch(login) }
             return
         case .success(let value):
             credentialsFailedAt = nil
+            credentialIssue = nil
+            if watching?.service == login.service { watching = nil }
             creds = value
             signInEnds = value.signInEnds
         }
 
-        var request = URLRequest(url: URL(string: "https://api.anthropic.com/api/oauth/usage")!)
-        request.timeoutInterval = 15
+        var request = Net.request(URL(string: "https://api.anthropic.com/api/oauth/usage")!)
         request.setValue("Bearer \(creds.accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
-        // Wrong UA lands in an aggressively rate-limited bucket with persistent 429s.
-        request.setValue("claude-cli/2.1.175 (external, cli)", forHTTPHeaderField: "User-Agent")
 
         do {
-            let (data, response) = try await Self.http.data(for: request)
+            let (data, response) = try await Net.session.data(for: request)
             guard activeKey == key else { return }
             let http = response as? HTTPURLResponse
             switch http?.statusCode ?? 0 {
@@ -485,8 +461,12 @@ final class UsageModel: ObservableObject {
                     status = .stale("bad response")
                 }
             case 401:
-                held[login.service] = nil
+                // Not sent again; its keychain item stays closed until Claude Code saves another.
+                let token = creds.accessToken, seen = reading.seen, service = login.service
+                await Task.detached { Credentials.Reader.shared.rejected(service, token: token, seen: seen) }.value
                 status = .unauthorized
+                credentialIssue = .signedOut
+                watch(login)
             case 429:
                 let advised = http?.value(forHTTPHeaderField: "Retry-After").flatMap(Self.parseRetryAfter)
                 let wait = min(3600, max(Self.floor, advised ?? backoff))
@@ -524,8 +504,8 @@ final class UsageModel: ObservableObject {
     private static let updateCheckedKey = "updateCheckedAt"
     private static let latestVersionKey = "latestVersion"
 
-    /// At most once a day. A different host from the usage API with a plain session, so the
-    /// UA and poll-floor rules don't apply. The endpoint and response shape are undocumented,
+    /// At most once a day. A different host from the usage API, so the UA and poll-floor rules
+    /// don't apply. The endpoint and response shape are undocumented,
     /// so users need some way to learn a fixed build exists.
     private func checkForUpdate() async {
         let defaults = UserDefaults.standard
@@ -535,7 +515,8 @@ final class UsageModel: ObservableObject {
             return
         }
         let url = Self.siteURL.appendingPathComponent("version.json")
-        guard let result = try? await URLSession(configuration: .ephemeral).data(from: url),
+        let request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 15)
+        guard let result = try? await Net.session.data(for: request),
               (result.1 as? HTTPURLResponse)?.statusCode == 200,
               let json = (try? JSONSerialization.jsonObject(with: result.0)) as? [String: Any],
               let latest = json["version"] as? String
@@ -764,11 +745,10 @@ func runSelfTest() {
     // MARK: credential parsing
 
     // The exact shape seen 2026-09-01: the keychain copy cut off mid-string inside mcpOAuth,
-    // losing claudeAiOauth entirely. Must stay transient so the file copy gets its turn and a
-    // held token keeps serving.
+    // losing claudeAiOauth entirely. Unreadable, not a missing sign-in, so the file copy gets its turn.
     let truncated = #"{"mcpOAuth":{"slack":{"serverUrl":"https://mcp.slack.com/mcp","token":"htt"#
-    check(Credentials.parseForTests(Data(truncated.utf8)) == .transient,
-          "truncated credentials blob is transient, not a missing sign-in")
+    check(Credentials.parseForTests(Data(truncated.utf8)) == .unreadable,
+          "truncated credentials blob is unreadable, not a missing sign-in")
     let mcpOnly = #"{"mcpOAuth":{"slack":{"serverUrl":"https://mcp.slack.com/mcp"}}}"#
     check(Credentials.parseForTests(Data(mcpOnly.utf8)) == .signedOut,
           "valid blob with only MCP sign-ins: Claude Code is there, signed out")
@@ -778,58 +758,20 @@ func runSelfTest() {
     let blanked = #"{"claudeAiOauth":{"accessToken":"","refreshToken":"","expiresAt":0,"refreshTokenExpiresAt":1794684849013,"scopes":["user:profile"],"subscriptionType":"max"},"organizationUuid":"o","mcpOAuth":{"x":1}}"#
     check(Credentials.parseForTests(Data(blanked.utf8)) == .signedOut, "blanked sign-in reads as signed out")
     let ended = #"{"claudeAiOauth":{"accessToken":"t","refreshToken":"r","expiresAt":1000,"refreshTokenExpiresAt":2000}}"#
-    check(Credentials.parseForTests(Data(ended.utf8)) == .signedOut,
-          "expired token and ended grant: signed out, without posting a refresh to be refused")
+    check(Credentials.parseForTests(Data(ended.utf8)) == .signedOut, "expired token and ended grant: signed out")
     let renewable = #"{"claudeAiOauth":{"accessToken":"t","refreshToken":"r","expiresAt":1000,"refreshTokenExpiresAt":4102444800000}}"#
-    check(Credentials.parseForTests(Data(renewable.utf8)) == .ok, "expired token with a live grant is renewable")
-    check(Credentials.signInEndsForTests(Data(renewable.utf8)) == Date(timeIntervalSince1970: 4102444800),
-          "refreshTokenExpiresAt read as the sign-in's end")
-    let good = #"{"claudeAiOauth":{"accessToken":"t","refreshToken":"r","scopes":["user:profile"],"expiresAt":4102444800000,"rateLimitTier":"default_claude_max_20x"}}"#
+    check(Credentials.parseForTests(Data(renewable.utf8)) == .expired,
+          "expired token with a live grant: expired, for Claude Code to renew")
+    let good = #"{"claudeAiOauth":{"accessToken":"t","refreshToken":"r","scopes":["user:profile"],"expiresAt":4102444800000,"rateLimitTier":"default_claude_max_20x","refreshTokenExpiresAt":4102444800000}}"#
     check(Credentials.parseForTests(Data(good.utf8)) == .ok, "well-formed blob parses")
-    check(Credentials.signInEndsForTests(Data(good.utf8)) == nil, "no refreshTokenExpiresAt: no end date")
+    check(Credentials.signInEndsForTests(Data(good.utf8)) == Date(timeIntervalSince1970: 4102444800),
+          "refreshTokenExpiresAt read as the sign-in's end")
+    let noEnd = #"{"claudeAiOauth":{"accessToken":"t","expiresAt":4102444800000}}"#
+    check(Credentials.signInEndsForTests(Data(noEnd.utf8)) == nil, "no refreshTokenExpiresAt: no end date")
 
-    // MARK: write-back compare-and-swap
+    // MARK: keychain reading
 
-    let update: [String: Any] = ["accessToken": "t2", "refreshToken": "r2", "expiresAt": 1.0]
-    let stored = #"{"claudeAiOauth":{"accessToken":"t","refreshToken":"r","clientId":"c"},"mcpOAuth":{"x":1}}"#
-    let merged = Credentials.merge(Data(stored.utf8), spent: "r", update: update)
-        .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
-    let mergedOAuth = merged?["claudeAiOauth"] as? [String: Any]
-    check(mergedOAuth?["refreshToken"] as? String == "r2" && mergedOAuth?["accessToken"] as? String == "t2",
-          "write-back replaces the spent grant")
-    check(mergedOAuth?["clientId"] as? String == "c" && merged?["mcpOAuth"] != nil,
-          "write-back keeps every key it doesn't own")
-    check(Credentials.merge(Data(stored.utf8), spent: "other", update: update) == nil,
-          "a newer grant in the store wins: no write")
-    check(Credentials.merge(Data(truncated.utf8), spent: "r", update: update) == nil,
-          "never write over a blob that doesn't parse")
-
-    // MARK: credential selection
-
-    func cred(_ id: String, ttl: TimeInterval) -> Credentials.Creds {
-        Credentials.Creds(accessToken: id, refreshToken: "grant-" + id, scopes: [],
-                          expiresAt: Date().addingTimeInterval(ttl), planName: nil)
-    }
-    let liveKC = cred("kc", ttl: 600), deadKC = cred("kc", ttl: -600)
-    let liveHeld = cred("held", ttl: 600), deadHeld = cred("held", ttl: -600)
-
-    check(UsageModel.pick(keychain: liveKC, held: nil).use?.accessToken == "kc",
-          "valid keychain token wins — it costs nothing and Claude Code keeps it freshest")
-    check(UsageModel.pick(keychain: liveKC, held: deadHeld).use?.accessToken == "kc",
-          "valid keychain token beats a token of ours that has since expired")
-    check(UsageModel.pick(keychain: deadKC, held: liveHeld).use?.accessToken == "held",
-          "expired keychain token falls back to the one we minted")
-    check(UsageModel.pick(keychain: nil, held: liveHeld).use?.accessToken == "held",
-          "a truncated credentials blob does not take the meter down")
-
-    let bothDead = UsageModel.pick(keychain: deadKC, held: deadHeld)
-    check(bothDead.use == nil && bothDead.refreshFrom?.refreshToken == "grant-kc",
-          "both expired: refresh from the keychain grant, where a fresh sign-in lands")
-    let readFailed = UsageModel.pick(keychain: nil, held: deadHeld)
-    check(readFailed.use == nil && readFailed.refreshFrom?.refreshToken == "grant-held",
-          "no keychain read: refresh from the last grant we saw")
-    let nothing = UsageModel.pick(keychain: nil, held: nil)
-    check(nothing.use == nil && nothing.refreshFrom == nil, "nothing to use and nothing to refresh")
+    runReaderSelfTest(check)
 
     // MARK: accounts
 

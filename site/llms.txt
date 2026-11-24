@@ -5,7 +5,7 @@
 - Website: https://claudemeter.vercel.app/
 - Download: https://claudemeter.vercel.app/ClaudeMeter.dmg (the site asks for an email for update notices, then the download starts)
 - Source code: https://github.com/FreemanGT/claude-meter (open source, MIT licence)
-- Version: 1.5.0 (build 9) · Price: free · © 2026 Yiftach Freeman
+- Version: 1.5.1 (build 10) · Price: free · © 2026 Yiftach Freeman
 - Signed with an Apple Developer ID and notarized by Apple.
 - Windows: not available yet. The website has a waitlist (name and email); one email when it ships.
 - Independent project. Not affiliated with or endorsed by Anthropic. Claude is a trademark of Anthropic, PBC.
@@ -44,7 +44,7 @@ Refreshes every 5 minutes and when you hover, never faster than every 3 minutes 
 
 ## Privacy and data
 
-- Only reads the sign-in Claude Code already saved on the Mac: the macOS Keychain item "Claude Code-credentials" (read by Claude Meter itself, so macOS names Claude Meter when it asks), falling back to ~/.claude/.credentials.json. A second sign-in made with CLAUDE_CONFIG_DIR has its own item, "Claude Code-credentials-<hash>", and its own .credentials.json.
+- Only reads the sign-in Claude Code already saved on the Mac: the macOS Keychain item "Claude Code-credentials" (read through Apple's own `security` tool, the way Claude Code reads it, so macOS doesn't ask), falling back to ~/.claude/.credentials.json. A second sign-in made with CLAUDE_CONFIG_DIR has its own item, "Claude Code-credentials-<hash>", and its own .credentials.json.
 - To know which account to show, it reads the account ID the Claude desktop app keeps in ~/Library/Application Support/Claude/config.json. It never reads the app's own sign-in.
 - It never renews a sign-in and never writes or deletes a keychain item or file; Claude Code renews its own sign-in. When the token has run out, the meter says so until `claude` runs again. A keychain item is opened only when Claude Code has saved a new sign-in there; a "no" to macOS's question stands until the user picks Allow Keychain access in the menu.
 - Network: api.anthropic.com (usage, and once per new sign-in which account it belongs to), and once a day https://claudemeter.vercel.app/version.json to check for updates.
@@ -58,7 +58,7 @@ Refreshes every 5 minutes and when you hover, never faster than every 3 minutes 
 ## FAQ
 
 - Do I need Claude Code? Yes. It reads the sign-in Claude Code saves on your Mac.
-- Will macOS ask for keychain access? Once: it asks whether "Claude Meter" may use "Claude Code-credentials". Always Allow keeps it allowed for Claude Meter only, until Claude Code signs in afresh. A prompt naming "security" comes from another program (often Claude Code itself), not from Claude Meter.
+- Will macOS ask for keychain access? No. Claude Meter reads the sign-in through Apple's `security` tool (find-generic-password only), which Claude Code's keychain item already lets in. Apps that read the item directly are asked for the login password again after every Claude Code save, every few minutes.
 - How do I quit or uninstall? Right-click the island and choose Quit. To uninstall, drag the app from Applications to the Trash.
 - Is it made by Anthropic? No.
 - Is it open source? Yes, MIT: https://github.com/FreemanGT/claude-meter

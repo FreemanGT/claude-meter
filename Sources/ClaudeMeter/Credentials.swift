@@ -114,7 +114,14 @@ enum Credentials {
         var resolved: [Login] = []
         for candidate in logins() {
             var uuid = candidate.accountUUID, email = candidate.email
-            let known = ask ? await owner(of: candidate, owners: &owners, reader: reader) : owners[candidate.service]
+            var known = ask ? await owner(of: candidate, owners: &owners, reader: reader) : owners[candidate.service]
+            // Declined since Claude Code saved a sign-in there that may be someone else's: the old
+            // answer can't be trusted, and treating it as known could hide that the refusal is what
+            // stands in the way (or drop this sign-in as a duplicate of another account's).
+            if let owner = known, candidate.service == service, reader.isRefused(service),
+               owner.changed != reader.newestChange(service) {
+                known = nil
+            }
             if candidate.service == service, let owner = known {
                 uuid = owner.uuid
                 email = owner.email
@@ -126,7 +133,8 @@ enum Credentials {
         // Two syncs can overlap (the account watcher and a fetch): save only what this one learned,
         // on top of what is on file now, so one doesn't overwrite the other's answer.
         let learned = owners.filter { before[$0.key]?.changed != $0.value.changed }
-        if !learned.isEmpty { saveOwners(loadOwners().merging(learned) { $1 }) }
+        // Of two answers for one item, the one for its later change date wins.
+        if !learned.isEmpty { saveOwners(loadOwners().merging(learned) { old, new in new.changed >= old.changed ? new : old }) }
         return resolved
     }
 

@@ -32,10 +32,13 @@ each profile's `.credentials.json`. It never renews a sign-in, never writes or d
 or file, and never sees the refresh token: Claude Code renews its own sign-in, and when the token has
 run out the meter says so until `claude` runs again.
 
-It reads the Keychain itself, so macOS names Claude Meter when it asks, and Always Allow lets only
-Claude Meter in (an "Always Allow" for Apple's `security` tool would let every program in). It opens an
-item only when Claude Code has saved a new sign-in there, and if you say no it doesn't ask again until
-you choose *Allow Keychain access* in the right-click menu. The token is kept in memory only.
+It reads the Keychain through Apple's `security` tool (`find-generic-password`, nothing else), the
+same way Claude Code reads its own sign-in, so macOS doesn't ask. Claude Code saves its sign-in with
+that tool, and every save leaves the item open to Apple's tools only: an app that reads it directly is
+asked for your login password again after each save, which is every few minutes while Claude Code
+runs (1.5.0 did that). It opens an item only when Claude Code has saved a new sign-in there, and if
+macOS ever does ask and you say no, it doesn't ask again until you choose *Allow Keychain access* in
+the right-click menu. The token is kept in memory only.
 
 To know which account to show it reads the account ID the Claude app keeps in
 `~/Library/Application Support/Claude/config.json`; it never touches the app's own sign-in. It talks to

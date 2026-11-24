@@ -171,6 +171,22 @@ if let index = CommandLine.arguments.firstIndex(of: "--snapshot") {
     exit(0)
 }
 
+// Reads every sign-in once, the way the meter does, and prints what came of each: never a token.
+// Run it to check that reading puts no Keychain question on screen.
+if CommandLine.arguments.contains("--read-check") {
+    for login in Credentials.logins() {
+        let reading = Credentials.Reader.shared.read(login, manual: true)
+        switch reading.result {
+        case .success(let creds):
+            let until = creds.expiresAt.map { $0.formatted(date: .omitted, time: .shortened) } ?? "no end given"
+            print("[\(login.service)] read, token good until \(until)")
+        case .failure(let error):
+            print("[\(login.service)] \(error.kind): \(error.message)")
+        }
+    }
+    exit(0)
+}
+
 // Which Claude Code sign-ins the meter sees, and which one it shows (*). Emails, never tokens.
 // Lists keychain items without opening any, so it never makes macOS ask.
 if CommandLine.arguments.contains("--accounts") {

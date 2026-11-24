@@ -23,12 +23,29 @@ done
 # Universal: Intel Macs on 14.4+ can run it too (they get the no-notch pill).
 swift build -c release --arch arm64 --arch x86_64 ${FLAGS[@]+"${FLAGS[@]}"}
 
-# The Claude Code sign-in is only read (Credentials.swift). Refuse a binary that could renew it at
-# the sign-in server, write or delete a Keychain item, or ask through the `security` tool, whose
-# question doesn't name this app and whose Always Allow opens the item to every program.
-FORBIDDEN='oauth/token|refresh_token|grant_type|generic-password|/usr/bin/security'
+# The Claude Code sign-in is only read (Credentials.swift), through `security find-generic-password`,
+# the one reader Claude Code's items let in without asking. Refuse a binary that could renew it at
+# the sign-in server, or that holds any `security` command that writes, deletes, dumps or unlocks.
+FORBIDDEN='oauth/token|refresh_token|grant_type|(add|delete|set)-(generic|internet)-password|partition-list|(un)?lock-keychain|(create|delete|dump)-keychain|^export$'
 if strings -a .build/release/ClaudeMeter | grep -E -q "$FORBIDDEN"; then
     echo "build.sh: the binary holds a string it must not: $(strings -a .build/release/ClaudeMeter | grep -E -o "$FORBIDDEN" | sort -u | tr '\n' ' ')" >&2
+    exit 1
+fi
+# Swift keeps strings of 15 bytes or fewer inside the code, where `strings` can't see them, so the
+# sources are checked too: no renewal strings, `security` started from one place, and no `security`
+# command in them but find-generic-password.
+if grep -rqE 'oauth/token|refresh_token|grant_type' Sources; then
+    echo "build.sh: Sources hold a sign-in renewal string" >&2
+    exit 1
+fi
+if [ "$(grep -rho '/usr/bin/security' Sources | wc -l | tr -d ' ')" != 1 ]; then
+    echo "build.sh: /usr/bin/security may be started from Credentials.securityRead only" >&2
+    exit 1
+fi
+OTHER=$(grep -rhoE '"[a-z]+(-[a-z]+)*"' Sources | grep -vx '"find-generic-password"' \
+    | grep -E 'keychain|password|cert|identit|partition|trust-settings|^"(import|export|authorize|authorizationdb|smartcards|leaks|execute-with-privileges)"$' || true)
+if [ -n "$OTHER" ]; then
+    echo "build.sh: Sources name a security command other than find-generic-password: $(echo $OTHER)" >&2
     exit 1
 fi
 # And by what it links: reading is SecItemCopyMatching only.

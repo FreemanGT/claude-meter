@@ -8,6 +8,8 @@ private final class FakeKeychain: @unchecked Sendable {
         var changed: Date
         var status: OSStatus = errSecSuccess
         var data: Data?
+        /// nil: an account of its own ("user<index>").
+        var account: String?
     }
 
     var items: [String: [Entry]] = [:]
@@ -24,15 +26,16 @@ private final class FakeKeychain: @unchecked Sendable {
             list: { service in
                 guard self.listable else { return nil }
                 return (self.items[service] ?? []).enumerated()
-                    .map { Credentials.Item(ref: Data("\(service)#\($0.offset)".utf8), changed: $0.element.changed) }
+                    .map { Credentials.Item(ref: Data("\(service)#\($0.offset)".utf8), changed: $0.element.changed,
+                                            service: service, account: $0.element.account ?? "user\($0.offset)") }
                     .sorted { $0.changed > $1.changed }
             },
-            open: { ref in
+            // Like `security`: the first item with that name and account, whichever was asked for.
+            open: { item in
                 self.opens += 1
                 self.duringOpen?()
-                let parts = String(decoding: ref, as: UTF8.self).split(separator: "#")
-                guard parts.count == 2, let index = Int(parts[1]),
-                      let entry = self.items[String(parts[0])]?[index]
+                guard let entry = (self.items[item.service] ?? []).enumerated()
+                    .first(where: { ($0.element.account ?? "user\($0.offset)") == item.account })?.element
                 else { return (errSecItemNotFound, nil) }
                 return (entry.status, entry.status == errSecSuccess ? entry.data : nil)
             },
@@ -247,6 +250,27 @@ func runReaderSelfTest(_ check: (Bool, String) -> Void) {
         kc.listable = false
         check(kind(kc.reader().read(login)) == .busy && kc.opens == 0, "Keychain can't be searched: busy")
     }
+
+    // Two items with one name and one account: `security` can only reach one of them, so the
+    // other isn't asked for again.
+    do {
+        let kc = FakeKeychain()
+        kc.items[service] = [.init(changed: t1, data: Data("{".utf8), account: "me"),
+                             .init(changed: t0, data: blob("older"), account: "me")]
+        _ = kc.reader().read(login)
+        check(kc.opens == 1, "same name and account: opened once")
+    }
+
+    // What `security` is asked: find, by name and account, print the item. Nothing else.
+    let asked = Credentials.securityArguments(Credentials.Item(ref: Data(), changed: t0, service: service, account: "me"))
+    check(asked == ["find-generic-password", "-s", service, "-a", "me", "-w"], "security is asked to find by name and account")
+
+    // What `security -w` prints: text and a newline, or hex for anything that isn't plain text.
+    let json = Data(#"{"claudeAiOauth":{"accessToken":"é"}}"#.utf8)
+    check(Credentials.securityOutput(json + Data("\n".utf8)) == json, "security text output: newline dropped")
+    let hex = Data((json.map { String(format: "%02x", $0) }.joined() + "\n").utf8)
+    check(Credentials.securityOutput(hex) == json, "security hex output: decoded")
+    check(Credentials.securityOutput(Data("not hex\n".utf8)) == Data("not hex".utf8), "other output left as it is")
 
     // Which fix the menu offers. Arguments: issue, refused, refusedUnknown, missingAppAccount,
     // unauthorized, daysLeft.

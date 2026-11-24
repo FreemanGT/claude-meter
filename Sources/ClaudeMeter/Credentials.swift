@@ -305,10 +305,13 @@ enum Credentials {
 // MARK: - The Keychain, read only
 
 extension Credentials {
-    /// One keychain item: a reference to open it by, and when it was last changed.
+    /// One keychain item: a reference to tell it apart, its name and account, and when it was
+    /// last changed.
     struct Item: Sendable {
         let ref: Data
         let changed: Date
+        var service = ""
+        var account: String? = nil
     }
 
     /// Where sign-ins are read from. `keychain` is the real one; --selftest passes a fake.
@@ -316,8 +319,8 @@ extension Credentials {
         /// Items with that name, newest first. Listing doesn't open anything, so macOS doesn't
         /// ask. Empty: there is no such item. nil: the Keychain can't be searched just now.
         var list: @Sendable (_ service: String) -> [Item]?
-        /// Opens one item. This is the only step that can make macOS ask.
-        var open: @Sendable (_ ref: Data) -> (status: OSStatus, data: Data?)
+        /// Opens one item. This is the only step that could make macOS ask.
+        var open: @Sendable (_ item: Item) -> (status: OSStatus, data: Data?)
         var file: @Sendable (_ url: URL) -> Data?
         var now: @Sendable () -> Date
 
@@ -337,18 +340,91 @@ extension Credentials {
                 guard status == errSecSuccess, let found = out as? [[String: Any]] else { return nil }
                 return found.compactMap { item -> Item? in
                     guard let ref = item[kSecValuePersistentRef as String] as? Data else { return nil }
-                    return Item(ref: ref, changed: (item[kSecAttrModificationDate as String] as? Date) ?? .distantPast)
+                    return Item(ref: ref, changed: (item[kSecAttrModificationDate as String] as? Date) ?? .distantPast,
+                                service: service, account: item[kSecAttrAccount as String] as? String)
                 }.sorted { $0.changed > $1.changed }
             },
-            open: { ref in
-                var out: AnyObject?
-                let query: [String: Any] = [kSecValuePersistentRef as String: ref, kSecReturnData as String: true]
-                let status = SecItemCopyMatching(query as CFDictionary, &out)
-                return (status, out as? Data)
-            },
+            open: { securityRead($0) },
             file: { try? Data(contentsOf: $0) },
             now: { Date() }
         )
+    }
+
+    /// Opens an item the way Claude Code opens it: through Apple's `security` tool, which only
+    /// ever finds and prints here. Claude Code saves its sign-in with that tool, so the item's
+    /// access list lets it in without asking. Every save also cuts the item's partition list back
+    /// to Apple's tools ("apple-tool:"), so any other app reading it directly, Claude Meter 1.5.0
+    /// included, is asked for the login password again after each save: every few minutes while
+    /// Claude Code runs (seen 2026-11-24, with Always Allow clicked each time). Nothing new is let
+    /// in by this: the tool was already on every item's list, put there by Claude Code.
+    static func securityRead(_ item: Item) -> (status: OSStatus, data: Data?) {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/security")
+        process.arguments = securityArguments(item)
+        let out = Pipe()
+        process.standardOutput = out
+        process.standardError = FileHandle.nullDevice
+        process.standardInput = FileHandle.nullDevice
+        do { try process.run() } catch { return (errSecNotAvailable, nil) }
+        // Should macOS ask anyway (an item the tool isn't allowed into), its question waits for an
+        // answer. Give someone typing a password time, then stop, and take silence as a no: the
+        // question doesn't come back until they choose Allow Keychain access.
+        let unanswered = Flag()
+        let stop = DispatchWorkItem { unanswered.set(); process.terminate() }
+        DispatchQueue.global().asyncAfter(deadline: .now() + 120, execute: stop)
+        let data = out.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        stop.cancel()
+        if unanswered.isSet { return (errSecUserCanceled, nil) }
+        guard process.terminationReason == .exit else { return (errSecInteractionNotAllowed, nil) }
+        // `security` exits with the low byte of the OSStatus it got.
+        switch process.terminationStatus {
+        case 0: return (errSecSuccess, securityOutput(data))
+        case 44: return (errSecItemNotFound, nil)
+        case 128: return (errSecUserCanceled, nil)
+        case 51: return (errSecAuthFailed, nil)
+        default: return (errSecInteractionNotAllowed, nil)
+        }
+    }
+
+    /// Exactly what Claude Code runs to read its own sign-in. Without a keychain named, `security`
+    /// takes the first match in the search list, the same item Claude Code reads and saves to.
+    static func securityArguments(_ item: Item) -> [String] {
+        var arguments = ["find-generic-password", "-s", item.service]
+        if let account = item.account { arguments += ["-a", account] }
+        return arguments + ["-w"]
+    }
+
+    private final class Flag: @unchecked Sendable {
+        private let lock = NSLock()
+        private var value = false
+        func set() { lock.lock(); value = true; lock.unlock() }
+        var isSet: Bool { lock.lock(); defer { lock.unlock() }; return value }
+    }
+
+    /// `security -w` prints the item followed by a newline, as text, or as hex digits when it
+    /// isn't plain printable text (a name with an accent in it, say).
+    static func securityOutput(_ data: Data) -> Data {
+        var text = data
+        while let last = text.last, last == 0x0A || last == 0x0D { text.removeLast() }
+        guard text.first != UInt8(ascii: "{"), !text.isEmpty, text.count % 2 == 0 else { return text }
+        var bytes = Data(capacity: text.count / 2)
+        var index = text.startIndex
+        while index < text.endIndex {
+            guard let high = hexValue(text[index]), let low = hexValue(text[text.index(after: index)]) else { return text }
+            bytes.append(high << 4 | low)
+            index = text.index(index, offsetBy: 2)
+        }
+        return bytes
+    }
+
+    private static func hexValue(_ byte: UInt8) -> UInt8? {
+        switch byte {
+        case UInt8(ascii: "0")...UInt8(ascii: "9"): return byte - UInt8(ascii: "0")
+        case UInt8(ascii: "a")...UInt8(ascii: "f"): return byte - UInt8(ascii: "a") + 10
+        case UInt8(ascii: "A")...UInt8(ascii: "F"): return byte - UInt8(ascii: "A") + 10
+        default: return nil
+        }
     }
 
     /// What one look for a sign-in found. `seen` is the change date of the newest keychain item it
@@ -503,9 +579,15 @@ extension Credentials {
 
             var firstError: CredError?
             var denied = false, cantOpen = false
+            var tried: Set<String> = []
             // Newest first, stopping at the first good one: one question from macOS, not one per item.
             for item in items {
-                let (status, data) = store.open(item.ref)
+                // `security` finds an item by name and account, so of two items sharing both (in two
+                // keychains) it only ever reaches the first in the search list. That is also the
+                // one Claude Code reads and saves to (its `-U` save updates the first match), so
+                // it is the one that changes, and the newest.
+                guard tried.insert(item.account ?? "").inserted else { continue }
+                let (status, data) = store.open(item)
                 if status == errSecUserCanceled || status == errSecAuthFailed { denied = true; break }
                 if status != errSecSuccess { cantOpen = status != errSecItemNotFound || cantOpen; continue }
                 guard let data else { continue }

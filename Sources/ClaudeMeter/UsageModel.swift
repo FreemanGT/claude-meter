@@ -84,6 +84,7 @@ final class UsageModel: ObservableObject {
 
     var credentialAction: CredentialAction? {
         Self.credentialAction(issue: credentialIssue, refused: !refusedLogins.isEmpty,
+                              refusedUnknown: refusedLogins.contains { $0.accountUUID == nil },
                               missingAppAccount: missingAppAccount,
                               unauthorized: status == .unauthorized && shown != nil,
                               daysLeft: shown == nil ? nil : signInDaysLeft)
@@ -93,9 +94,12 @@ final class UsageModel: ObservableObject {
     /// again only changes the item, and the next read would still be refused. A refused default
     /// sign-in also leaves its account unknown, which is how the Claude app's account can look
     /// missing; adding a sign-in for it would make a duplicate.
-    nonisolated static func credentialAction(issue: Credentials.CredError.Kind?, refused: Bool, missingAppAccount: Bool,
-                                             unauthorized: Bool, daysLeft: Int?) -> CredentialAction? {
-        if issue == .denied || (missingAppAccount && refused) { return .allowKeychain }
+    /// `refusedUnknown`: a refused sign-in whose account isn't known, the only kind that can be why
+    /// the Claude app's account looks missing.
+    nonisolated static func credentialAction(issue: Credentials.CredError.Kind?, refused: Bool, refusedUnknown: Bool,
+                                             missingAppAccount: Bool, unauthorized: Bool,
+                                             daysLeft: Int?) -> CredentialAction? {
+        if issue == .denied || (missingAppAccount && refusedUnknown) { return .allowKeychain }
         if missingAppAccount { return .signInAppAccount }
         if unauthorized { return .signInAgain }
         if let daysLeft { return .signInEnding(days: daysLeft) }
@@ -137,6 +141,8 @@ final class UsageModel: ObservableObject {
     /// One asked for meanwhile runs once the current one ends (`manual` if any of them was).
     private var fetching = false
     private var fetchAgain: Bool?
+    /// How long to wait before looking again while another item's question is on screen.
+    private var soonWait: TimeInterval = 3
 
     func start() {
         // 1.4 kept a hash of each refresh token in the preferences.
@@ -183,7 +189,7 @@ final class UsageModel: ObservableObject {
         var credentialsFailedAt: Date?
         var signInEnds: Date?
         var credentialIssue: Credentials.CredError.Kind? = nil
-        var watching: [Date?]? = nil
+        var watching: (service: String, stamp: [Date?])? = nil
     }
 
     private var parked: [String: Parked] = [:]
@@ -230,7 +236,7 @@ final class UsageModel: ObservableObject {
                 snapshot: snapshot, status: status, history: history, lastAttempt: lastAttempt,
                 backoff: backoff, rateLimitedUntil: rateLimitedUntil, credentialsFailedAt: credentialsFailedAt,
                 signInEnds: signInEnds, credentialIssue: credentialIssue,
-                watching: watching?.service == leaving?.service ? watching?.stamp : nil
+                watching: watching?.service == leaving?.service ? watching : nil
             )
         }
         historyKey = login.map { login in
@@ -251,7 +257,8 @@ final class UsageModel: ObservableObject {
         credentialsFailedAt = next.credentialsFailedAt
         signInEnds = next.signInEnds
         credentialIssue = next.credentialIssue
-        if let login, let stamp = next.watching { watching = (login.service, stamp) } else { watching = nil }
+        // A watcher parked with this account, if it was for this same sign-in.
+        watching = next.watching.flatMap { $0.service == login?.service ? $0 : nil }
         pendingRefresh?.cancel()
         pendingRefresh = nil
         NSLog("ClaudeMeter showing %@", login?.service ?? "nothing: no sign-in for the Claude app's account")
@@ -319,10 +326,15 @@ final class UsageModel: ObservableObject {
     /// refused sign-in is asked about now (one question at a time), not at the next poll, which the
     /// rate limit or the poll floor could put minutes away.
     func allowKeychain() {
-        let refused = refusedLogins
+        // Worked out now: the list from the last sync can predate the "no" that put the button here.
+        var refused = logins.filter { Credentials.Reader.shared.isRefused($0.service) }
+        if let shown, credentialIssue == .denied, !refused.contains(shown) { refused.insert(shown, at: 0) }
+        // The one in the way first, then the rest.
+        if let shown, let index = refused.firstIndex(of: shown) { refused.insert(refused.remove(at: index), at: 0) }
+        let toAsk = refused
         Task { [weak self] in
             await Task.detached {
-                for login in refused {
+                for login in toAsk {
                     Credentials.Reader.shared.allowAgain(login.service)
                     _ = Credentials.Reader.shared.read(login, manual: true)
                 }
@@ -490,21 +502,28 @@ final class UsageModel: ObservableObject {
             // A "no" stands until the person asks again; anything else may be fixed by Claude Code
             // saving a new sign-in, which the watcher notices without opening anything.
             if error.kind != .denied { watch(login, seen: reading.seen) }
+            if error.kind == .denied, !refusedLogins.contains(login) { refusedLogins.append(login) }
             // Only busy because another item was being opened: that one is answered within
             // seconds, and nothing about this item will change to wake the watcher.
+            // While that question waits for an answer, look less and less often (3, 6, 12… s).
             if error.soon {
+                let wait = soonWait
+                soonWait = min(60, soonWait * 2)
                 pendingRefresh?.cancel()
                 pendingRefresh = Task { [weak self] in
-                    try? await Task.sleep(for: .seconds(3))
+                    try? await Task.sleep(for: .seconds(wait))
                     guard !Task.isCancelled, let self else { return }
                     self.pendingRefresh = nil
-                    await self.fetch()
+                    await self.fetch(manual: manual)
                 }
+            } else {
+                soonWait = 3
             }
             return
         case .success(let value):
             credentialsFailedAt = nil
             credentialIssue = nil
+            soonWait = 3
             if watching?.service == login.service { watching = nil }
             creds = value
             signInEnds = value.signInEnds

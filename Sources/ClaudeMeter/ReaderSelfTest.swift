@@ -248,15 +248,18 @@ func runReaderSelfTest(_ check: (Bool, String) -> Void) {
         check(kind(kc.reader().read(login)) == .busy && kc.opens == 0, "Keychain can't be searched: busy")
     }
 
-    // Which fix the menu offers.
+    // Which fix the menu offers. Arguments: issue, refused, refusedUnknown, missingAppAccount,
+    // unauthorized, daysLeft.
     let act = UsageModel.credentialAction
-    check(act(.denied, true, false, true, 2) == .allowKeychain, "a no to the Keychain comes before signing in again")
-    check(act(nil, true, true, false, nil) == .allowKeychain,
-          "a refused default sign-in can be why the app's account looks missing: allow, don't add a duplicate")
-    check(act(nil, false, true, false, nil) == .signInAppAccount, "missing app account: add it")
-    check(act(.signedOut, false, false, true, nil) == .signInAgain, "signed out: sign in again")
-    check(act(nil, false, false, false, 2) == .signInEnding(days: 2), "ending soon: say so")
-    check(act(.missing, false, false, false, nil) == .getClaudeCode, "no sign-in at all: get Claude Code")
-    check(act(.expired, false, false, false, nil) == nil, "expired: nothing to click, Claude Code renews it")
-    check(act(nil, true, false, false, nil) == .allowKeychain, "another sign-in refused: still offered")
+    check(act(.denied, true, false, false, true, 2) == .allowKeychain, "a no to the Keychain comes before signing in again")
+    check(act(nil, true, true, true, false, nil) == .allowKeychain,
+          "a refused sign-in of unknown account can be why the app's account looks missing: allow, don't add a duplicate")
+    check(act(nil, true, false, true, false, nil) == .signInAppAccount,
+          "a refused sign-in whose account is known can't be why: adding the app's account stays reachable")
+    check(act(nil, false, false, true, false, nil) == .signInAppAccount, "missing app account: add it")
+    check(act(.signedOut, false, false, false, true, nil) == .signInAgain, "signed out: sign in again")
+    check(act(nil, false, false, false, false, 2) == .signInEnding(days: 2), "ending soon: say so")
+    check(act(.missing, false, false, false, false, nil) == .getClaudeCode, "no sign-in at all: get Claude Code")
+    check(act(.expired, false, false, false, false, nil) == nil, "expired: nothing to click, Claude Code renews it")
+    check(act(nil, true, false, false, false, nil) == .allowKeychain, "another sign-in refused: still offered")
 }

@@ -175,7 +175,7 @@ if let index = CommandLine.arguments.firstIndex(of: "--snapshot") {
 // Lists keychain items without opening any, so it never makes macOS ask.
 if CommandLine.arguments.contains("--accounts") {
     Task {
-        let logins = await Credentials.resolvedLogins()
+        let logins = await Credentials.resolvedLogins(ask: false)
         let app = ClaudeApp.accountUUID()
         let chosen = UsageModel.choose(logins, app: app, pinned: UserDefaults.standard.string(forKey: UsageModel.accountKey))
         for login in logins {

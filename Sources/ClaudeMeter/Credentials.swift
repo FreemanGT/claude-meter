@@ -106,12 +106,16 @@ enum Credentials {
     /// entry per account. Lists keychain items without opening them; opens the default one only when
     /// Claude Code has saved a sign-in there since its account was last asked for, and that opening
     /// is remembered for the usage read that follows. Blocking, so run it off the main actor.
-    static func resolvedLogins(reader: Reader = .shared) async -> [Login] {
+    /// `ask: false` (the --accounts listing) uses only what is already known: nothing is opened
+    /// and nothing is sent.
+    static func resolvedLogins(reader: Reader = .shared, ask: Bool = true) async -> [Login] {
         var owners = loadOwners()
+        let before = owners
         var resolved: [Login] = []
         for candidate in logins() {
             var uuid = candidate.accountUUID, email = candidate.email
-            if candidate.service == service, let owner = await owner(of: candidate, owners: &owners, reader: reader) {
+            let known = ask ? await owner(of: candidate, owners: &owners, reader: reader) : owners[candidate.service]
+            if candidate.service == service, let owner = known {
                 uuid = owner.uuid
                 email = owner.email
             }
@@ -119,7 +123,10 @@ enum Credentials {
             resolved.append(Login(service: candidate.service, directory: candidate.directory,
                                   accountUUID: uuid, email: email))
         }
-        saveOwners(owners)
+        // Two syncs can overlap (the account watcher and a fetch): save only what this one learned,
+        // on top of what is on file now, so one doesn't overwrite the other's answer.
+        let learned = owners.filter { before[$0.key]?.changed != $0.value.changed }
+        if !learned.isEmpty { saveOwners(loadOwners().merging(learned) { $1 }) }
         return resolved
     }
 
@@ -129,6 +136,7 @@ enum Credentials {
 
     private static func owner(of login: Login, owners: inout [String: Owner], reader: Reader) async -> Owner? {
         let known = owners[login.service]
+        guard login.service == service else { return known }
         guard let changed = reader.newestChange(login.service) else { return known }
         if let known, known.changed == changed { return known }
         guard asked.take(login.service, changed) else { return known }
@@ -153,21 +161,32 @@ enum Credentials {
             reader.rejected(login.service, token: creds.accessToken, seen: seen)
             return known
         case .failed:
+            // Offline, a timeout, 429 or 5xx: try again later, a minute and then longer each time.
+            asked.failed(login.service)
             return known
         }
     }
 
+    /// Per item: the change date the profile was asked about, and when it may be asked again about
+    /// that same date (never, after an answer; later and later after a failed call).
     private final class AskedDates: @unchecked Sendable {
         private let lock = NSLock()
-        private var dates: [String: Date] = [:]
-        /// True the first time this change date is seen for this item.
-        func take(_ service: String, _ changed: Date) -> Bool {
+        private var asked: [String: (changed: Date, again: Date, wait: TimeInterval)] = [:]
+        /// True when this item's profile may be asked about now.
+        func take(_ service: String, _ changed: Date, now: Date = Date()) -> Bool {
             lock.lock(); defer { lock.unlock() }
-            if dates[service] == changed { return false }
-            dates[service] = changed
+            if let entry = asked[service], entry.changed == changed, entry.again > now { return false }
+            let wait = asked[service].map { $0.changed == changed ? $0.wait : 0 } ?? 0
+            asked[service] = (changed, .distantFuture, wait)
             return true
         }
-        func forget(_ service: String) { lock.lock(); dates[service] = nil; lock.unlock() }
+        func failed(_ service: String, now: Date = Date()) {
+            lock.lock(); defer { lock.unlock() }
+            guard let entry = asked[service] else { return }
+            let wait = min(3600, max(60, entry.wait * 2))
+            asked[service] = (entry.changed, now.addingTimeInterval(wait), wait)
+        }
+        func forget(_ service: String) { lock.lock(); asked[service] = nil; lock.unlock() }
     }
 
     private enum ProfileAnswer { case account(String, String?), refused, failed }

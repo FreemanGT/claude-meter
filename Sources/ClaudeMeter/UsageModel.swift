@@ -74,6 +74,35 @@ final class UsageModel: ObservableObject {
     @Published private(set) var signInEnds: Date?
     /// Why the shown sign-in can't be used right now; nil while it can.
     @Published private(set) var credentialIssue: Credentials.CredError.Kind?
+    /// Sign-ins whose Keychain question the person said no to (any of them, shown or not).
+    @Published private(set) var refusedLogins: [Credentials.Login] = []
+
+    /// The one sign-in fix the menu offers, if any.
+    enum CredentialAction: Equatable {
+        case allowKeychain, signInAppAccount, signInAgain, signInEnding(days: Int), getClaudeCode
+    }
+
+    var credentialAction: CredentialAction? {
+        Self.credentialAction(issue: credentialIssue, refused: !refusedLogins.isEmpty,
+                              missingAppAccount: missingAppAccount,
+                              unauthorized: status == .unauthorized && shown != nil,
+                              daysLeft: shown == nil ? nil : signInDaysLeft)
+    }
+
+    /// A "no" to the Keychain question comes first when it's what stands in the way: signing in
+    /// again only changes the item, and the next read would still be refused. A refused default
+    /// sign-in also leaves its account unknown, which is how the Claude app's account can look
+    /// missing; adding a sign-in for it would make a duplicate.
+    nonisolated static func credentialAction(issue: Credentials.CredError.Kind?, refused: Bool, missingAppAccount: Bool,
+                                             unauthorized: Bool, daysLeft: Int?) -> CredentialAction? {
+        if issue == .denied || (missingAppAccount && refused) { return .allowKeychain }
+        if missingAppAccount { return .signInAppAccount }
+        if unauthorized { return .signInAgain }
+        if let daysLeft { return .signInEnding(days: daysLeft) }
+        if issue == .missing { return .getClaudeCode }
+        if refused { return .allowKeychain }
+        return nil
+    }
 
     /// Days left on the shown sign-in, inside the 3-day window Claude Code itself warns in.
     var signInDaysLeft: Int? {
@@ -105,7 +134,9 @@ final class UsageModel: ObservableObject {
     private var credentialsFailedAt: Date?
     private var mocking = false
     /// One fetch at a time: a hover, a wake and the poll landing together must not each read.
+    /// One asked for meanwhile runs once the current one ends (`manual` if any of them was).
     private var fetching = false
+    private var fetchAgain: Bool?
 
     func start() {
         // 1.4 kept a hash of each refresh token in the preferences.
@@ -151,6 +182,8 @@ final class UsageModel: ObservableObject {
         var rateLimitedUntil: Date?
         var credentialsFailedAt: Date?
         var signInEnds: Date?
+        var credentialIssue: Credentials.CredError.Kind? = nil
+        var watching: [Date?]? = nil
     }
 
     private var parked: [String: Parked] = [:]
@@ -176,6 +209,7 @@ final class UsageModel: ObservableObject {
         let (found, app) = await Task.detached { (await Credentials.resolvedLogins(), ClaudeApp.accountUUID()) }.value
         logins = found
         appAccount = app
+        refusedLogins = found.filter { Credentials.Reader.shared.isRefused($0.service) }
         let login = Self.choose(found, app: app, pinned: UserDefaults.standard.string(forKey: Self.accountKey))
         missingAppAccount = login == nil
         show(login, key: login?.id ?? "app:" + (app ?? ""))
@@ -188,13 +222,15 @@ final class UsageModel: ObservableObject {
     }
 
     private func show(_ login: Credentials.Login?, key: String) {
+        let leaving = shown
         shown = login
         guard key != activeKey else { return }
         if let activeKey {
             parked[activeKey] = Parked(
                 snapshot: snapshot, status: status, history: history, lastAttempt: lastAttempt,
                 backoff: backoff, rateLimitedUntil: rateLimitedUntil, credentialsFailedAt: credentialsFailedAt,
-                signInEnds: signInEnds
+                signInEnds: signInEnds, credentialIssue: credentialIssue,
+                watching: watching?.service == leaving?.service ? watching?.stamp : nil
             )
         }
         historyKey = login.map { login in
@@ -214,8 +250,8 @@ final class UsageModel: ObservableObject {
         rateLimitedUntil = next.rateLimitedUntil
         credentialsFailedAt = next.credentialsFailedAt
         signInEnds = next.signInEnds
-        credentialIssue = nil
-        watching = nil  // it was for the account just left
+        credentialIssue = next.credentialIssue
+        if let login, let stamp = next.watching { watching = (login.service, stamp) } else { watching = nil }
         pendingRefresh?.cancel()
         pendingRefresh = nil
         NSLog("ClaudeMeter showing %@", login?.service ?? "nothing: no sign-in for the Claude app's account")
@@ -279,12 +315,20 @@ final class UsageModel: ObservableObject {
         if let login { watch(login) }
     }
 
-    /// The person said no to the Keychain question earlier and now asks to be asked again.
+    /// The person said no to the Keychain question earlier and now asks to be asked again: every
+    /// refused sign-in is asked about now (one question at a time), not at the next poll, which the
+    /// rate limit or the poll floor could put minutes away.
     func allowKeychain() {
-        guard let login = shown else { return }
-        Credentials.Reader.shared.allowAgain(login.service)
-        credentialIssue = nil
-        refreshNow()
+        let refused = refusedLogins
+        Task { [weak self] in
+            await Task.detached {
+                for login in refused {
+                    Credentials.Reader.shared.allowAgain(login.service)
+                    _ = Credentials.Reader.shared.read(login, manual: true)
+                }
+            }.value
+            await self?.fetch(manual: true)
+        }
     }
 
     /// The shown sign-in can't be used (or is being redone in Terminal): which one, and when its
@@ -298,9 +342,12 @@ final class UsageModel: ObservableObject {
         return [Credentials.Reader.shared.newestChange(login.service), file]
     }
 
-    private func watch(_ login: Credentials.Login) {
+    /// `seen`: the item change date the read that failed went by, so a save made since then counts
+    /// as a change (listing again here could take that save as the starting point and miss it).
+    private func watch(_ login: Credentials.Login, seen: Date? = nil) {
         Task { [weak self] in
-            let stamp = await Task.detached { Self.changeStamp(login) }.value
+            var stamp = await Task.detached { Self.changeStamp(login) }.value
+            if let seen { stamp[0] = seen }
             guard let self, self.shown?.service == login.service else { return }
             self.watching = (login.service, stamp)
         }
@@ -367,9 +414,21 @@ final class UsageModel: ObservableObject {
     // MARK: - Fetch
 
     private func fetch(manual: Bool = false) async {
-        guard !mocking, !fetching else { return }
+        guard !mocking else { return }
+        guard !fetching else {
+            fetchAgain = (fetchAgain ?? false) || manual
+            return
+        }
         fetching = true
-        defer { fetching = false }
+        await fetchOnce(manual: manual)
+        fetching = false
+        if let again = fetchAgain {
+            fetchAgain = nil
+            await fetch(manual: again)
+        }
+    }
+
+    private func fetchOnce(manual: Bool) async {
         await syncAccount()
         guard let login = shown, let key = activeKey else {
             status = .noCredentials(Self.missingMessage)
@@ -430,7 +489,18 @@ final class UsageModel: ObservableObject {
             }
             // A "no" stands until the person asks again; anything else may be fixed by Claude Code
             // saving a new sign-in, which the watcher notices without opening anything.
-            if error.kind != .denied { watch(login) }
+            if error.kind != .denied { watch(login, seen: reading.seen) }
+            // Only busy because another item was being opened: that one is answered within
+            // seconds, and nothing about this item will change to wake the watcher.
+            if error.soon {
+                pendingRefresh?.cancel()
+                pendingRefresh = Task { [weak self] in
+                    try? await Task.sleep(for: .seconds(3))
+                    guard !Task.isCancelled, let self else { return }
+                    self.pendingRefresh = nil
+                    await self.fetch()
+                }
+            }
             return
         case .success(let value):
             credentialsFailedAt = nil
@@ -466,7 +536,7 @@ final class UsageModel: ObservableObject {
                 await Task.detached { Credentials.Reader.shared.rejected(service, token: token, seen: seen) }.value
                 status = .unauthorized
                 credentialIssue = .signedOut
-                watch(login)
+                watch(login, seen: seen)
             case 429:
                 let advised = http?.value(forHTTPHeaderField: "Retry-After").flatMap(Self.parseRetryAfter)
                 let wait = min(3600, max(Self.floor, advised ?? backoff))

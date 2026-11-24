@@ -17,6 +17,7 @@ private final class FakeKeychain: @unchecked Sendable {
     /// Runs inside an open, as if a question were on screen.
     var duringOpen: (() -> Void)?
     var refusedSaved: [String] = []
+    var clock = Date()
 
     var store: Credentials.Store {
         Credentials.Store(
@@ -36,7 +37,7 @@ private final class FakeKeychain: @unchecked Sendable {
                 return (entry.status, entry.status == errSecSuccess ? entry.data : nil)
             },
             file: { self.files[$0] },
-            now: { Date() }
+            now: { self.clock }
         )
     }
 
@@ -177,9 +178,85 @@ func runReaderSelfTest(_ check: (Bool, String) -> Void) {
         check(token(fromFile) == "filetoken" && fromFile.seen == nil && fileOnly.opens == 0,
               "no keychain item: the credentials file is read, nothing opened")
         r2.rejected(service, token: "filetoken", seen: fromFile.seen)
-        check(kind(r2.read(login)) == .missing, "a refused token from the file isn't sent again")
+        check(kind(r2.read(login)) == .signedOut, "a refused token from the file isn't sent again: signed out, not missing")
         check(kind(fileOnly.reader().read(Credentials.Login(service: "none", directory: URL(fileURLWithPath: "/nowhere"),
                                                               accountUUID: nil, email: nil))) == .missing,
               "nothing anywhere: no sign-in")
     }
+    // Cancel on a password sheet counts as a "no" too.
+    do {
+        let kc = FakeKeychain()
+        kc.items[service] = [.init(changed: t0, status: errSecAuthFailed)]
+        let reader = kc.reader()
+        check(kind(reader.read(login)) == .denied, "errSecAuthFailed reads as denied")
+        _ = reader.read(login)
+        check(kc.opens == 1, "and is not asked again")
+    }
+
+    // The wait after a locked Keychain doubles, up to an hour.
+    do {
+        let kc = FakeKeychain()
+        kc.items[service] = [.init(changed: t0, status: errSecInteractionNotAllowed)]
+        let reader = kc.reader()
+        _ = reader.read(login)                                       // wait 1 min
+        kc.clock = kc.clock.addingTimeInterval(59); _ = reader.read(login)
+        check(kc.opens == 1, "not tried again within the first minute")
+        kc.clock = kc.clock.addingTimeInterval(2); _ = reader.read(login)  // wait 2 min
+        check(kc.opens == 2, "tried again after a minute")
+        kc.clock = kc.clock.addingTimeInterval(110); _ = reader.read(login)
+        check(kc.opens == 2, "then waits two minutes")
+        kc.clock = kc.clock.addingTimeInterval(15); _ = reader.read(login)
+        check(kc.opens == 3, "and tries again after them")
+        for _ in 0..<12 { kc.clock = kc.clock.addingTimeInterval(4000); _ = reader.read(login) }
+        let before = kc.opens
+        kc.clock = kc.clock.addingTimeInterval(3500); _ = reader.read(login)
+        check(kc.opens == before, "the wait stops growing at an hour")
+        kc.clock = kc.clock.addingTimeInterval(200); _ = reader.read(login)
+        check(kc.opens == before + 1, "an hour, not more")
+    }
+
+    // A token that runs out while held: reported, and the unchanged item is not opened for it.
+    do {
+        let kc = FakeKeychain()
+        kc.items[service] = [.init(changed: t0, data: blob("held", expiresIn: 600))]
+        let reader = kc.reader()
+        check(token(reader.read(login)) == "held", "read while in date")
+        kc.clock = kc.clock.addingTimeInterval(600)
+        check(kind(reader.read(login)) == .expired && kc.opens == 1, "expired while held: no new open")
+    }
+
+    // An expired newest item doesn't lead to opening older ones (each could be another question).
+    do {
+        let kc = FakeKeychain()
+        kc.items[service] = [.init(changed: t1, data: blob("new-expired", expiresIn: -600)), .init(changed: t0, data: blob("older"))]
+        let reader = kc.reader()
+        check(kind(reader.read(login)) == .expired && kc.opens == 1, "stops at an expired newest item")
+    }
+
+    // An expired keychain item falls back to a good credentials file.
+    do {
+        let kc = FakeKeychain()
+        kc.items[service] = [.init(changed: t0, data: blob("kc", expiresIn: -600))]
+        kc.files[login.fileURL] = blob("file")
+        check(token(kc.reader().read(login)) == "file", "expired keychain item: the file's token is used")
+    }
+
+    // Nothing to search and nothing held: busy, not "no sign-in".
+    do {
+        let kc = FakeKeychain()
+        kc.listable = false
+        check(kind(kc.reader().read(login)) == .busy && kc.opens == 0, "Keychain can't be searched: busy")
+    }
+
+    // Which fix the menu offers.
+    let act = UsageModel.credentialAction
+    check(act(.denied, true, false, true, 2) == .allowKeychain, "a no to the Keychain comes before signing in again")
+    check(act(nil, true, true, false, nil) == .allowKeychain,
+          "a refused default sign-in can be why the app's account looks missing: allow, don't add a duplicate")
+    check(act(nil, false, true, false, nil) == .signInAppAccount, "missing app account: add it")
+    check(act(.signedOut, false, false, true, nil) == .signInAgain, "signed out: sign in again")
+    check(act(nil, false, false, false, 2) == .signInEnding(days: 2), "ending soon: say so")
+    check(act(.missing, false, false, false, nil) == .getClaudeCode, "no sign-in at all: get Claude Code")
+    check(act(.expired, false, false, false, nil) == nil, "expired: nothing to click, Claude Code renews it")
+    check(act(nil, true, false, false, nil) == .allowKeychain, "another sign-in refused: still offered")
 }

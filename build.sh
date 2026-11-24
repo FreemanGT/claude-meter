@@ -31,6 +31,11 @@ if strings -a .build/release/ClaudeMeter | grep -E -q "$FORBIDDEN"; then
     echo "build.sh: the binary holds a string it must not: $(strings -a .build/release/ClaudeMeter | grep -E -o "$FORBIDDEN" | sort -u | tr '\n' ' ')" >&2
     exit 1
 fi
+# And by what it links: reading is SecItemCopyMatching only.
+if nm -u .build/release/ClaudeMeter | grep -E -q '_SecItem(Add|Update|Delete)|_SecKeychain'; then
+    echo "build.sh: the binary links a Keychain call that changes items" >&2
+    exit 1
+fi
 .build/release/ClaudeMeter --selftest
 
 APP="build/Claude Meter.app"

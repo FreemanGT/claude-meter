@@ -172,6 +172,7 @@ if let index = CommandLine.arguments.firstIndex(of: "--snapshot") {
 }
 
 // Which Claude Code sign-ins the meter sees, and which one it shows (*). Emails, never tokens.
+// Lists keychain items without opening any, so it never makes macOS ask.
 if CommandLine.arguments.contains("--accounts") {
     Task {
         let logins = await Credentials.resolvedLogins()
@@ -179,9 +180,14 @@ if CommandLine.arguments.contains("--accounts") {
         let chosen = UsageModel.choose(logins, app: app, pinned: UserDefaults.standard.string(forKey: UsageModel.accountKey))
         for login in logins {
             let state: String
-            switch Credentials.Reader.shared.read(login).result {
-            case .success: state = "token valid"
-            case .failure(let error): state = error.message
+            if Credentials.Reader.shared.isRefused(login.service) {
+                state = "Keychain access declined"
+            } else if let changed = Credentials.Reader.shared.newestChange(login.service) {
+                state = "keychain item, last saved \(changed.formatted(date: .abbreviated, time: .shortened))"
+            } else if FileManager.default.fileExists(atPath: login.fileURL.path) {
+                state = "credentials file only"
+            } else {
+                state = "no sign-in found"
             }
             print("\(login == chosen ? "*" : " ") \(login.email ?? "unknown account")  [\(login.service)]  \(state)")
         }

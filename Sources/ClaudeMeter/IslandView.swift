@@ -813,19 +813,24 @@ struct MenuContent: View {
         if let version = model.updateAvailable {
             Button("Update available — v\(version)…") { NSWorkspace.shared.open(UsageModel.siteURL) }
         }
-        if model.missingAppAccount {
-            Button("Sign in the Claude app's account…") { model.signIn() }
-        } else if model.status == .unauthorized, let login = model.shown {
-            Button("Sign in again…") { model.signIn(again: login) }
-        } else if let days = model.signInDaysLeft, let login = model.shown {
-            Button("Sign-in ends in \(days == 1 ? "1 day" : "\(days) days") — Sign in again…") {
-                model.signIn(again: login)
-            }
-        } else if model.credentialIssue == .denied {
+        switch model.credentialAction {
+        case .allowKeychain:
             // macOS asks again, naming Claude Meter; Always Allow keeps it for this app only.
             Button("Allow Keychain access…") { model.allowKeychain() }
-        } else if model.credentialIssue == .missing {
+        case .signInAppAccount:
+            Button("Sign in the Claude app's account…") { model.signIn() }
+        case .signInAgain:
+            if let login = model.shown { Button("Sign in again…") { model.signIn(again: login) } }
+        case .signInEnding(let days):
+            if let login = model.shown {
+                Button("Sign-in ends in \(days == 1 ? "1 day" : "\(days) days") — Sign in again…") {
+                    model.signIn(again: login)
+                }
+            }
+        case .getClaudeCode:
             Button("Get Claude Code…") { NSWorkspace.shared.open(Self.claudeCodeURL) }
+        case nil:
+            EmptyView()
         }
         // Only once there's a choice to make: one sign-in and an app on the same account has none.
         if model.logins.count > 1 || model.missingAppAccount {

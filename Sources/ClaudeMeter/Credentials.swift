@@ -49,6 +49,8 @@ enum Credentials {
         }
         let kind: Kind
         let message: String
+        /// Busy only because another item was being opened just then: worth trying again in seconds.
+        var soon = false
     }
 
     static let signInHint = "Sign in to Claude Code (Pro or Max): run claude, then /login"
@@ -121,33 +123,69 @@ enum Credentials {
         return resolved
     }
 
+    /// Item change dates the profile was already asked about (whatever the answer), so a failing
+    /// call is made once per new sign-in, not on every sync. Memory only.
+    private static let asked = AskedDates()
+
     private static func owner(of login: Login, owners: inout [String: Owner], reader: Reader) async -> Owner? {
         let known = owners[login.service]
         guard let changed = reader.newestChange(login.service) else { return known }
         if let known, known.changed == changed { return known }
+        guard asked.take(login.service, changed) else { return known }
         let reading = reader.read(login)
         // Expired, declined, offline, or refused: the last answer is still very likely right, since
         // a keychain item only changes hands when someone signs in to it again.
-        guard case .success(let creds) = reading.result, let seen = reading.seen,
-              let account = await profile(creds.accessToken)
-        else { return known }
-        let found = Owner(changed: seen, uuid: account.uuid, email: account.email)
-        owners[login.service] = found
-        return found
+        guard case .success(let creds) = reading.result, let seen = reading.seen else {
+            // Not read (busy, say): ask again at the next sync rather than wait for another change.
+            // Declined: once the person allows it again, ask then. (A refused item isn't opened, so
+            // trying again costs nothing.)
+            if case .failure(let error) = reading.result, error.kind == .busy || error.kind == .denied {
+                asked.forget(login.service)
+            }
+            return known
+        }
+        switch await profile(creds.accessToken) {
+        case .account(let uuid, let email):
+            let found = Owner(changed: seen, uuid: uuid, email: email)
+            owners[login.service] = found
+            return found
+        case .refused:
+            reader.rejected(login.service, token: creds.accessToken, seen: seen)
+            return known
+        case .failed:
+            return known
+        }
     }
 
+    private final class AskedDates: @unchecked Sendable {
+        private let lock = NSLock()
+        private var dates: [String: Date] = [:]
+        /// True the first time this change date is seen for this item.
+        func take(_ service: String, _ changed: Date) -> Bool {
+            lock.lock(); defer { lock.unlock() }
+            if dates[service] == changed { return false }
+            dates[service] = changed
+            return true
+        }
+        func forget(_ service: String) { lock.lock(); dates[service] = nil; lock.unlock() }
+    }
+
+    private enum ProfileAnswer { case account(String, String?), refused, failed }
+
     /// Claude Code's own "who am I" call (GET /api/oauth/profile with the sign-in's token).
-    private static func profile(_ accessToken: String) async -> (uuid: String, email: String?)? {
+    private static func profile(_ accessToken: String) async -> ProfileAnswer {
         var request = Net.request(profileURL)
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        guard let (data, response) = try? await Net.session.data(for: request),
-              (response as? HTTPURLResponse)?.statusCode == 200,
+        guard let (data, response) = try? await Net.session.data(for: request) else { return .failed }
+        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+        if code == 401 { return .refused }
+        guard code == 200,
               let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               let account = json["account"] as? [String: Any],
               let uuid = account["uuid"] as? String, !uuid.isEmpty
-        else { return nil }
-        return (uuid, account["email"] as? String)
+        else { return .failed }
+        return .account(uuid, account["email"] as? String)
     }
 
     private static func loadOwners() -> [String: Owner] {
@@ -262,7 +300,10 @@ extension Credentials {
                                             kSecAttrService as String: service,
                                             kSecReturnAttributes as String: true,
                                             kSecReturnPersistentRef as String: true,
-                                            kSecMatchLimit as String: kSecMatchLimitAll]
+                                            kSecMatchLimit as String: kSecMatchLimitAll,
+                                            // A listing must never put a window on screen (an
+                                            // unlock dialog for a locked keychain, say).
+                                            kSecUseAuthenticationUI as String: kSecUseAuthenticationUIFail]
                 var out: AnyObject?
                 let status = SecItemCopyMatching(query as CFDictionary, &out)
                 if status == errSecItemNotFound { return [] }
@@ -399,8 +440,13 @@ extension Credentials {
                !wasTurnedDown(creds) {
                 return Reading(result: .success(creds), seen: nil)
             }
+            // The only token found was refused by Anthropic: that's a dead sign-in, not a missing one.
             if case .success = fromKeychain.result {
                 return Reading(result: .failure(Self.refusedError), seen: fromKeychain.seen)
+            }
+            if case .failure(let error) = fromKeychain.result, error.kind == .missing,
+               let data = store.file(login.fileURL), case .success = Credentials.parse(data) {
+                return Reading(result: .failure(Self.refusedError), seen: nil)
             }
             return fromKeychain
         }
@@ -421,11 +467,11 @@ extension Credentials {
 
         private func open(_ items: [Item], service: String, newest: Date, now: Date, manual: Bool) -> Reading {
             let waiting = locked { retry[service].map { $0.at > now } ?? false }
-            let busy = { self.remembered(service, at: now)
-                ?? Reading(result: .failure(CredError(kind: .busy, message: "waiting for the Keychain")), seen: nil) }
-            if waiting && !manual { return busy() }
+            let busy = { (soon: Bool) in self.remembered(service, at: now)
+                ?? Reading(result: .failure(CredError(kind: .busy, message: "waiting for the Keychain", soon: soon)), seen: nil) }
+            if waiting && !manual { return busy(false) }
             // Another item is being opened (its question may be on screen): don't add a second.
-            guard opening.try() else { return busy() }
+            guard opening.try() else { return busy(true) }
             defer { opening.unlock() }
 
             var firstError: CredError?
@@ -447,6 +493,10 @@ extension Credentials {
                 case .failure(let error):
                     if firstError == nil { firstError = error }
                 }
+                // An older item behind an expired or signed-out one only holds something older
+                // still; opening it would only mean another question. Only an unreadable one
+                // (seen truncated mid-write) is worth looking past.
+                if let firstError, firstError.kind != .unreadable { break }
             }
             if denied {
                 locked {
@@ -469,7 +519,7 @@ extension Credentials {
                     let wait = min(3600, max(60, (retry[service]?.wait ?? 30) * 2))
                     retry[service] = (now.addingTimeInterval(wait), wait)
                 }
-                return busy()
+                return busy(false)
             }
             return Reading(result: .failure(CredError(kind: .missing, message: Credentials.signInHint)), seen: nil)
         }
